@@ -22,7 +22,7 @@ public interface NotificationMapper {
 
     // 插入通知
     @Insert("INSERT INTO notification(notification_id, notification_time, notification_title, sender_id, receiver_id, notification_content, notification_isdeleted, picture_link) " +
-            "VALUES (#{notificationId}, #{notificationTime}, #{notificationTitle}, #{senderId}, #{receiverId}, #{notificationContent}, #{notificationIsdeleted}, #{pictureLink})")
+            "VALUES (#{notificationId}, #{notificationTime}, #{notificationTitle}, #{senderId}, #{receiverId}, #{notificationContent}, #{notificationIsDeleted}, #{pictureLink})")
     int insertNotification(Notification notification);
 
     // 逻辑删除通知（设置为已删除）

@@ -17,6 +17,9 @@ public class NotificationController {
     // 1. 管理员发送通知
     @PostMapping
     public boolean sendNotification(@RequestBody Notification notification) {
+        // 自动生成 notificationId，例如 n1711984965123
+        String generatedId = "n" + System.currentTimeMillis();
+        notification.setNotificationId(generatedId);
         return notificationMapper.insertNotification(notification) > 0;
     }
 
