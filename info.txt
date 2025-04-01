@@ -1,0 +1,125 @@
+卷 DataE 的文件夹 PATH 列表
+卷序列号为 08B4-1CA2
+E:.
+│  .gitignore
+│  HELP.md
+│  info.txt
+│  mvnw
+│  mvnw.cmd
+│  pom.xml
+│  
+├─.idea
+│  │  .gitignore
+│  │  compiler.xml
+│  │  dataSources.local.xml
+│  │  dataSources.xml
+│  │  encodings.xml
+│  │  jarRepositories.xml
+│  │  misc.xml
+│  │  uiDesigner.xml
+│  │  vcs.xml
+│  │  workspace.xml
+│  │  
+│  └─dataSources
+│      │  04d56029-c364-4c5c-bf3c-4a0b01331f3f.xml
+│      │  
+│      └─04d56029-c364-4c5c-bf3c-4a0b01331f3f
+│          └─storage_v2
+│              └─_src_
+│                  └─schema
+│                          information_schema.FNRwLQ.meta
+│                          mysql.osA4Bg.meta
+│                          performance_schema.kIw0nw.meta
+│                          psy.1rIBAA.meta
+│                          sys.zb4BAA.meta
+│                          
+├─src
+│  ├─main
+│  │  ├─java
+│  │  │  └─com
+│  │  │      └─example
+│  │  │          └─demo
+│  │  │              │  DemoApplication.java
+│  │  │              │  
+│  │  │              ├─config
+│  │  │              │      CorsConfig.java
+│  │  │              │      
+│  │  │              ├─controller
+│  │  │              │      ConversationController.java
+│  │  │              │      InformationController.java
+│  │  │              │      
+│  │  │              ├─dto
+│  │  │              ├─entity
+│  │  │              │      Ask_leave.java
+│  │  │              │      Bind.java
+│  │  │              │      Conversation.java
+│  │  │              │      ConversationDetail.java
+│  │  │              │      Counselor.java
+│  │  │              │      Duty_calendar.java
+│  │  │              │      Mood.java
+│  │  │              │      Notification.java
+│  │  │              │      Person.java
+│  │  │              │      Post.java
+│  │  │              │      Reply.java
+│  │  │              │      Reservation.java
+│  │  │              │      Star.java
+│  │  │              │      Test_report.java
+│  │  │              │      Tutor.java
+│  │  │              │      User.java
+│  │  │              │      
+│  │  │              └─mapper
+│  │  │                      ConversationMapper.java
+│  │  │                      InformationMapper.java
+│  │  │                      
+│  │  └─resources
+│  │      │  application.properties
+│  │      │  
+│  │      ├─static
+│  │      └─templates
+│  └─test
+│      └─java
+│          └─com
+│              └─example
+│                  └─demo
+│                          DemoApplicationTests.java
+│                          
+└─target
+    ├─classes
+    │  │  application.properties
+    │  │  
+    │  └─com
+    │      └─example
+    │          └─demo
+    │              │  DemoApplication.class
+    │              │  
+    │              ├─config
+    │              │      CorsConfig.class
+    │              │      
+    │              ├─controller
+    │              │      ConversationController.class
+    │              │      InformationController.class
+    │              │      
+    │              ├─entity
+    │              │      Ask_leave.class
+    │              │      Bind.class
+    │              │      Conversation.class
+    │              │      ConversationDetail.class
+    │              │      Counselor.class
+    │              │      Duty_calendar.class
+    │              │      Mood.class
+    │              │      Notification.class
+    │              │      Person.class
+    │              │      Post.class
+    │              │      Reply.class
+    │              │      Reservation.class
+    │              │      Star.class
+    │              │      Test_report.class
+    │              │      Tutor.class
+    │              │      User.class
+    │              │      
+    │              └─mapper
+    │                      ConversationMapper.class
+    │                      InformationMapper.class
+    │                      
+    └─generated-sources
+        └─annotations
