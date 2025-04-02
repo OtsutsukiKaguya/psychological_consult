@@ -21,20 +21,21 @@ public class PostController {
     }
 
     @GetMapping("/api/posts/{post_id}")  //获取单条帖子详情
-    public List findByID(@PathVariable String postId){
+    public List findByID(@PathVariable("post_id") String postId){
         List<Post> list = postMapper.findById(postId);
         System.out.println(list);
         return list;
     }
 
     @GetMapping("/api/posts/search")  //搜索帖子
-    public List search(@RequestBody String query){
+    public List search(@RequestParam String query){
+        System.out.println("query = " + query);
         List<Post> list = postMapper.search(query);
         System.out.println(list);
         return list;
     }
 
-    @PutMapping("/api/posts/{post_id}")
+    @DeleteMapping("/api/posts/{post_id}")
     public String deletePost(@PathVariable("post_id") String postId,
                              @RequestBody String deleteReason) {
         int result = postMapper.deletePost(postId, deleteReason);
@@ -43,6 +44,10 @@ public class PostController {
 
     @PostMapping("/api/posts")
     public String createPost(@RequestBody Post post){
+        //自动生成postId
+        String generatedId = "p" + System.currentTimeMillis();
+        post.setPostId(generatedId);
+
         int i = postMapper.createPost(post);
         return i > 0 ? "发布成功" : "发布失败";
     }

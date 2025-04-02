@@ -15,7 +15,7 @@ public interface PostMapper {
     public List<Post> find();
 
     //根据id查询
-    @Select("SELECT * FROM post WHERE post_id={postId}")
+    @Select("SELECT * FROM post WHERE post_id=#{postId}")
     public List<Post> findById(String postId);
 
     //根据关键词查询
@@ -28,7 +28,8 @@ public interface PostMapper {
                           @Param("deleteReason") String deleteReason);
 
     //发布帖子
-    @Insert("INSERT into post values (#{postId},#{postTime},#{postTitle},#{postContent},#{personId},#{pictureLink},#{postIsDeleted})")
+    @Insert("INSERT INTO post (post_id, post_time, post_title, post_content, person_id, picture_link) " +
+            "VALUES (#{postId}, #{postTime}, #{postTitle}, #{postContent}, #{personId}, #{pictureLink})")
     public int createPost(Post post);
 
     //修改帖子

@@ -14,20 +14,20 @@ public class ReplyController {
     private ReplyMapper replyMapper;
 
     @GetMapping("/api/posts/{post_id}/replys")
-    public List<Reply> findAllReply(){
-        List<Reply> list = replyMapper.find();
+    public List<Reply> findAllReply(@PathVariable("post_id")  String postId){
+        List<Reply> list = replyMapper.find(postId);
         System.out.println(list);
         return list;
     }
 
     @GetMapping("/api/posts/{post_id}/replys/{reply_id}")
-    public List<Reply> findByID(@PathVariable String postId, @PathVariable String replyId){
+    public List<Reply> findByID(@PathVariable("post_id") String postId, @PathVariable("reply_id") String replyId){
         List<Reply> list = replyMapper.findById(postId,replyId);
         System.out.println(list);
         return list;
     }
 
-    @PutMapping("/api/posts/{post_id}/replys/{reply_id}")
+    @DeleteMapping("/api/posts/{post_id}/replys/{reply_id}")
     public String deleteReply(@PathVariable("post_id") String postId,
                               @PathVariable("reply_id") String replyId,
                              @RequestBody String deleteReason)
@@ -37,7 +37,14 @@ public class ReplyController {
     }
 
     @PostMapping("/api/posts/{post_id}/replys")
-    public String createReply(@RequestBody Reply reply){
+    public String createReply(@PathVariable("post_id") String postId,@RequestBody Reply reply){
+        //自动生成replyId
+        String generatedId = "r" + System.currentTimeMillis();
+        reply.setReplyId(generatedId);
+
+        // 把 URL 中的 postId 设置进对象
+        reply.setPostId(postId);
+
         int i = replyMapper.createReply(reply);
         return i > 0 ? "发布成功" : "发布失败";
     }

@@ -3,6 +3,7 @@ package com.example.demo.mapper;
 import com.example.demo.entity.Post;
 import com.example.demo.entity.Reply;
 import org.apache.ibatis.annotations.*;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -10,11 +11,11 @@ import java.util.List;
 @Mapper
 public interface ReplyMapper {
     //获取所有回复
-    @Select("SELECT * FROM reply")
-    public List<Reply> find();
+    @Select("SELECT * FROM reply WHERE post_id=#{postId}")
+    public List<Reply> find(String postId);
 
     //根据id查询
-    @Select("SELECT * FROM reply WHERE post_id={postId} AND reply_id=#{replyId}")
+    @Select("SELECT * FROM reply WHERE post_id=#{postId} AND reply_id=#{replyId}")
     public List<Reply> findById(String postId, String replyId);
 
     //删除回复
@@ -24,7 +25,8 @@ public interface ReplyMapper {
                           @Param("deleteReason") String deleteReason);
 
     //发布回复
-    @Insert("INSERT into reply values (#{replyId},#{postId},#{replyTime},#{replyContent},#{personId},#{pictureLink},#{replyIsDeleted})")
+    @Insert("INSERT INTO reply (reply_id,post_id,reply_time, reply_content, person_id, picture_link) " +
+            "VALUES (#{replyId}, #{postId}, #{replyTime}, #{replyContent}, #{personId}, #{pictureLink})")
     public int createReply(Reply reply);
 
     //修改回复
