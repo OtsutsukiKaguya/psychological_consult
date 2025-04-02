@@ -3,13 +3,16 @@ package com.example.demo.entity;
 import java.time.LocalDateTime;
 import java.time.Duration;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import org.springframework.format.annotation.DateTimeFormat;
 
 public class Notification {
-    private String notificationId;
+    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime notificationTime;
+
+    private String notificationId;
     private String notificationTitle;
     private String senderId;
-    private String receiverId;
     private String notificationContent;
     private Boolean notificationIsDeleted;
     private String pictureLink;
@@ -46,14 +49,6 @@ public class Notification {
         this.senderId = senderId;
     }
 
-    public String getReceiverId() {
-        return receiverId;
-    }
-
-    public void setReceiverId(String receiverId) {
-        this.receiverId = receiverId;
-    }
-
     public String getNotificationContent() {
         return notificationContent;
     }
@@ -86,7 +81,6 @@ public class Notification {
                 ", notificationTime=" + notificationTime +
                 ", notificationTitle='" + notificationTitle + '\'' +
                 ", senderId='" + senderId + '\'' +
-                ", receiverId='" + receiverId + '\'' +
                 ", notificationContent='" + notificationContent + '\'' +
                 ", notificationIsDeleted=" + notificationIsDeleted +
                 ", pictureLink='" + pictureLink + '\'' +
