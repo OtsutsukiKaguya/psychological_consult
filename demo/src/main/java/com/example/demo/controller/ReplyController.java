@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.DeleteReplyRequest;
 import com.example.demo.dto.UpdateReplyRequest;
 import com.example.demo.entity.Reply;
 import com.example.demo.mapper.ReplyMapper;
@@ -30,9 +31,11 @@ public class ReplyController {
     @DeleteMapping("/api/posts/{post_id}/replys/{reply_id}")
     public String deleteReply(@PathVariable("post_id") String postId,
                               @PathVariable("reply_id") String replyId,
-                             @RequestBody String deleteReason)
+                              @RequestBody DeleteReplyRequest request)
     {
-        int result = replyMapper.deleteReply(postId, replyId, deleteReason);
+        String adminId = request.getAdminId();
+        String deleteReason = request.getDeleteReason();
+        int result = replyMapper.deleteReply(postId, replyId, adminId, deleteReason);
         return result > 0 ? "删除成功" : "删除失败";
     }
 
@@ -50,8 +53,25 @@ public class ReplyController {
     }
 
     @PutMapping("/api/posts/{post_id}/replys/{reply_id}")
-    public String updateReply (@PathVariable("post_id") String postId,@PathVariable("reply_id") String replyId, @RequestBody UpdateReplyRequest request){
-        int i = replyMapper.updateReply(postId, replyId, request.getPersonId(),request.getReplyTime(),request.getReplyContent(),request.getPictureLink());
+    public String updateReply (@PathVariable("post_id") String postId,
+                               @PathVariable("reply_id") String replyId,
+                               @RequestBody UpdateReplyRequest request){
+        //判断是否修改
+        boolean hasUpdate = request.getReplyContent() != null ||
+                request.getPictureLink() != null;
+
+        if (!hasUpdate) {
+            return "必须修改至少一个字段";
+        }
+//        int i = replyMapper.updateReply(replyId, postId, request.getPersonId(),request.getReplyTime(),request.getReplyContent(),request.getPictureLink());
+        int i = replyMapper.updateReply(
+                replyId,
+                postId,
+                request.getReplyTime(),
+                request.getReplyContent(),
+                request.getPersonId(),
+                request.getPictureLink()
+        );
         return i > 0 ? "修改成功" : "修改失败";
     }
 }

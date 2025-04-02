@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.DeletePostRequest;
 import com.example.demo.dto.UpdatePostRequest;
 import com.example.demo.entity.Post;
 import com.example.demo.mapper.PostMapper;
@@ -37,8 +38,12 @@ public class PostController {
 
     @DeleteMapping("/api/posts/{post_id}")
     public String deletePost(@PathVariable("post_id") String postId,
-                             @RequestBody String deleteReason) {
-        int result = postMapper.deletePost(postId, deleteReason);
+                             @RequestBody DeletePostRequest request) {
+        String adminId = request.getAdminId();
+        String deleteReason = request.getDeleteReason();
+        int result = postMapper.deletePost(postId, adminId, deleteReason);
+
+//        int result = postMapper.deletePost(postId, deleteReason);
         return result > 0 ? "删除成功" : "删除失败";
     }
 
@@ -54,7 +59,21 @@ public class PostController {
 
     @PutMapping("/api/posts/{post_id}")
     public String updatePost (@PathVariable("post_id") String postId, @RequestBody UpdatePostRequest request){
-        int i = postMapper.updatePost(postId, request.getPersonId(),request.getPostTime(),request.getPostTitle(),request.getPostContent(),request.getPictureLink());
+        //判断是否进行了修改
+        boolean hasUpdate = request.getPostTitle() != null ||
+                request.getPostContent() != null ||
+                request.getPictureLink() != null;
+
+        if (!hasUpdate) {
+            return "必须修改至少一个字段";
+        }
+
+        int i = postMapper.updatePost(postId,
+                request.getPersonId(),
+                request.getPostTime(),
+                request.getPostTitle(),
+                request.getPostContent(),
+                request.getPictureLink());
         return i > 0 ? "修改成功" : "修改失败";
     }
 }

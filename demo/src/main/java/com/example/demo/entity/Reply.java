@@ -12,6 +12,15 @@ public class Reply {
     private String idPictureLink;  //我觉得需要一个贴子发布者的头像
     private Boolean replyIsDeleted;
     private Integer thumbNum;
+    private String deleteReason;
+
+    public String getDeleteReason() {
+        return deleteReason;
+    }
+
+    public void setDeleteReason(String deleteReason) {
+        this.deleteReason = deleteReason;
+    }
 
     public String getReplyId() {
         return replyId;
@@ -98,7 +107,9 @@ public class Reply {
                 ", idPictureLink='" + idPictureLink + '\'' +
                 ", replyIsDeleted=" + replyIsDeleted +
                 ", thumbNum=" + thumbNum +
+                ", deleteReason='" + deleteReason + '\'' +
                 '}';
     }
+
 
 }

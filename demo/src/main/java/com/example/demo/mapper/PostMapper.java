@@ -1,6 +1,7 @@
 package com.example.demo.mapper;
 
 
+import com.example.demo.dto.PostSqlProvider;
 import com.example.demo.entity.Post;
 import org.apache.ibatis.annotations.*;
 
@@ -11,11 +12,11 @@ import java.util.List;
 @Mapper
 public interface PostMapper {
     //获取所有帖子
-    @Select("SELECT * FROM post")
+    @Select("SELECT * FROM post WHERE post_isdeleted = 0")
     public List<Post> find();
 
     //根据id查询
-    @Select("SELECT * FROM post WHERE post_id=#{postId}")
+    @Select("SELECT * FROM post WHERE post_id=#{postId} AND post_isdeleted = 0")
     public List<Post> findById(String postId);
 
     //根据关键词查询
@@ -23,22 +24,23 @@ public interface PostMapper {
     public List<Post> search(String query);
 
     //删除帖子
-    @Update("UPDATE post SET admin_id = #{adminId}, delete_reason = #{deleteReason}, is_deleted = 1 WHERE post_id = #{postId}")
+    @Update("UPDATE post SET delete_reason = #{deleteReason}, post_isdeleted = 1 WHERE post_id = #{postId}")
     public int deletePost(@Param("postId") String postId,
+                          @Param("adminId") String adminId,
                           @Param("deleteReason") String deleteReason);
 
     //发布帖子
-    @Insert("INSERT INTO post (post_id, post_time, post_title, post_content, person_id, picture_link) " +
-            "VALUES (#{postId}, #{postTime}, #{postTitle}, #{postContent}, #{personId}, #{pictureLink})")
+    @Insert("INSERT INTO post (post_id, post_time, post_title, post_content, person_id, picture_link, post_isdeleted) " +
+            "VALUES (#{postId}, #{postTime}, #{postTitle}, #{postContent}, #{personId}, #{pictureLink}, 0)")
     public int createPost(Post post);
 
     //修改帖子
-    @Update("UPDATE post SET post_time=#{postTime},post_title=#{postTitle},post_content=#{postContent},picture_link=#{pictureLink} WHERE post_id = #{postId} AND person_id=#{personId}")
-    public int updatePost(@Param("postId") String postId,
-                          @Param("personId") String personId,
-                      @Param("postTime") LocalDateTime postTime,
-                      @Param("postTitle") String postTitle,
-                      @Param("postContent") String postContent,
-                      @Param("pictureLink") String pictureLink);
+    @UpdateProvider(type = PostSqlProvider.class, method = "buildUpdatePostSql")
+    int updatePost(@Param("postId") String postId,
+                   @Param("personId") String personId,
+                   @Param("postTime") LocalDateTime postTime,
+                   @Param("postTitle") String postTitle,
+                   @Param("postContent") String postContent,
+                   @Param("pictureLink") String pictureLink);
 
 }
