@@ -14,21 +14,21 @@ public class ReplyController {
     @Autowired
     private ReplyMapper replyMapper;
 
-    @GetMapping("/api/posts/{post_id}/replys")
+    @GetMapping("/api/posts/{post_id}/replys")  //获取回复列表
     public List<Reply> findAllReply(@PathVariable("post_id")  String postId){
         List<Reply> list = replyMapper.find(postId);
         System.out.println(list);
         return list;
     }
 
-    @GetMapping("/api/posts/{post_id}/replys/{reply_id}")
+    @GetMapping("/api/posts/{post_id}/replys/{reply_id}")  //根据ID选择回复/查看回复详情
     public List<Reply> findByID(@PathVariable("post_id") String postId, @PathVariable("reply_id") String replyId){
         List<Reply> list = replyMapper.findById(postId,replyId);
         System.out.println(list);
         return list;
     }
 
-    @DeleteMapping("/api/posts/{post_id}/replys/{reply_id}")
+    @DeleteMapping("/api/posts/{post_id}/replys/{reply_id}")   //删除回复
     public String deleteReply(@PathVariable("post_id") String postId,
                               @PathVariable("reply_id") String replyId,
                               @RequestBody DeleteReplyRequest request)
@@ -39,7 +39,7 @@ public class ReplyController {
         return result > 0 ? "删除成功" : "删除失败";
     }
 
-    @PostMapping("/api/posts/{post_id}/replys")
+    @PostMapping("/api/posts/{post_id}/replys")  //发布回复
     public String createReply(@PathVariable("post_id") String postId,@RequestBody Reply reply){
         //自动生成replyId
         String generatedId = "r" + System.currentTimeMillis();
@@ -52,7 +52,7 @@ public class ReplyController {
         return i > 0 ? "发布成功" : "发布失败";
     }
 
-    @PutMapping("/api/posts/{post_id}/replys/{reply_id}")
+    @PutMapping("/api/posts/{post_id}/replys/{reply_id}")  //修改回复
     public String updateReply (@PathVariable("post_id") String postId,
                                @PathVariable("reply_id") String replyId,
                                @RequestBody UpdateReplyRequest request){

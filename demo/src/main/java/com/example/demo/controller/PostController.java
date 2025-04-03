@@ -36,18 +36,17 @@ public class PostController {
         return list;
     }
 
-    @DeleteMapping("/api/posts/{post_id}")
+    @DeleteMapping("/api/posts/{post_id}") //删除帖子
     public String deletePost(@PathVariable("post_id") String postId,
                              @RequestBody DeletePostRequest request) {
         String adminId = request.getAdminId();
         String deleteReason = request.getDeleteReason();
         int result = postMapper.deletePost(postId, adminId, deleteReason);
 
-//        int result = postMapper.deletePost(postId, deleteReason);
         return result > 0 ? "删除成功" : "删除失败";
     }
 
-    @PostMapping("/api/posts")
+    @PostMapping("/api/posts")  //发布帖子
     public String createPost(@RequestBody Post post){
         //自动生成postId
         String generatedId = "p" + System.currentTimeMillis();
@@ -57,7 +56,7 @@ public class PostController {
         return i > 0 ? "发布成功" : "发布失败";
     }
 
-    @PutMapping("/api/posts/{post_id}")
+    @PutMapping("/api/posts/{post_id}")  //修改帖子
     public String updatePost (@PathVariable("post_id") String postId, @RequestBody UpdatePostRequest request){
         //判断是否进行了修改
         boolean hasUpdate = request.getPostTitle() != null ||
