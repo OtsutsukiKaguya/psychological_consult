@@ -22,7 +22,7 @@ public interface ReplyMapper {
     public List<Reply> findById(String postId, String replyId);
 
     //删除回复
-    @Update("UPDATE reply SET delete_reason = #{deleteReason}, reply_isdeleted = 1 WHERE post_id = #{postId} AND reply_id=#{replyId}")
+    @Update("UPDATE reply SET delete_reason = #{deleteReason}, reply_isdeleted = 1 WHERE post_id = #{postId} AND reply_id=#{replyId} AND reply_isdeleted = 0")
     public int deleteReply(@Param("postId") String postId,
                           @Param("replyId") String replyId,
                            @Param("adminId") String adminId,

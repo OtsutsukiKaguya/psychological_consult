@@ -20,11 +20,11 @@ public interface PostMapper {
     public List<Post> findById(String postId);
 
     //根据关键词查询
-    @Select("SELECT * FROM post WHERE post_title LIKE CONCAT('%', #{query}, '%') OR post_content LIKE CONCAT('%', #{query}, '%')")
+    @Select("SELECT * FROM post WHERE post_isdeleted = 0 AND (post_title LIKE CONCAT('%', #{query}, '%') OR post_content LIKE CONCAT('%', #{query}, '%'))")
     public List<Post> search(String query);
 
     //删除帖子
-    @Update("UPDATE post SET delete_reason = #{deleteReason}, post_isdeleted = 1 WHERE post_id = #{postId}")
+    @Update("UPDATE post SET delete_reason = #{deleteReason}, post_isdeleted = 1 WHERE post_id = #{postId} AND post_isdeleted = 0")
     public int deletePost(@Param("postId") String postId,
                           @Param("adminId") String adminId,
                           @Param("deleteReason") String deleteReason);
