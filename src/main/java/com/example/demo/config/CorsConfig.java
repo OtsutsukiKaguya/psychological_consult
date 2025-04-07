@@ -9,10 +9,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class CorsConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**") // 对所有的路径应用CORS设置
-                .allowedOrigins("http://localhost:3000") // 允许来自 localhost:3000 的跨域请求
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // 允许的HTTP方法
-                .allowedHeaders("*") // 允许所有的头部信息
-                .allowCredentials(true); // 允许发送凭证信息
+        registry.addMapping("/**")  // 所有路径
+                .allowedOrigins("*") // 允许所有来源
+                .allowedMethods("GET", "POST", "PUT", "DELETE") // 允许的请求方法
+                .allowedHeaders("*");  // 允许所有请求头
     }
 }

@@ -5,6 +5,7 @@ import com.example.demo.dto.UpdateReservationDTO;
 import com.example.demo.entity.Reservation;
 import com.example.demo.mapper.ReservationMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -66,7 +67,7 @@ public class ReservationController {
     @DeleteMapping
     public Result cancelReservation(@RequestParam String userId,
                                     @RequestParam String counselorId,
-                                    @RequestParam String reservationTime) {
+                                    @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm") LocalDateTime reservationTime) {
         reservationMapper.cancelReservation(userId, counselorId, reservationTime);
         return Result.success("预约已取消");
     }
@@ -84,17 +85,19 @@ public class ReservationController {
     }
 
     // 6. 修改预约时间或咨询师
+    @PostMapping("/update")
     public Result updateReservation(@RequestBody UpdateReservationDTO dto) {
-        reservationMapper.updateReservation(
-                dto.newTime,
-                dto.newCounselorId,
-                dto.reservationDescription,
-                dto.userId,
-                dto.originalTime,
-                dto.originalCounselorId
-        );
-        return Result.success("预约信息已更新");
+        reservationMapper.cancelReservation(dto.userId, dto.originalCounselorId, dto.originalTime);
+
+        Reservation newReservation = new Reservation();
+        newReservation.setUserId(dto.userId);
+        newReservation.setCounselorId(dto.newCounselorId);
+        newReservation.setReservationTime(dto.newTime);
+        newReservation.setReservationDescription(dto.reservationDescription);
+
+        return createReservation(newReservation);
     }
+
 
     // 7. 查询预约统计信息（如预约总数）
     @GetMapping("/statistics")

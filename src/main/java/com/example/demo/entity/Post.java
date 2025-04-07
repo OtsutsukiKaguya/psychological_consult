@@ -10,7 +10,15 @@ public class Post {
     private String idPictureLink;  //我觉得需要一个贴子发布者的头像
     private Boolean postIsDeleted;
     private Integer thumbNum;
+    private String deleteReason;
 
+    public String getDeleteReason() {
+        return deleteReason;
+    }
+
+    public void setDeleteReason(String deleteReason) {
+        this.deleteReason = deleteReason;
+    }
 
     public String getPersonId() {
         return personId;
@@ -85,7 +93,6 @@ public class Post {
     }
 
 
-
     @Override
     public String toString() {
         return "Post{" +
@@ -98,8 +105,8 @@ public class Post {
                 ", idPictureLink='" + idPictureLink + '\'' +
                 ", postIsDeleted=" + postIsDeleted +
                 ", thumbNum=" + thumbNum +
+                ", deleteReason='" + deleteReason + '\'' +
                 '}';
     }
-
 
 }

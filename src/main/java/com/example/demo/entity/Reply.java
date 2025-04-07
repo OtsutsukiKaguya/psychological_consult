@@ -7,11 +7,20 @@ public class Reply {
     private String postId;
     private LocalDateTime replyTime;
     private String replyContent;
-    private String person_id;
+    private String personId;
     private String pictureLink;
     private String idPictureLink;  //我觉得需要一个贴子发布者的头像
     private Boolean replyIsDeleted;
     private Integer thumbNum;
+    private String deleteReason;
+
+    public String getDeleteReason() {
+        return deleteReason;
+    }
+
+    public void setDeleteReason(String deleteReason) {
+        this.deleteReason = deleteReason;
+    }
 
     public String getReplyId() {
         return replyId;
@@ -37,12 +46,12 @@ public class Reply {
         this.replyTime = replyTime;
     }
 
-    public String getPerson_id() {
-        return person_id;
+    public String getPersonId() {
+        return personId;
     }
 
-    public void setPerson_id(String person_id) {
-        this.person_id = person_id;
+    public void setPersonId(String personId) {
+        this.personId = personId;
     }
 
     public String getReplyContent() {
@@ -85,6 +94,7 @@ public class Reply {
         this.thumbNum = thumbNum;
     }
 
+
     @Override
     public String toString() {
         return "Reply{" +
@@ -92,12 +102,14 @@ public class Reply {
                 ", postId='" + postId + '\'' +
                 ", replyTime=" + replyTime +
                 ", replyContent='" + replyContent + '\'' +
-                ", person_id='" + person_id + '\'' +
+                ", personId='" + personId + '\'' +
                 ", pictureLink='" + pictureLink + '\'' +
                 ", idPictureLink='" + idPictureLink + '\'' +
                 ", replyIsDeleted=" + replyIsDeleted +
                 ", thumbNum=" + thumbNum +
+                ", deleteReason='" + deleteReason + '\'' +
                 '}';
     }
+
 
 }

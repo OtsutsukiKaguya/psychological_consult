@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Info;
 
-@OpenAPIDefinition(info = @Info(title = "心理咨询系统接口文档", version = "1.0", description = "通知模块接口"))
+@OpenAPIDefinition(info = @Info(title = "心理咨询系统接口文档", version = "1.0", description = "模块接口"))
 
 @SpringBootApplication
 @MapperScan("com.example.demo.mapper")
