@@ -7,13 +7,13 @@ import java.util.Properties;
 
 public class SshConnectionTool {
     // SSH 登录的用户名
-    private static final String SSH_USER = "ubuntu";
+    private static final String SSH_USER = "root";
     // SSH 密码
-    private static final String SSH_PASSWORD = "sldkfjgh";
+    private static final String SSH_PASSWORD = "psy@123456";
     // SSH 远程主机地址（不要加用户名！）
-    private static final String SSH_REMOTE_SERVER = "1.tcp.vip.cpolar.top";
+    private static final String SSH_REMOTE_SERVER = "47.117.102.116";
     // SSH 连接的端口
-    private static final int SSH_REMOTE_PORT = 11930;
+    private static final int SSH_REMOTE_PORT = 22;
 
     // 本地转发的端口（你本地应用连接的）
     private static final int LOCAL_PORT = 23306;
