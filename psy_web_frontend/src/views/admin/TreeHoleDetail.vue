@@ -8,32 +8,37 @@
             <div class="user-info">
               <el-avatar :size="40" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png" />
               <div class="user-meta">
-                <span class="username">plus</span>
-                <span class="post-time">2022.1.1</span>
+                <span class="username">{{ personId }}</span>
+                <span class="post-time">{{ postTime }}</span>
               </div>
             </div>
-            <div class="post-title">震惊！巴拉巴拉巴拉</div>
+            <div class="post-title">{{ postTitle }}</div>
           </div>
           <el-button type="danger" :icon="Delete" circle class="delete-button" @click="showDeleteDialog" />
         </div>
         <div class="post-content">
-          从前有座山,山里有座庙,庙里有个老和尚和一个小和尚.老和尚对小和尚说:"庙里这 口大钟每个整点都要敲,1点敲1下、2点敲2下、3点敲3下....以此类推.每下敲钟 之间需要
+          {{ postContent }}
         </div>
       </div>
 
       <!-- 回复列表 -->
       <div class="replies-list">
-        <div class="reply-item" v-for="reply in replies" :key="reply.id">
-          <div class="reply-header">
-            <div class="reply-relation">
-              <span class="replier">{{ reply.username }}</span>
-              <span class="reply-to">回复</span>
-              <span class="author">plus</span>
+        <el-empty v-if="!loading && replies.length === 0" description="暂无回复" />
+        <el-skeleton :rows="3" animated v-if="loading" />
+
+        <template v-else>
+          <div class="reply-item" v-for="reply in replies" :key="reply.replyId">
+            <div class="reply-header">
+              <div class="reply-relation">
+                <span class="replier">{{ reply.personId }}</span>
+                <span class="reply-to">回复</span>
+                <span class="author">{{ personId }}</span>
+              </div>
+              <span class="reply-time">{{ reply.replyTime }}</span>
             </div>
-            <span class="reply-time">{{ reply.time }}</span>
+            <div class="reply-content">{{ reply.replyContent }}</div>
           </div>
-          <div class="reply-content">{{ reply.content }}</div>
-        </div>
+        </template>
       </div>
 
       <!-- 回复区域 -->
@@ -78,14 +83,23 @@
 
 <script setup>
 import BaseLayout from '@/components/layout/BaseLayout.vue'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Delete, Picture, ChatRound } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import axios from 'axios'
+
+const BASE_URL = 'http://localhost:8088'
 
 const route = useRoute()
 const postId = route.params.id
 const replyContent = ref('')
+
+// 帖子详情
+const postTitle = ref('')
+const postContent = ref('')
+const postTime = ref('')
+const personId = ref('')
 
 // 删除相关
 const deleteDialogVisible = ref(false)
@@ -119,30 +133,51 @@ const handleDelete = () => {
   ElMessage.success('删除成功')
 }
 
-// 模拟回复数据
-const replies = [
-  {
-    id: 1,
-    username: 'Alice',
-    avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-    time: '2022.1.1 10:30',
-    content: '这个故事很有意思，让我想起了小时候听过的一个类似的故事...'
-  },
-  {
-    id: 2,
-    username: 'Bob',
-    avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-    time: '2022.1.1 11:15',
-    content: '确实是个好故事，不过我觉得最关键的是要理解故事背后的含义。'
-  },
-  {
-    id: 3,
-    username: 'Carol',
-    avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-    time: '2022.1.1 14:20',
-    content: '我也遇到过类似的情况，感同身受啊！'
+// 回复数据
+const replies = ref([])
+const loading = ref(false)
+
+// 获取帖子详情
+const fetchPostDetails = async () => {
+  try {
+    const response = await axios.get(`${BASE_URL}/api/posts/${postId}`)
+    if (response.data.code === 0 && Array.isArray(response.data.data)) {
+      const post = response.data.data[0] // 从数组中提取第一个元素
+      postTitle.value = post.postTitle
+      postContent.value = post.postContent
+      postTime.value = post.postTime
+      personId.value = post.personId
+    } else {
+      ElMessage.error('获取帖子详情失败')
+    }
+  } catch (error) {
+    console.error('获取帖子详情失败:', error)
+    ElMessage.error('获取帖子详情失败')
   }
-]
+}
+
+// 获取回复数据
+const fetchReplies = async () => {
+  try {
+    loading.value = true
+    const response = await axios.get(`${BASE_URL}/api/posts/${postId}/replys`)
+    if (response.data.code === 200) {
+      replies.value = response.data.data
+    } else {
+      ElMessage.error('获取回复列表失败')
+    }
+  } catch (error) {
+    console.error('获取回复失败:', error)
+    ElMessage.error('获取回复列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchPostDetails()
+  fetchReplies()
+})
 </script>
 
 <style scoped>

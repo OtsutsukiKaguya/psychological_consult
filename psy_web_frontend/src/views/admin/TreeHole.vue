@@ -2,15 +2,65 @@
 <script setup>
 import BaseLayout from '@/components/layout/BaseLayout.vue'
 import { Delete } from '@element-plus/icons-vue'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import axios from 'axios'
 
 const router = useRouter()
+
+const BASE_URL = 'http://localhost:8088'
+
+// 帖子数据
+const posts = ref([])
+const loading = ref(false)
+const totalPosts = ref(0)
+
+// 获取帖子数据
+const fetchPosts = async () => {
+  try {
+    loading.value = true
+    const response = await axios.get(`${BASE_URL}/api/posts`)
+    console.log(response.data)
+    // 检查响应数据的结构
+    if (Array.isArray(response.data)) {
+      // 如果直接返回数组
+      posts.value = response.data
+      totalPosts.value = posts.value.length
+    } else if (response.data.data && Array.isArray(response.data.data)) {
+      // 如果返回的是包装对象
+      posts.value = response.data.data
+      totalPosts.value = posts.value.length
+    } else {
+      ElMessage.error('数据格式不正确')
+      posts.value = []
+      totalPosts.value = 0
+    }
+  } catch (error) {
+    console.error('获取帖子失败:', error)
+    ElMessage.error('获取帖子列表失败')
+    posts.value = []
+    totalPosts.value = 0
+  } finally {
+    loading.value = false
+  }
+}
+
+// 在组件挂载时获取数据
+onMounted(() => {
+  fetchPosts()
+})
 
 // 分页相关
 const currentPage = ref(1)
 const pageSize = ref(10)
+
+// 计算当前页显示的帖子
+const displayedPosts = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return posts.value.slice(start, end)
+})
 
 // 跳转到详情页
 const goToDetail = (id) => {
@@ -67,37 +117,29 @@ const handleDelete = () => {
 
       <!-- 帖子列表 -->
       <div class="post-list">
-        <!-- 帖子1 -->
-        <div class="post-item" @click="goToDetail('1')">
-          <div class="post-content">
-            <div class="post-title">震惊！你见过凌晨四点的上海吗</div>
-            <div class="post-info">
-              <span class="post-author">发布人：plus</span>
-              <span class="post-count">贴子数：15</span>
-              <span class="post-time">发布时间：2022.1.1</span>
-            </div>
-          </div>
-          <el-button type="danger" :icon="Delete" circle class="delete-button" @click.stop="showDeleteDialog('1')" />
-        </div>
+        <el-empty v-if="!loading && posts.length === 0" description="暂无帖子" />
+        <el-skeleton :rows="3" animated v-if="loading" />
 
-        <!-- 帖子2 -->
-        <div class="post-item" @click="goToDetail('2')">
-          <div class="post-content">
-            <div class="post-title">上面的，我没见过凌晨四点的上海</div>
-            <div class="post-info">
-              <span class="post-author">发布人：zyq</span>
-              <span class="post-count">贴子数：15</span>
-              <span class="post-time">发布时间：2022.1.1</span>
+        <template v-else>
+          <div v-for="post in displayedPosts" :key="post.postId" class="post-item" @click="goToDetail(post.postId)">
+            <div class="post-content">
+              <div class="post-title">{{ post.postTitle }}</div>
+              <div class="post-info">
+                <span class="post-author">发布人：{{ post.personId }}</span>
+                <span class="post-time">发布时间：{{ post.postTime }}</span>
+              </div>
+              <div class="post-content-text">{{ post.postContent }}</div>
             </div>
+            <el-button type="danger" :icon="Delete" circle class="delete-button"
+              @click.stop="showDeleteDialog(post.postId)" />
           </div>
-          <el-button type="danger" :icon="Delete" circle class="delete-button" @click.stop="showDeleteDialog('2')" />
-        </div>
+        </template>
       </div>
 
       <!-- 分页 -->
       <div class="pagination">
-        <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10]" :total="50"
-          :pager-count="7" layout="prev, pager, next, ->, total, sizes, jumper" background />
+        <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10]"
+          :total="totalPosts" :pager-count="7" layout="prev, pager, next, ->, total, sizes, jumper" background />
       </div>
 
       <!-- 删除确认对话框 -->
@@ -294,5 +336,12 @@ const handleDelete = () => {
 :deep(.el-dialog__footer) {
   border-top: 1px solid #eee;
   padding: 20px;
+}
+
+.post-content-text {
+  margin-top: 10px;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
 }
 </style>

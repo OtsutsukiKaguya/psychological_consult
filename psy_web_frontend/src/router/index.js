@@ -10,13 +10,25 @@ import ConsultantManagement from '../views/admin/ConsultantManagement.vue'
 import SupervisorManagement from '../views/admin/SupervisorManagement.vue'
 import DutySchedule from '../views/admin/DutySchedule.vue'
 import Notification from '../views/admin/Notification.vue'
+import ConsultantDashboard from '../views/consultant/Dashboard.vue'
+import ConsultantConsultationRecord from '../views/consultant/ConsultationRecord.vue'
+import ConsultationDetail from '../views/consultant/ConsultationDetail.vue'
+import Chat from '@/views/consultant/Chat.vue'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     routes: [
         {
+            path: '/consultant/dashboard',
+            name: 'consultantDashboard',
+            component: ConsultantDashboard,
+            meta: {
+                role: 'consultant'
+            }
+        },
+        {
             path: '/',
-            redirect: '/admin/dashboard'
+            redirect: '/consultant/dashboard'
         },
         {
             path: '/login',
@@ -73,6 +85,28 @@ const router = createRouter({
             path: '/admin/notification',
             name: 'adminNotification',
             component: Notification
+        },
+        {
+            path: '/consultant/consultation',
+            name: 'consultantConsultation',
+            component: ConsultantConsultationRecord,
+            meta: {
+                role: 'consultant'
+            }
+        },
+        {
+            path: '/consultant/consultation/:id',
+            name: 'consultationDetail',
+            component: ConsultationDetail,
+            props: true,
+            meta: {
+                role: 'consultant'
+            }
+        },
+        {
+            path: '/consultant/chat/:id',
+            name: 'ConsultantChat',
+            component: Chat
         }
     ]
 })
