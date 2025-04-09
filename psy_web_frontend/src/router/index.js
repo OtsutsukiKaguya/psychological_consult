@@ -14,6 +14,8 @@ import ConsultantDashboard from '../views/consultant/Dashboard.vue'
 import ConsultantConsultationRecord from '../views/consultant/ConsultationRecord.vue'
 import ConsultationDetail from '../views/consultant/ConsultationDetail.vue'
 import Chat from '@/views/consultant/Chat.vue'
+import ConsultantNotification from '@/views/consultant/Notification.vue'
+import Schedule from '@/views/consultant/Schedule.vue'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -107,6 +109,16 @@ const router = createRouter({
             path: '/consultant/chat/:id',
             name: 'ConsultantChat',
             component: Chat
+        },
+        {
+            path: '/consultant/notification',
+            name: 'ConsultantNotification',
+            component: ConsultantNotification
+        },
+        {
+            path: '/consultant/schedule',
+            name: 'ConsultantSchedule',
+            component: Schedule
         }
     ]
 })
