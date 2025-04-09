@@ -14,7 +14,7 @@ public class Result {
     }
 
     public static Result success(Object data) {
-        return new Result(200, "success", data);
+        return new Result(0, "ok", data);
     }
 
     public static Result error(String message) {
