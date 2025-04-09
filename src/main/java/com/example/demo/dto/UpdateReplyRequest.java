@@ -3,16 +3,16 @@ package com.example.demo.dto;
 import java.time.LocalDateTime;
 
 public class UpdateReplyRequest {
-    private LocalDateTime replyTime; //修改
+    private String replyTime; //修改
     private String replyContent;
     private String pictureLink;
     private String personId;
 
-    public LocalDateTime getReplyTime() {
+    public String getReplyTime() {
         return replyTime;
     }
 
-    public void setReplyTime(LocalDateTime replyTime) {
+    public void setReplyTime(String replyTime) {
         this.replyTime = replyTime;
     }
 

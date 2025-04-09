@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 public class Reply {
     private String replyId;
     private String postId;
-    private LocalDateTime replyTime;
+    private String replyTime;
     private String replyContent;
     private String personId;
     private String pictureLink;
@@ -38,11 +38,11 @@ public class Reply {
         this.postId = postId;
     }
 
-    public LocalDateTime getReplyTime() {
+    public String getReplyTime() {
         return replyTime;
     }
 
-    public void setReplyTime(LocalDateTime replyTime) {
+    public void setReplyTime(String replyTime) {
         this.replyTime = replyTime;
     }
 
@@ -100,7 +100,7 @@ public class Reply {
         return "Reply{" +
                 "replyId='" + replyId + '\'' +
                 ", postId='" + postId + '\'' +
-                ", replyTime=" + replyTime +
+                ", replyTime='" + replyTime + '\'' +
                 ", replyContent='" + replyContent + '\'' +
                 ", personId='" + personId + '\'' +
                 ", pictureLink='" + pictureLink + '\'' +
@@ -110,6 +110,5 @@ public class Reply {
                 ", deleteReason='" + deleteReason + '\'' +
                 '}';
     }
-
 
 }

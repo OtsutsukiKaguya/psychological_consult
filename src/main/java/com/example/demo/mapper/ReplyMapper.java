@@ -37,7 +37,7 @@ public interface ReplyMapper {
     @UpdateProvider(type = ReplySqlProvider.class, method = "buildUpdateReplySql")
     int updateReply(@Param("replyId") String replyId,
                     @Param("postId") String postId,
-                    @Param("replyTime") LocalDateTime replyTime,
+                    @Param("replyTime") String replyTime,
                     @Param("replyContent") String replyContent,
                     @Param("personId") String personId,
                     @Param("pictureLink") String pictureLink);
