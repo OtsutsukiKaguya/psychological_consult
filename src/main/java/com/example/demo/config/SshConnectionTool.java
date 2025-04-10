@@ -6,6 +6,15 @@ import com.jcraft.jsch.Session;
 import java.util.Properties;
 
 public class SshConnectionTool {
+//    // SSH 登录的用户名
+//    private static final String SSH_USER = "ubuntu";
+//    // SSH 密码
+//    private static final String SSH_PASSWORD = "sldkfjgh";
+//    // SSH 远程主机地址（不要加用户名！）
+//    private static final String SSH_REMOTE_SERVER = "1.tcp.vip.cpolar.top";
+//    // SSH 连接的端口
+//    private static final int SSH_REMOTE_PORT = 11930;
+
     // SSH 登录的用户名
     private static final String SSH_USER = "root";
     // SSH 密码

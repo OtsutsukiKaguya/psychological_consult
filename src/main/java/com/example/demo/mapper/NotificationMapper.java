@@ -26,7 +26,12 @@ public interface NotificationMapper {
     List<Notification> getNotificationsByReceiverId(@Param("receiverId") String receiverId);
 
     // 获取某发送者发出的通知
-    @Select("SELECT * FROM notification WHERE sender_id = #{senderId} AND notification_isdeleted = false ORDER BY notification_time DESC")
+    @Select("SELECT n.notification_id, n.notification_time, n.notification_title, n.sender_id, " +
+            "n.notification_content, n.notification_isdeleted, n.picture_link, nr.receiver_id " +
+            "FROM notification n " +
+            "JOIN notification_receiver nr ON n.notification_id = nr.notification_id " +
+            "WHERE n.sender_id = #{senderId} AND n.notification_isdeleted = false " +
+            "ORDER BY n.notification_time DESC")
     List<Notification> getNotificationsBySenderId(@Param("senderId") String senderId);
 
     // 获取通知详情
