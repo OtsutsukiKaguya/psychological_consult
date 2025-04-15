@@ -110,6 +110,7 @@
 			<artifactId>poi-ooxml</artifactId>
 			<version>3.17</version>
 		</dependency>
+<<<<<<< HEAD
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -117,6 +118,10 @@
         </dependency>
 
     </dependencies>
+=======
+
+	</dependencies>
+>>>>>>> origin/main
 
 	<build>
 		<plugins>
