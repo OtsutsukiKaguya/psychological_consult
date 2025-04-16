@@ -46,6 +46,8 @@ public class ChatSession {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+
+
     //getter和setter
     public String getId() {
         return id;
