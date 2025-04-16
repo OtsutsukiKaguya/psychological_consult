@@ -1,4 +1,3 @@
-//package com.counseling.platform.models;
 package com.example.demo.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -7,15 +6,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-//import javax.persistence.*;
-import jakarta.persistence.*; // ← 新包名
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * 聊天会话实体类
- */
+// 聊天会话实体类
 @Entity
 @Table(name = "chat_sessions")
 @Data
@@ -24,17 +20,15 @@ import java.util.Set;
 @AllArgsConstructor
 public class ChatSession {
 
-    /**
-     * 会话类型枚举
-     */
+    // 会话类型枚举
     public enum SessionType {
         ONE_TO_ONE,  // 一对一会话
         GROUP        // 群组会话
     }
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id", length = 100)  // 修改为 String 类型以匹配数据库中的 VARCHAR(100) 类型
+    private String id;
 
     @Column(name = "name")
     private String name;
@@ -43,7 +37,7 @@ public class ChatSession {
     private String description;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "type", nullable = false)
+    @Column(name = "session_type", nullable = false)
     private SessionType type;
 
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -53,11 +47,11 @@ public class ChatSession {
     private LocalDateTime updatedAt;
 
     //getter和setter
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -125,7 +119,6 @@ public class ChatSession {
         this.callRecords = callRecords;
     }
 
-
     // 会话参与者
     @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<SessionParticipant> participants = new HashSet<>();
@@ -140,49 +133,15 @@ public class ChatSession {
     @JsonIgnore
     private Set<CallRecord> callRecords = new HashSet<>();
 
-    /**
-     * 创建前的回调
-     */
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }
 
-    /**
-     * 更新前的回调
-     */
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
 
-    /**
-     * 添加参与者
-     */
-    public void addParticipant(User user, SessionParticipant.ParticipantRole role) {
-        SessionParticipant participant = SessionParticipant.builder()
-                .session(this)
-                .user(user)
-                .role(role)
-                .joinedAt(LocalDateTime.now())
-                .build();
-        
-        participants.add(participant);
-        user.getSessions().add(participant);
-    }
-
-    /**
-     * 移除参与者
-     */
-    public void removeParticipant(User user) {
-        for (SessionParticipant participant : new HashSet<>(participants)) {
-            if (participant.getUser().equals(user)) {
-                participants.remove(participant);
-                user.getSessions().remove(participant);
-                participant.setSession(null);
-                participant.setUser(null);
-            }
-        }
-    }
 }

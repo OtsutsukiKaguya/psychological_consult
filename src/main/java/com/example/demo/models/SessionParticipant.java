@@ -1,4 +1,3 @@
-//package com.counseling.platform.models;
 package com.example.demo.models;
 
 import lombok.AllArgsConstructor;
@@ -6,8 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-//import javax.persistence.*;
-import jakarta.persistence.*; // ← 新包名
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 /**
@@ -22,45 +20,19 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class SessionParticipant {
 
-    /**
-     * 参与者角色枚举
-     */
+    // 参与者角色枚举
     public enum ParticipantRole {
         USER,        // 普通用户
         COUNSELOR,   // 咨询师
-        SUPERVISOR,  // 督导
+        TUTOR,  // 督导
         ADMIN        // 管理员
     }
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "session_id", nullable = false)
-    private ChatSession session;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false)
-    private ParticipantRole role;
-
-    @Column(name = "joined_at", nullable = false)
-    private LocalDateTime joinedAt;
-
-    @Column(name = "last_read_message_id")
-    private Long lastReadMessageId;
-
-    //getter和setter
-
-    public Long getId() {
+    public Integer getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
@@ -104,14 +76,32 @@ public class SessionParticipant {
         this.lastReadMessageId = lastReadMessageId;
     }
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)  // 自增ID
+    private Integer id;  // id 字段类型改为 Integer
 
-    /**
-     * 创建前的回调
-     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "session_id", nullable = false)
+    private ChatSession session;  // session_id 映射
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;  // user_id 映射
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false)
+    private ParticipantRole role;
+
+    @Column(name = "joined_at", nullable = false)
+    private LocalDateTime joinedAt;
+
+    @Column(name = "last_read_message_id")
+    private Long lastReadMessageId;
+
     @PrePersist
     protected void onCreate() {
         if (joinedAt == null) {
-            joinedAt = LocalDateTime.now();
+            joinedAt = LocalDateTime.now();  // 如果 joinedAt 为 null，设置为当前时间
         }
     }
 }

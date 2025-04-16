@@ -1,4 +1,3 @@
-//package com.counseling.platform.models;
 package com.example.demo.models;
 
 import lombok.AllArgsConstructor;
@@ -6,8 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-//import javax.persistence.*;
-import jakarta.persistence.*; // ← 新包名
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 /**
@@ -16,7 +14,7 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "message_read", indexes = {
-    @Index(name = "idx_message_read_message_user", columnList = "message_id, user_id", unique = true)
+        @Index(name = "idx_message_read_message_user", columnList = "message_id, user_id", unique = true)
 })
 @Data
 @Builder
@@ -29,10 +27,10 @@ public class MessageRead {
     private Long id;
 
     @Column(name = "message_id", nullable = false)
-    private Long messageId;
+    private Integer messageId;  // 修改为 Integer 类型，以匹配数据库中的 INT 类型
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private String userId;  // 修改为 String 类型，以匹配数据库中的 VARCHAR(50) 类型
 
     @Column(name = "read_at", nullable = false)
     private LocalDateTime readAt;
@@ -46,19 +44,19 @@ public class MessageRead {
         this.id = id;
     }
 
-    public Long getMessageId() {
+    public Integer getMessageId() {
         return messageId;
     }
 
-    public void setMessageId(Long messageId) {
+    public void setMessageId(Integer messageId) {
         this.messageId = messageId;
     }
 
-    public Long getUserId() {
+    public String getUserId() {
         return userId;
     }
 
-    public void setUserId(Long userId) {
+    public void setUserId(String userId) {
         this.userId = userId;
     }
 
@@ -69,5 +67,4 @@ public class MessageRead {
     public void setReadAt(LocalDateTime readAt) {
         this.readAt = readAt;
     }
-
 }
