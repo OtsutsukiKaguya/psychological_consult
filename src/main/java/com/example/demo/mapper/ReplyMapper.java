@@ -14,7 +14,7 @@ import java.util.List;
 @Mapper
 public interface ReplyMapper {
     //获取所有回复
-    @Select("SELECT * FROM reply WHERE post_id=#{postId} AND reply_isdeleted = 0")
+    @Select("SELECT * FROM reply WHERE post_id=#{postId} AND reply_isdeleted = 0 ORDER BY reply_time DESC")
     public List<Reply> find(String postId);
 
     //根据id查询

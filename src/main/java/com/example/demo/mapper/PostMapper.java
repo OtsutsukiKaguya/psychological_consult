@@ -12,15 +12,15 @@ import java.util.List;
 @Mapper
 public interface PostMapper {
     //获取所有帖子
-    @Select("SELECT * FROM post WHERE post_isdeleted = 0")
+    @Select("SELECT * FROM post WHERE post_isdeleted = 0 ORDER BY post_time DESC")
     public List<Post> find();
 
     //根据id查询
-    @Select("SELECT * FROM post WHERE post_id=#{postId} AND post_isdeleted = 0")
+    @Select("SELECT * FROM post WHERE post_id=#{postId} AND post_isdeleted = 0 ORDER BY post_time DESC")
     public List<Post> findById(String postId);
 
     //根据关键词查询
-    @Select("SELECT * FROM post WHERE post_isdeleted = 0 AND (post_title LIKE CONCAT('%', #{query}, '%') OR post_content LIKE CONCAT('%', #{query}, '%'))")
+    @Select("SELECT * FROM post WHERE post_isdeleted = 0 AND (post_title LIKE CONCAT('%', #{query}, '%') OR post_content LIKE CONCAT('%', #{query}, '%')) ORDER BY post_time DESC")
     public List<Post> search(String query);
 
     //删除帖子
