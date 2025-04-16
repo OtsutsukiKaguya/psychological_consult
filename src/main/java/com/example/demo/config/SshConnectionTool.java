@@ -5,7 +5,7 @@ import com.jcraft.jsch.Session;
 
 import java.util.Properties;
 
-public class  SshConnectionTool {
+public class SshConnectionTool {
 //    // SSH 登录的用户名
 //    private static final String SSH_USER = "ubuntu";
 //    // SSH 密码
