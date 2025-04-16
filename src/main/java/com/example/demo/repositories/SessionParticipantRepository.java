@@ -94,27 +94,27 @@ import java.util.Optional;
  * 用于管理用户与 ChatSession 的关联关系
  */
 @Repository
-public interface SessionParticipantRepository extends JpaRepository<SessionParticipant, Long> {
+public interface SessionParticipantRepository extends JpaRepository<SessionParticipant, Integer> {
 
     /**
      * 根据会话 ID 查询该会话的所有参与者
      */
-    List<SessionParticipant> findBySessionId(Long sessionId);
+    List<SessionParticipant> findBySessionId(String sessionId);
 
     /**
      * 根据用户 ID 查询用户参与的所有会话
      */
-    List<SessionParticipant> findByUserId(Long userId);
+    List<SessionParticipant> findByUserId(String userId);
 
     /**
      * 查询某个用户是否参与了指定会话
      */
-    Optional<SessionParticipant> findBySessionIdAndUserId(Long sessionId, Long userId);
+    Optional<SessionParticipant> findBySessionIdAndUserId(String sessionId, String userId);
 
     /**
      * 判断用户是否是指定会话的参与者
      */
-    boolean existsBySessionIdAndUserId(Long sessionId, Long userId);
+    boolean existsBySessionIdAndUserId(String sessionId, String userId);
 
     /**
      * 查询所有指定角色的参与者
@@ -124,32 +124,32 @@ public interface SessionParticipantRepository extends JpaRepository<SessionParti
     /**
      * 查询指定会话中指定角色的参与者
      */
-    List<SessionParticipant> findBySessionIdAndRole(Long sessionId, SessionParticipant.ParticipantRole role);
+    List<SessionParticipant> findBySessionIdAndRole(String sessionId, SessionParticipant.ParticipantRole role);
 
     /**
      * 查询某用户担任指定角色的所有会话参与记录
      */
-    List<SessionParticipant> findByUserIdAndRole(Long userId, SessionParticipant.ParticipantRole role);
+    List<SessionParticipant> findByUserIdAndRole(String userId, SessionParticipant.ParticipantRole role);
 
     /**
      * 查询指定会话中的所有参与用户（User 实体）
      */
     @Query("SELECT u FROM SessionParticipant sp JOIN sp.user u WHERE sp.session.id = :sessionId")
-    List<User> findUsersBySessionId(@Param("sessionId") Long sessionId);
+    List<User> findUsersBySessionId(@Param("sessionId") String sessionId);
 
     /**
      * 查询指定会话中具有指定角色的所有用户
      */
     @Query("SELECT u FROM SessionParticipant sp JOIN sp.user u WHERE sp.session.id = :sessionId AND sp.role = :role")
-    List<User> findUsersBySessionIdAndRole(@Param("sessionId") Long sessionId, @Param("role") SessionParticipant.ParticipantRole role);
+    List<User> findUsersBySessionIdAndRole(@Param("sessionId") String sessionId, @Param("role") SessionParticipant.ParticipantRole role);
 
     /**
      * 删除指定用户在指定会话中的参与记录
      */
-    void deleteBySessionIdAndUserId(Long sessionId, Long userId);
+    void deleteBySessionIdAndUserId(String sessionId, String userId);
 
     /**
      * 删除指定会话的所有参与者
      */
-    void deleteBySessionId(Long sessionId);
+    void deleteBySessionId(String sessionId);
 }

@@ -21,60 +21,63 @@ public interface CallRecordService {
     /**
      * 根据ID查找通话记录
      */
-    CallRecord findById(Long id);
+    CallRecord findById(Integer id);
 
     /**
      * 获取会话的通话记录
      */
-    List<CallRecord> findBySessionId(Long sessionId);
+    List<CallRecord> findBySessionId(String sessionId);
 
     /**
      * 获取用户发起的通话记录
      */
-    List<CallRecord> findByCallerId(Long callerId);
+    List<CallRecord> findByCallerId(String callerId);
 
     /**
      * 获取用户接收的通话记录
      */
-    List<CallRecord> findByCalleeId(Long calleeId);
+    List<CallRecord> findByCalleeId(String calleeId);
 
     /**
      * 获取用户的所有通话记录（发起和接收）
      */
-    List<CallRecord> findByUserId(Long userId);
+    List<CallRecord> findByUserId(String userId);
 
     /**
      * 获取两个用户之间的通话记录
      */
-    List<CallRecord> findBetweenUsers(Long user1Id, Long user2Id);
+    List<CallRecord> findBetweenUsers(String user1Id, String user2Id);
 
     /**
      * 更新通话状态
      */
-    CallRecord updateCallStatus(Long id, CallRecord.CallStatus status);
+    CallRecord updateCallStatus(Integer id, CallRecord.CallStatus status);
 
     /**
      * 结束通话
      */
-    CallRecord endCall(Long id);
+    CallRecord endCall(Integer id);
 
     /**
      * 更新通话时长
      */
-    CallRecord updateCallDuration(Long id, int durationSeconds);
+    CallRecord updateCallDuration(Integer id, int durationSeconds);
 
     /**
      * 获取最近的通话记录
      */
-    List<CallRecord> getRecentCalls(Long userId, int limit);
+    List<CallRecord> getRecentCalls(String userId, int limit);
 
     /**
      * 获取未接来电
      */
-    List<CallRecord> getMissedCalls(Long userId);
+    List<CallRecord> getMissedCalls(String userId);
 
     /**
      * 删除通话记录
      */
-    void deleteCallRecord(Long id);
+    void deleteCallRecord(Integer id);
+
+    //这是我为了先解决报错随便创建的save方法，后面应该要改
+    CallRecord save(CallRecord callRecord);
 }

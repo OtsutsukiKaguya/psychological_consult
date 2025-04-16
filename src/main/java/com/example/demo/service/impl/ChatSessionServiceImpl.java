@@ -16,6 +16,7 @@ import com.example.demo.models.User;
 import com.example.demo.repositories.ChatSessionRepository;
 import com.example.demo.repositories.ChatMessageRepository;
 import com.example.demo.repositories.SessionParticipantRepository;
+import com.example.demo.repositories.UserRepository;
 import com.example.demo.service.ChatSessionService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +45,9 @@ public class ChatSessionServiceImpl implements ChatSessionService {
     @Autowired
     private ChatMessageRepository chatMessageRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @Override
     @Transactional
     public ChatSession createSession(ChatSession session) {
@@ -51,14 +55,15 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         if (session.getCreatedAt() == null) {
             session.setCreatedAt(LocalDateTime.now());
         }
-        session.setLastActivityAt(LocalDateTime.now());
+//        session.setLastActivityAt(LocalDateTime.now());
+        session.setUpdatedAt(LocalDateTime.now());
         
         return chatSessionRepository.save(session);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public ChatSession findById(Long id) {
+    public ChatSession findById(String id) {
         return chatSessionRepository.findById(id).orElse(null);
     }
 
@@ -70,19 +75,19 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ChatSession> findByUserId(Long userId) {
+    public List<ChatSession> findByUserId(String userId) {
         return chatSessionRepository.findByParticipantsUserId(userId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public ChatSession getOneToOneSession(Long userId1, Long userId2) {
+    public ChatSession getOneToOneSession(String userId1, String userId2) {
         return chatSessionRepository.findOneToOneSession(userId1, userId2);
     }
 
     @Override
     @Transactional
-    public ChatSession updateSession(Long id, ChatSession session) {
+    public ChatSession updateSession(String id, ChatSession session) {
         ChatSession existingSession = chatSessionRepository.findById(id).orElse(null);
         if (existingSession == null) {
             return null;
@@ -97,14 +102,15 @@ public class ChatSessionServiceImpl implements ChatSessionService {
             existingSession.setDescription(session.getDescription());
         }
         
-        existingSession.setLastActivityAt(LocalDateTime.now());
+//        existingSession.setLastActivityAt(LocalDateTime.now());
+        existingSession.setUpdatedAt(LocalDateTime.now());
         
         return chatSessionRepository.save(existingSession);
     }
 
     @Override
     @Transactional
-    public void deleteSession(Long id) {
+    public void deleteSession(String id) {
         // 检查会话是否存在
         if (!chatSessionRepository.existsById(id)) {
             log.error("Session not found: {}", id);
@@ -117,15 +123,22 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
     @Override
     @Transactional
-    public SessionParticipant addParticipant(Long sessionId, Long userId, SessionParticipant.ParticipantRole role) {
-        // 检查会话是否存在
+    public SessionParticipant addParticipant(String sessionId, String userId, SessionParticipant.ParticipantRole role) {
+        // 1.检查会话是否存在
         ChatSession session = chatSessionRepository.findById(sessionId).orElse(null);
         if (session == null) {
             log.error("Session not found: {}", sessionId);
             throw new IllegalArgumentException("Session not found");
         }
+
+        // 2. 检查用户是否存在
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> {
+                    log.error("User not found: {}", userId);
+                    return new IllegalArgumentException("User not found");
+                });
         
-        // 检查用户是否已经是会话参与者
+        // 3.检查用户是否已经是会话参与者
         Optional<SessionParticipant> existingParticipant = sessionParticipantRepository.findBySessionIdAndUserId(sessionId, userId);
         if (existingParticipant.isPresent()) {
             log.debug("User {} is already a participant of session {}", userId, sessionId);
@@ -133,15 +146,24 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         }
         
         // 创建新参与者
+//        SessionParticipant participant = SessionParticipant.builder()
+////                .sessionId(sessionId)
+//                .session()
+//                .userId(userId)
+//                .role(role)
+//                .joinedAt(LocalDateTime.now())
+//                .build();
+        // 4. 创建新参与者
         SessionParticipant participant = SessionParticipant.builder()
-                .sessionId(sessionId)
-                .userId(userId)
+                .session(session)   // ✅ 设置 ChatSession 实体
+                .user(user)         // ✅ 设置 User 实体
                 .role(role)
                 .joinedAt(LocalDateTime.now())
                 .build();
         
         // 更新会话最后活动时间
-        session.setLastActivityAt(LocalDateTime.now());
+//        session.setLastActivityAt(LocalDateTime.now());
+        session.setUpdatedAt(LocalDateTime.now());
         chatSessionRepository.save(session);
         
         return sessionParticipantRepository.save(participant);
@@ -149,7 +171,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
     @Override
     @Transactional
-    public void removeParticipant(Long sessionId, Long userId) {
+    public void removeParticipant(String sessionId, String userId) {
         // 检查会话是否存在
         ChatSession session = chatSessionRepository.findById(sessionId).orElse(null);
         if (session == null) {
@@ -168,13 +190,14 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         sessionParticipantRepository.delete(participant.get());
         
         // 更新会话最后活动时间
-        session.setLastActivityAt(LocalDateTime.now());
+//        session.setLastActivityAt(LocalDateTime.now());
+        session.setUpdatedAt(LocalDateTime.now());
         chatSessionRepository.save(session);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<User> getSessionParticipants(Long sessionId) {
+    public List<User> getSessionParticipants(String sessionId) {
         // 检查会话是否存在
         if (!chatSessionRepository.existsById(sessionId)) {
             log.error("Session not found: {}", sessionId);
@@ -187,7 +210,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<SessionParticipant> getSessionParticipantsWithRoles(Long sessionId) {
+    public List<SessionParticipant> getSessionParticipantsWithRoles(String sessionId) {
         // 检查会话是否存在
         if (!chatSessionRepository.existsById(sessionId)) {
             log.error("Session not found: {}", sessionId);
@@ -200,20 +223,20 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
     @Override
     @Transactional(readOnly = true)
-    public boolean isSessionParticipant(Long sessionId, Long userId) {
+    public boolean isSessionParticipant(String sessionId, String userId) {
         return sessionParticipantRepository.existsBySessionIdAndUserId(sessionId, userId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public SessionParticipant.ParticipantRole getUserRoleInSession(Long sessionId, Long userId) {
+    public SessionParticipant.ParticipantRole getUserRoleInSession(String sessionId, String userId) {
         Optional<SessionParticipant> participant = sessionParticipantRepository.findBySessionIdAndUserId(sessionId, userId);
         return participant.map(SessionParticipant::getRole).orElse(null);
     }
 
     @Override
     @Transactional
-    public void markSessionAsRead(Long sessionId, Long userId) {
+    public void markSessionAsRead(String sessionId, String userId) {
         // 检查用户是否是会话参与者
         if (!isSessionParticipant(sessionId, userId)) {
             log.error("User {} is not a participant of session {}", userId, sessionId);
@@ -226,11 +249,12 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ChatSession> getRecentSessions(Long userId) {
+    public List<ChatSession> getRecentSessions(String userId) {
         // 获取用户参与的所有会话ID
-        List<Long> sessionIds = sessionParticipantRepository.findByUserId(userId)
+        List<String> sessionIds = sessionParticipantRepository.findByUserId(userId)
                 .stream()
-                .map(SessionParticipant::getSessionId)
+//                .map(SessionParticipant::getSessionId)
+                .map(p -> p.getSession().getId())//我修改了getSessionId的方法
                 .collect(Collectors.toList());
         
         if (sessionIds.isEmpty()) {
@@ -243,7 +267,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
     @Override
     @Transactional(readOnly = true)
-    public int getUnreadMessageCount(Long sessionId, Long userId) {
+    public int getUnreadMessageCount(String sessionId, String userId) {
         // 检查用户是否是会话参与者
         if (!isSessionParticipant(sessionId, userId)) {
             log.error("User {} is not a participant of session {}", userId, sessionId);
@@ -256,14 +280,15 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
     @Override
     @Transactional
-    public void updateLastActivity(Long sessionId) {
+    public void updateLastActivity(String sessionId) {
         ChatSession session = chatSessionRepository.findById(sessionId).orElse(null);
         if (session == null) {
             log.error("Session not found: {}", sessionId);
             throw new IllegalArgumentException("Session not found");
         }
         
-        session.setLastActivityAt(LocalDateTime.now());
+//        session.setLastActivityAt(LocalDateTime.now());
+        session.setUpdatedAt(LocalDateTime.now());
         chatSessionRepository.save(session);
     }
 }

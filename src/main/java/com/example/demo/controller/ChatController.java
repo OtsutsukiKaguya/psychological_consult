@@ -67,7 +67,7 @@ public class ChatController {
         ChatMessage savedMessage = chatMessageService.save(message);
         
         // 发送给会话中的所有参与者
-        chatSessionService.getParticipants(messageRequest.getSessionId()).forEach(participant -> {
+        chatSessionService.getSessionParticipants(messageRequest.getSessionId()).forEach(participant -> {
             if (!participant.getUser().getId().equals(sender.getId())) {
                 messagingTemplate.convertAndSendToUser(
                         participant.getUser().getUsername(),
@@ -161,7 +161,7 @@ public class ChatController {
      */
     @Data
     public static class MessageRequest {
-        private Long sessionId;
+        private String sessionId;
         private String messageType;
         private String content;
         private String fileUrl;
@@ -172,9 +172,9 @@ public class ChatController {
      */
     @Data
     public static class MessageResponse {
-        private Long id;
-        private Long sessionId;
-        private Long senderId;
+        private Integer id;
+        private String sessionId;
+        private String senderId;
         private String senderUsername;
         private String senderNickname;
         private String messageType;

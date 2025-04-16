@@ -24,7 +24,7 @@ public class MessageRead {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
     @Column(name = "message_id", nullable = false)
     private Integer messageId;  // 修改为 Integer 类型，以匹配数据库中的 INT 类型
@@ -36,11 +36,11 @@ public class MessageRead {
     private LocalDateTime readAt;
 
     //getter和setter
-    public Long getId() {
+    public Integer getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 

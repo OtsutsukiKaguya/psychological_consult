@@ -104,28 +104,28 @@ import java.util.List;
  * 通话记录数据访问接口，提供对 CallRecord 实体的 CRUD 和自定义查询操作
  */
 @Repository
-public interface CallRecordRepository extends JpaRepository<CallRecord, Long> {
+public interface CallRecordRepository extends JpaRepository<CallRecord, Integer> {
 
     /**
      * 根据会话 ID 查询该会话下的所有通话记录，按开始时间倒序排列
      */
-    List<CallRecord> findBySessionIdOrderByStartTimeDesc(Long sessionId);
+    List<CallRecord> findBySessionIdOrderByStartTimeDesc(String sessionId);
 
     /**
      * 查询用户作为主叫方发起的所有通话记录，按开始时间倒序排列
      */
-    List<CallRecord> findByCallerIdOrderByStartTimeDesc(Long callerId);
+    List<CallRecord> findByCallerIdOrderByStartTimeDesc(String callerId);
 
     /**
      * 查询用户作为被叫方接收的所有通话记录，按开始时间倒序排列
      */
-    List<CallRecord> findByCalleeIdOrderByStartTimeDesc(Long calleeId);
+    List<CallRecord> findByCalleeIdOrderByStartTimeDesc(String calleeId);
 
     /**
      * 查询用户参与的所有通话记录（无论主叫还是被叫），按开始时间倒序排列
      */
     @Query("SELECT cr FROM CallRecord cr WHERE cr.caller.id = :userId OR cr.callee.id = :userId ORDER BY cr.startTime DESC")
-    List<CallRecord> findByCallerIdOrCalleeIdOrderByStartTimeDesc(@Param("userId") Long userId);
+    List<CallRecord> findByCallerIdOrCalleeIdOrderByStartTimeDesc(@Param("userId") String userId);
 
     /**
      * 查询所有指定类型的通话（音频或视频），按开始时间倒序排列
@@ -140,7 +140,7 @@ public interface CallRecordRepository extends JpaRepository<CallRecord, Long> {
     /**
      * 查询某用户的所有指定状态通话（如该用户所有未接来电），按开始时间倒序排列
      */
-    List<CallRecord> findByCalleeIdAndStatusOrderByStartTimeDesc(Long calleeId, CallRecord.CallStatus status);
+    List<CallRecord> findByCalleeIdAndStatusOrderByStartTimeDesc(String calleeId, CallRecord.CallStatus status);
 
     /**
      * 查询指定时间范围内的所有通话记录，按开始时间倒序排列
@@ -154,19 +154,19 @@ public interface CallRecordRepository extends JpaRepository<CallRecord, Long> {
             "(cr.caller.id = :user1Id AND cr.callee.id = :user2Id) OR " +
             "(cr.caller.id = :user2Id AND cr.callee.id = :user1Id) " +
             "ORDER BY cr.startTime DESC")
-    List<CallRecord> findBetweenUsers(@Param("user1Id") Long user1Id, @Param("user2Id") Long user2Id);
+    List<CallRecord> findBetweenUsers(@Param("user1Id") String user1Id, @Param("user2Id") String user2Id);
 
     /**
      * 查询指定用户最近的通话记录（作为主叫或被叫），按开始时间倒序排列，支持分页
      */
     @Query("SELECT cr FROM CallRecord cr WHERE cr.caller.id = :userId OR cr.callee.id = :userId ORDER BY cr.startTime DESC")
-    List<CallRecord> findRecentCallsByUserId(@Param("userId") Long userId, Pageable pageable);
+    List<CallRecord> findRecentCallsByUserId(@Param("userId") String userId, Pageable pageable); //要不就改这里数据库查询的语句
 
     /**
      * 统计某用户的未接来电数量（作为被叫，状态为 MISSED）
      */
     @Query("SELECT COUNT(cr) FROM CallRecord cr WHERE cr.callee.id = :userId AND cr.status = 'MISSED'")
-    int countMissedCallsByUserId(@Param("userId") Long userId);
+    int countMissedCallsByUserId(@Param("userId") String userId);
 
     /**
      * 统计某用户在指定时间范围内的通话总时长（单位：秒，仅统计状态为 COMPLETED 的通话）
@@ -175,7 +175,7 @@ public interface CallRecordRepository extends JpaRepository<CallRecord, Long> {
             "(cr.caller.id = :userId OR cr.callee.id = :userId) AND " +
             "cr.status = 'COMPLETED' AND " +
             "cr.startTime BETWEEN :startDate AND :endDate")
-    Integer getTotalCallDuration(@Param("userId") Long userId,
+    Integer getTotalCallDuration(@Param("userId") String userId,
                                  @Param("startDate") LocalDateTime startDate,
                                  @Param("endDate") LocalDateTime endDate);
 
@@ -184,5 +184,5 @@ public interface CallRecordRepository extends JpaRepository<CallRecord, Long> {
      */
     @Query("SELECT cr FROM CallRecord cr WHERE " +
             "(cr.caller.id = :userId OR cr.callee.id = :userId) AND cr.endTime IS NULL")
-    List<CallRecord> findOngoingCalls(@Param("userId") Long userId);
+    List<CallRecord> findOngoingCalls(@Param("userId") String userId);
 }

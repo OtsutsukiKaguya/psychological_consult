@@ -77,4 +77,7 @@ public interface ChatMessageService {
      * 删除会话的所有消息
      */
     void deleteSessionMessages(Long sessionId);
+
+    //这是我为了先解决报错随便创建的save方法，后面应该要改
+    ChatMessage save(ChatMessage message);
 }

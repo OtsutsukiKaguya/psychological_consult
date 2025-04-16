@@ -75,7 +75,7 @@ import java.util.List;
  * 用于管理用户对 ChatMessage 的已读记录
  */
 @Repository
-public interface MessageReadRepository extends JpaRepository<MessageRead, Long> {
+public interface MessageReadRepository extends JpaRepository<MessageRead, Integer> {
 
     /**
      * 查询某条消息是否已被指定用户阅读

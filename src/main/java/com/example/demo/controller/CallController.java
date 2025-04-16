@@ -85,7 +85,7 @@ public class CallController {
                     .durationSeconds(0)
                     .build();
             
-            CallRecord savedCallRecord = callRecordService.save(callRecord);
+            CallRecord savedCallRecord = callRecordService.save(callRecord); //service里没定义啊
             
             // 发送通话通知给被叫用户
             Map<String, Object> callNotification = new HashMap<>();
@@ -93,11 +93,11 @@ public class CallController {
             callNotification.put("callId", savedCallRecord.getId());
             callNotification.put("sessionId", savedCallRecord.getSession().getId());
             callNotification.put("callerId", savedCallRecord.getCaller().getId());
-            callNotification.put("callerName", savedCallRecord.getCaller().getUsername());
+            callNotification.put("callerName", savedCallRecord.getCaller().getName());
             callNotification.put("callType", savedCallRecord.getCallType().name());
             
             messagingTemplate.convertAndSendToUser(
-                    callee.getUsername(),
+                    callee.getName(),
                     "/queue/notifications",
                     callNotification
             );
@@ -145,10 +145,10 @@ public class CallController {
             callNotification.put("callId", callRecord.getId());
             callNotification.put("sessionId", callRecord.getSession().getId());
             callNotification.put("calleeId", callRecord.getCallee().getId());
-            callNotification.put("calleeName", callRecord.getCallee().getUsername());
+            callNotification.put("calleeName", callRecord.getCallee().getName());
             
             messagingTemplate.convertAndSendToUser(
-                    callRecord.getCaller().getUsername(),
+                    callRecord.getCaller().getName(),
                     "/queue/notifications",
                     callNotification
             );
@@ -196,10 +196,10 @@ public class CallController {
             callNotification.put("callId", callRecord.getId());
             callNotification.put("sessionId", callRecord.getSession().getId());
             callNotification.put("calleeId", callRecord.getCallee().getId());
-            callNotification.put("calleeName", callRecord.getCallee().getUsername());
+            callNotification.put("calleeName", callRecord.getCallee().getName());
             
             messagingTemplate.convertAndSendToUser(
-                    callRecord.getCaller().getUsername(),
+                    callRecord.getCaller().getName(),
                     "/queue/notifications",
                     callNotification
             );
@@ -246,7 +246,7 @@ public class CallController {
             }
             
             // 保存通话记录
-            CallRecord savedCallRecord = callRecordService.save(callRecord);
+            CallRecord savedCallRecord = callRecordService.save(callRecord);  //service没定义这个方法
             
             // 发送通话挂断通知给对方
             Map<String, Object> callNotification = new HashMap<>();
@@ -254,13 +254,13 @@ public class CallController {
             callNotification.put("callId", savedCallRecord.getId());
             callNotification.put("sessionId", savedCallRecord.getSession().getId());
             callNotification.put("userId", currentUser.getId());
-            callNotification.put("username", currentUser.getUsername());
+            callNotification.put("username", currentUser.getName());
             
             String targetUsername;
             if (callRecord.getCaller().getId().equals(currentUser.getId())) {
-                targetUsername = callRecord.getCallee().getUsername();
+                targetUsername = callRecord.getCallee().getName();
             } else {
-                targetUsername = callRecord.getCaller().getUsername();
+                targetUsername = callRecord.getCaller().getName();
             }
             
             messagingTemplate.convertAndSendToUser(
@@ -281,7 +281,7 @@ public class CallController {
      * 获取会话的通话记录
      */
     @GetMapping("/session/{sessionId}")
-    public ResponseEntity<?> getSessionCallRecords(@PathVariable Long sessionId) {
+    public ResponseEntity<?> getSessionCallRecords(@PathVariable String sessionId) {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -334,8 +334,8 @@ public class CallController {
      */
     @Data
     public static class StartCallRequest {
-        private Long sessionId;
-        private Long calleeId;
+        private String sessionId; //这里逻辑有问题啊，这里到底是用id还是用session_id
+        private String calleeId;
         private String callType;
     }
 
@@ -344,7 +344,7 @@ public class CallController {
      */
     @Data
     public static class AnswerCallRequest {
-        private Long callId;
+        private Integer callId;
     }
 
     /**
@@ -352,7 +352,7 @@ public class CallController {
      */
     @Data
     public static class RejectCallRequest {
-        private Long callId;
+        private Integer callId;
     }
 
     /**
@@ -360,6 +360,6 @@ public class CallController {
      */
     @Data
     public static class HangupCallRequest {
-        private Long callId;
+        private Integer callId;
     }
 }

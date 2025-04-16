@@ -9,6 +9,8 @@ import com.example.demo.service.CallRecordService;
 //import com.counseling.platform.services.CallRecordService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,43 +41,43 @@ public class CallRecordServiceImpl implements CallRecordService {
 
     @Override
     @Transactional(readOnly = true)
-    public CallRecord findById(Long id) {
+    public CallRecord findById(Integer id) {
         return callRecordRepository.findById(id).orElse(null);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<CallRecord> findBySessionId(Long sessionId) {
+    public List<CallRecord> findBySessionId(String sessionId) {
         return callRecordRepository.findBySessionIdOrderByStartTimeDesc(sessionId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<CallRecord> findByCallerId(Long callerId) {
+    public List<CallRecord> findByCallerId(String callerId) {
         return callRecordRepository.findByCallerIdOrderByStartTimeDesc(callerId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<CallRecord> findByCalleeId(Long calleeId) {
+    public List<CallRecord> findByCalleeId(String calleeId) {
         return callRecordRepository.findByCalleeIdOrderByStartTimeDesc(calleeId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<CallRecord> findByUserId(Long userId) {
-        return callRecordRepository.findByCallerIdOrCalleeIdOrderByStartTimeDesc(userId, userId);
+    public List<CallRecord> findByUserId(String userId) {
+        return callRecordRepository.findByCallerIdOrCalleeIdOrderByStartTimeDesc(userId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<CallRecord> findBetweenUsers(Long user1Id, Long user2Id) {
+    public List<CallRecord> findBetweenUsers(String user1Id, String user2Id) {
         return callRecordRepository.findBetweenUsers(user1Id, user2Id);
     }
 
     @Override
     @Transactional
-    public CallRecord updateCallStatus(Long id, CallRecord.CallStatus status) {
+    public CallRecord updateCallStatus(Integer id, CallRecord.CallStatus status) {
         CallRecord callRecord = callRecordRepository.findById(id).orElse(null);
         if (callRecord == null) {
             log.error("Call record not found: {}", id);
@@ -85,8 +87,8 @@ public class CallRecordServiceImpl implements CallRecordService {
         callRecord.setStatus(status);
         
         // 如果接听了，更新接听时间
-        if (status == CallRecord.CallStatus.COMPLETED && callRecord.getAnswerTime() == null) {
-            callRecord.setAnswerTime(LocalDateTime.now());
+        if (status == CallRecord.CallStatus.COMPLETED && callRecord.getStartTime() == null) {
+            callRecord.setStartTime(LocalDateTime.now());
         }
         
         return callRecordRepository.save(callRecord);
@@ -94,7 +96,7 @@ public class CallRecordServiceImpl implements CallRecordService {
 
     @Override
     @Transactional
-    public CallRecord endCall(Long id) {
+    public CallRecord endCall(Integer id) {
         CallRecord callRecord = callRecordRepository.findById(id).orElse(null);
         if (callRecord == null) {
             log.error("Call record not found: {}", id);
@@ -106,9 +108,9 @@ public class CallRecordServiceImpl implements CallRecordService {
         callRecord.setEndTime(endTime);
         
         // 计算通话时长（如果已接听）
-        if (callRecord.getAnswerTime() != null) {
-            Duration duration = Duration.between(callRecord.getAnswerTime(), endTime);
-            callRecord.setDuration((int) duration.getSeconds());
+        if (callRecord.getStartTime() != null) {
+            Duration duration = Duration.between(callRecord.getStartTime(), endTime);
+            callRecord.setDurationSeconds((int) duration.getSeconds());
             
             // 确保通话状态为已完成
             callRecord.setStatus(CallRecord.CallStatus.COMPLETED);
@@ -122,39 +124,47 @@ public class CallRecordServiceImpl implements CallRecordService {
 
     @Override
     @Transactional
-    public CallRecord updateCallDuration(Long id, int durationSeconds) {
+    public CallRecord updateCallDuration(Integer id, int durationSeconds) {
         CallRecord callRecord = callRecordRepository.findById(id).orElse(null);
         if (callRecord == null) {
             log.error("Call record not found: {}", id);
             throw new IllegalArgumentException("Call record not found");
         }
         
-        callRecord.setDuration(durationSeconds);
+        callRecord.setDurationSeconds(durationSeconds);
         
         // 根据开始时间和持续时间计算结束时间
-        if (callRecord.getAnswerTime() != null && durationSeconds > 0) {
-            LocalDateTime endTime = callRecord.getAnswerTime().plusSeconds(durationSeconds);
+        if (callRecord.getStartTime() != null && durationSeconds > 0) {
+            LocalDateTime endTime = callRecord.getStartTime().plusSeconds(durationSeconds);
             callRecord.setEndTime(endTime);
         }
         
         return callRecordRepository.save(callRecord);
     }
 
+//    @Override
+//    @Transactional(readOnly = true)
+//    public List<CallRecord> getRecentCalls(String userId, int limit) {
+//        return callRecordRepository.findRecentCallsByUserId(userId, limit); //要不就改这里limit的类型，要不就改repository里的pageable
+//    }
+
+    //修改getRecentCalls
     @Override
     @Transactional(readOnly = true)
-    public List<CallRecord> getRecentCalls(Long userId, int limit) {
-        return callRecordRepository.findRecentCallsByUserId(userId, limit);
+    public List<CallRecord> getRecentCalls(String userId, int limit) {
+        Pageable pageable = PageRequest.of(0, limit); // 第0页，limit条记录
+        return callRecordRepository.findRecentCallsByUserId(userId, pageable);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<CallRecord> getMissedCalls(Long userId) {
+    public List<CallRecord> getMissedCalls(String userId) {
         return callRecordRepository.findByCalleeIdAndStatusOrderByStartTimeDesc(userId, CallRecord.CallStatus.MISSED);
     }
 
     @Override
     @Transactional
-    public void deleteCallRecord(Long id) {
+    public void deleteCallRecord(Integer id) {
         if (!callRecordRepository.existsById(id)) {
             log.error("Call record not found: {}", id);
             throw new IllegalArgumentException("Call record not found");
