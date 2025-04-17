@@ -1,30 +1,22 @@
-//package com.counseling.platform.services.impl;
 package com.example.demo.service.impl;
 
-//import com.counseling.platform.models.File;
-//import com.counseling.platform.repositories.FileRepository;
-//import com.counseling.platform.services.FileService;
 import com.example.demo.models.File;
+import com.example.demo.models.User;
 import com.example.demo.repositories.FileRepository;
 import com.example.demo.service.FileService;
+import com.example.demo.service.OssService;
+import com.example.demo.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * 文件服务实现类
- */
 @Service
 @Slf4j
 public class FileServiceImpl implements FileService {
@@ -32,148 +24,75 @@ public class FileServiceImpl implements FileService {
     @Autowired
     private FileRepository fileRepository;
 
-    @Value("${file.upload-dir:./uploads}")
-    private String uploadDir;
+    @Autowired
+    private OssService ossService;
+
+    @Autowired
+    private UserService userService;
 
     @Override
     @Transactional
-    public File saveFile(File file, byte[] data) {
+    public File saveFile(MultipartFile file, String uploaderId) {
+        String originalFilename = file.getOriginalFilename();
+        String filename = UUID.randomUUID().toString() + "_" + originalFilename;
+
         try {
-            // 创建上传目录
-            Path uploadPath = Paths.get(uploadDir);
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
+            // 获取上传者信息
+            User uploader = userService.findById(uploaderId);
+            if (uploader == null) {
+                throw new RuntimeException("Uploader not found");
             }
 
-            // 生成唯一文件名
-            String uniqueFileName = UUID.randomUUID().toString();
-            String originalExtension = "";
-            if (file.getName() != null && file.getName().contains(".")) {
-                originalExtension = file.getName().substring(file.getName().lastIndexOf("."));
+            // 上传文件到 OSS 并获取文件 URL
+            String ossUrl = ossService.uploadFile(file);
+            if (ossUrl == null) {
+                throw new RuntimeException("Failed to upload file to OSS");
             }
-            String storedFileName = uniqueFileName + originalExtension;
 
-            // 保存文件到磁盘
-            Path filePath = uploadPath.resolve(storedFileName);
-            Files.write(filePath, data);
-
-            // 设置文件信息
-            file.setStoragePath(storedFileName);
-            if (file.getUploadTime() == null) {
-                file.setUploadTime(LocalDateTime.now());
-            }
-            
             // 保存文件记录到数据库
-            return fileRepository.save(file);
-        } catch (IOException e) {
-            log.error("Failed to save file: {}", file.getName(), e);
-            throw new RuntimeException("Failed to save file: " + e.getMessage());
+            File fileEntity = new File();
+            fileEntity.setUploader(uploader);
+            fileEntity.setOriginalName(originalFilename);
+            fileEntity.setFileSize((int) file.getSize());
+            fileEntity.setFileType(file.getContentType());
+            fileEntity.setOssUrl(ossUrl);
+            fileEntity.setUploadTime(LocalDateTime.now());
+
+            return fileRepository.save(fileEntity);
+        } catch (Exception ex) {
+            log.error("Failed to save file: {}", originalFilename, ex);
+            throw new RuntimeException("Could not store file " + originalFilename, ex);
         }
     }
 
     @Override
     @Transactional(readOnly = true)
-    public File getFile(Long id) {
-        return fileRepository.findById(id).orElse(null);
+    public File getFile(Integer id) {
+        return fileRepository.findById(id).orElse(null);  // 根据 ID 查询文件
     }
 
     @Override
     @Transactional(readOnly = true)
-    public byte[] getFileData(Long id) {
-        try {
-            File file = fileRepository.findById(id).orElse(null);
-            if (file == null || file.getStoragePath() == null) {
-                return null;
-            }
-
-            Path filePath = Paths.get(uploadDir).resolve(file.getStoragePath());
-            if (!Files.exists(filePath)) {
-                log.error("File not found on disk: {}", filePath);
-                return null;
-            }
-
-            return Files.readAllBytes(filePath);
-        } catch (IOException e) {
-            log.error("Failed to read file data for id: {}", id, e);
-            throw new RuntimeException("Failed to read file data: " + e.getMessage());
-        }
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<File> getFilesByUploader(Long uploaderId) {
-        return fileRepository.findByUploaderIdOrderByUploadTimeDesc(uploaderId);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<File> getFilesByName(String name) {
-        return fileRepository.findByNameContainingOrderByUploadTimeDesc(name);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<File> getFilesByType(String contentType) {
-        return fileRepository.findByContentTypeContainingOrderByUploadTimeDesc(contentType);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<File> getRecentFiles(int limit) {
-        return fileRepository.findRecentFiles(PageRequest.of(0, limit));
+    public List<File> getFilesByUploader(String uploaderId) {
+        return fileRepository.findByUploaderIdOrderByUploadTimeDesc(uploaderId);  // 获取指定用户上传的文件
     }
 
     @Override
     @Transactional
-    public void deleteFile(Long id) {
+    public void deleteFile(Integer id) {
         try {
-            File file = fileRepository.findById(id).orElse(null);
-            if (file == null) {
-                log.error("File not found: {}", id);
-                throw new IllegalArgumentException("File not found");
+            File file = getFile(id);
+            if (file != null) {
+                // 从 OSS 删除文件
+                ossService.deleteFile(file.getOssUrl());
+
+                // 从数据库删除文件记录
+                fileRepository.deleteById(id);
+                log.info("Deleted file: {}", file.getOriginalName());
             }
-
-            // 删除物理文件
-            if (file.getStoragePath() != null) {
-                Path filePath = Paths.get(uploadDir).resolve(file.getStoragePath());
-                if (Files.exists(filePath)) {
-                    Files.delete(filePath);
-                }
-            }
-
-            // 删除数据库记录
-            fileRepository.deleteById(id);
-        } catch (IOException e) {
-            log.error("Failed to delete file: {}", id, e);
-            throw new RuntimeException("Failed to delete file: " + e.getMessage());
+        } catch (Exception e) {
+            log.error("Error deleting file with id: {}", id, e);
+            throw new RuntimeException("Error deleting file", e);
         }
-    }
-
-    @Override
-    @Transactional
-    public File updateFile(Long id, File updatedFile) {
-        File existingFile = fileRepository.findById(id).orElse(null);
-        if (existingFile == null) {
-            log.error("File not found: {}", id);
-            throw new IllegalArgumentException("File not found");
-        }
-
-        // 更新文件信息
-        if (updatedFile.getName() != null) {
-            existingFile.setName(updatedFile.getName());
-        }
-        
-        if (updatedFile.getContentType() != null) {
-            existingFile.setContentType(updatedFile.getContentType());
-        }
-        
-        return fileRepository.save(existingFile);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public long getUserStorageUsage(Long userId) {
-        Long totalSize = fileRepository.getTotalUploadSize(userId);
-        return totalSize != null ? totalSize : 0L;
     }
 }

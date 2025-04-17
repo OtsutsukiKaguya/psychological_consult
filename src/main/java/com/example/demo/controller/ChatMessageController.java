@@ -67,7 +67,7 @@ public class ChatMessageController {
      */
     @GetMapping("/session/{sessionId}")
     public ResponseEntity<?> getSessionMessages(
-            @PathVariable Long sessionId,
+            @PathVariable String sessionId,
             @RequestParam(defaultValue = "50") int limit,
             @RequestParam(defaultValue = "0") int offset) {
         try {
@@ -102,7 +102,7 @@ public class ChatMessageController {
      */
     @PostMapping("/session/{sessionId}")
     public ResponseEntity<?> sendMessage(
-            @PathVariable Long sessionId,
+            @PathVariable String sessionId,
             @Valid @RequestBody SendMessageRequest request) {
         try {
             // 获取当前用户
@@ -147,7 +147,7 @@ public class ChatMessageController {
      */
     @MessageMapping("/chat/{sessionId}")
     public void handleChatMessage(
-            @DestinationVariable Long sessionId,
+            @DestinationVariable String sessionId,
             @Payload MessagePayload payload,
             Authentication authentication) {
         try {

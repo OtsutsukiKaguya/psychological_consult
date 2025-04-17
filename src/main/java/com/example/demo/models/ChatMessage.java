@@ -54,6 +54,7 @@ public class ChatMessage {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "file_id")
     private File file;  // 通过 file_id 外键关联到 File 表中的 id 字段
+    //这里的file是不是应该是String类型？？？？
 
     // 是否已读
     @Column(name = "read_status", nullable = false)

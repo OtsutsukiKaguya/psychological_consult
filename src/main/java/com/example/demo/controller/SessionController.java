@@ -10,6 +10,7 @@ package com.example.demo.controller;
 import com.example.demo.models.ChatSession;
 import com.example.demo.models.SessionParticipant;
 import com.example.demo.models.User;
+import com.example.demo.service.ChatMessageService;
 import com.example.demo.service.ChatSessionService;
 import com.example.demo.service.ChatSessionService;
 import com.example.demo.service.UserService;
@@ -42,13 +43,13 @@ public class SessionController {
 
     @Autowired
     private ChatSessionService chatSessionService;
-    
+
     @Autowired
     private UserService userService;
-    
+
     @Autowired
     private ChatMessageService chatMessageService;
-    
+
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
@@ -80,10 +81,10 @@ public class SessionController {
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
-            
+
             // 获取用户参与的会话
             List<ChatSession> sessions = chatSessionService.findByUserId(currentUser.getId());
-            
+
             return ResponseEntity.ok(sessions);
         } catch (Exception e) {
             log.error("Failed to get user sessions", e);
@@ -95,7 +96,7 @@ public class SessionController {
      * 根据ID获取会话
      */
     @GetMapping("/{id}")
-    public ResponseEntity<?> getSessionById(@PathVariable Long id) {
+    public ResponseEntity<?> getSessionById(@PathVariable String id) {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -103,19 +104,19 @@ public class SessionController {
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
-            
+
             // 获取会话
             ChatSession session = chatSessionService.findById(id);
             if (session == null) {
                 return ResponseEntity.notFound().build();
             }
-            
+
             // 检查用户是否是会话的参与者
-            if (!chatSessionService.isSessionParticipant(id, currentUser.getId()) && 
-                currentUser.getRole() != User.UserRole.ADMIN) {
+            if (!chatSessionService.isSessionParticipant(id, currentUser.getId()) &&
+                    currentUser.getRole() != User.UserRole.ADMIN) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized to access this session");
             }
-            
+
             return ResponseEntity.ok(session);
         } catch (Exception e) {
             log.error("Failed to get session by id: {}", id, e);
@@ -130,50 +131,50 @@ public class SessionController {
     public ResponseEntity<?> createSession(@Valid @RequestBody CreateSessionRequest request) {
         try {
             log.debug("Creating session: {}", request);
-            
+
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             User currentUser = userService.findByUsername(authentication.getName());
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
-            
+
             // 如果是一对一会话，检查已存在的会话
             if (request.getType().equals("ONE_TO_ONE") && request.getParticipantIds().size() == 1) {
-                Long otherUserId = request.getParticipantIds().get(0);
+                String otherUserId = request.getParticipantIds().get(0);
                 ChatSession existingSession = chatSessionService.getOneToOneSession(currentUser.getId(), otherUserId);
-                
+
                 if (existingSession != null) {
                     log.debug("Found existing one-to-one session: {}", existingSession.getId());
                     return ResponseEntity.ok(existingSession);
                 }
             }
-            
+
             // 创建新会话
             ChatSession session = ChatSession.builder()
                     .name(request.getName())
                     .description(request.getDescription())
                     .type(ChatSession.SessionType.valueOf(request.getType()))
                     .build();
-            
+
             ChatSession savedSession = chatSessionService.createSession(session);
-            
+
             // 添加当前用户作为参与者
-            chatSessionService.addParticipant(savedSession.getId(), currentUser.getId(), 
+            chatSessionService.addParticipant(savedSession.getId(), currentUser.getId(),
                     determineRole(currentUser));
-            
+
             // 添加其他参与者
-            for (Long userId : request.getParticipantIds()) {
+            for (String userId : request.getParticipantIds()) {
                 User participant = userService.findById(userId);
                 if (participant != null) {
-                    chatSessionService.addParticipant(savedSession.getId(), userId, 
+                    chatSessionService.addParticipant(savedSession.getId(), userId,
                             determineRole(participant));
-                    
+
                     // 通知被邀请的用户
                     sendSessionInvitation(participant, savedSession, currentUser);
                 }
             }
-            
+
             return ResponseEntity.ok(savedSession);
         } catch (Exception e) {
             log.error("Failed to create session", e);
@@ -185,7 +186,7 @@ public class SessionController {
      * 更新会话信息
      */
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateSession(@PathVariable Long id, @Valid @RequestBody UpdateSessionRequest request) {
+    public ResponseEntity<?> updateSession(@PathVariable String id, @Valid @RequestBody UpdateSessionRequest request) {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -193,30 +194,30 @@ public class SessionController {
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
-            
+
             // 获取会话
             ChatSession session = chatSessionService.findById(id);
             if (session == null) {
                 return ResponseEntity.notFound().build();
             }
-            
+
             // 检查用户是否是会话的参与者，或者是管理员
-            if (!chatSessionService.isSessionParticipant(id, currentUser.getId()) && 
-                currentUser.getRole() != User.UserRole.ADMIN) {
+            if (!chatSessionService.isSessionParticipant(id, currentUser.getId()) &&
+                    currentUser.getRole() != User.UserRole.ADMIN) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized to update this session");
             }
-            
+
             // 更新会话信息
             ChatSession updatedSession = ChatSession.builder()
                     .name(request.getName())
                     .description(request.getDescription())
                     .build();
-            
+
             ChatSession result = chatSessionService.updateSession(id, updatedSession);
-            
+
             // 通知会话参与者
             notifySessionUpdated(result);
-            
+
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Failed to update session: {}", id, e);
@@ -228,7 +229,7 @@ public class SessionController {
      * 获取会话参与者
      */
     @GetMapping("/{id}/participants")
-    public ResponseEntity<?> getSessionParticipants(@PathVariable Long id) {
+    public ResponseEntity<?> getSessionParticipants(@PathVariable String id) {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -236,19 +237,19 @@ public class SessionController {
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
-            
+
             // 获取会话
             ChatSession session = chatSessionService.findById(id);
             if (session == null) {
                 return ResponseEntity.notFound().build();
             }
-            
+
             // 检查用户是否是会话的参与者，或者是管理员
-            if (!chatSessionService.isSessionParticipant(id, currentUser.getId()) && 
-                currentUser.getRole() != User.UserRole.ADMIN) {
+            if (!chatSessionService.isSessionParticipant(id, currentUser.getId()) &&
+                    currentUser.getRole() != User.UserRole.ADMIN) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized to access this session");
             }
-            
+
             // 获取参与者
             List<User> participants = chatSessionService.getSessionParticipants(id);
             return ResponseEntity.ok(participants);
@@ -262,7 +263,7 @@ public class SessionController {
      * 添加参与者到会话
      */
     @PostMapping("/{id}/participants")
-    public ResponseEntity<?> addParticipant(@PathVariable Long id, @Valid @RequestBody AddParticipantRequest request) {
+    public ResponseEntity<?> addParticipant(@PathVariable String id, @Valid @RequestBody AddParticipantRequest request) {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -270,27 +271,27 @@ public class SessionController {
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
-            
+
             // 获取会话
             ChatSession session = chatSessionService.findById(id);
             if (session == null) {
                 return ResponseEntity.notFound().build();
             }
-            
+
             // 检查用户是否是会话的参与者，或者是管理员
-            if (!chatSessionService.isSessionParticipant(id, currentUser.getId()) && 
-                currentUser.getRole() != User.UserRole.ADMIN) {
+            if (!chatSessionService.isSessionParticipant(id, currentUser.getId()) &&
+                    currentUser.getRole() != User.UserRole.ADMIN) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized to add participants to this session");
             }
-            
+
             // 如果是一对一会话，不允许添加更多参与者
             if (session.getType() == ChatSession.SessionType.ONE_TO_ONE) {
                 return ResponseEntity.badRequest().body("Cannot add more participants to a one-to-one session");
             }
-            
+
             // 添加参与者
-            List<Long> addedUserIds = new ArrayList<>();
-            for (Long userId : request.getUserIds()) {
+            List<String> addedUserIds = new ArrayList<>();
+            for (String userId : request.getUserIds()) {
                 User user = userService.findById(userId);
                 if (user != null) {
                     // 检查用户是否已经是会话的参与者
@@ -304,12 +305,12 @@ public class SessionController {
                     }
                 }
             }
-            
+
             // 通知其他参与者有新成员加入
             if (!addedUserIds.isEmpty()) {
                 notifyParticipantsAdded(session, addedUserIds, currentUser);
             }
-            
+
             return ResponseEntity.ok(Map.of("addedUserIds", addedUserIds));
         } catch (Exception e) {
             log.error("Failed to add participants to session: {}", id, e);
@@ -321,7 +322,7 @@ public class SessionController {
      * 从会话中移除参与者
      */
     @DeleteMapping("/{id}/participants/{userId}")
-    public ResponseEntity<?> removeParticipant(@PathVariable Long id, @PathVariable Long userId) {
+    public ResponseEntity<?> removeParticipant(@PathVariable String id, @PathVariable String userId) {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -329,37 +330,37 @@ public class SessionController {
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
-            
+
             // 获取会话
             ChatSession session = chatSessionService.findById(id);
             if (session == null) {
                 return ResponseEntity.notFound().build();
             }
-            
+
             // 检查被移除的用户是否存在
             User userToRemove = userService.findById(userId);
             if (userToRemove == null) {
                 return ResponseEntity.badRequest().body("User not found");
             }
-            
+
             // 检查权限
             boolean isAdmin = currentUser.getRole() == User.UserRole.ADMIN;
             boolean isSelf = currentUser.getId().equals(userId);
             boolean isSessionParticipant = chatSessionService.isSessionParticipant(id, currentUser.getId());
-            
+
             // 如果是自己退出，或者是管理员，或者是会话参与者移除其他人，则允许
             if (isSelf || isAdmin || isSessionParticipant) {
                 // 如果是一对一会话，不允许移除参与者（除非是自己退出）
                 if (session.getType() == ChatSession.SessionType.ONE_TO_ONE && !isSelf) {
                     return ResponseEntity.badRequest().body("Cannot remove participants from a one-to-one session");
                 }
-                
+
                 // 移除参与者
                 chatSessionService.removeParticipant(id, userId);
-                
+
                 // 通知其他参与者有成员离开
                 notifyParticipantRemoved(session, userId, currentUser.getId());
-                
+
                 return ResponseEntity.ok().build();
             } else {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized to remove participants from this session");
@@ -374,7 +375,7 @@ public class SessionController {
      * 删除会话
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteSession(@PathVariable Long id) {
+    public ResponseEntity<?> deleteSession(@PathVariable String id) {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -382,27 +383,27 @@ public class SessionController {
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
-            
+
             // 获取会话
             ChatSession session = chatSessionService.findById(id);
             if (session == null) {
                 return ResponseEntity.notFound().build();
             }
-            
+
             // 检查权限（仅管理员可以删除会话）
             if (currentUser.getRole() != User.UserRole.ADMIN) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized to delete this session");
             }
-            
+
             // 获取会话参与者，以便后续通知
             List<User> participants = chatSessionService.getSessionParticipants(id);
-            
+
             // 删除会话
             chatSessionService.deleteSession(id);
-            
+
             // 通知会话参与者
             notifySessionDeleted(session, participants);
-            
+
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             log.error("Failed to delete session: {}", id, e);
@@ -422,10 +423,10 @@ public class SessionController {
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
-            
+
             // 获取最近的会话
             List<ChatSession> sessions = chatSessionService.getRecentSessions(currentUser.getId());
-            
+
             return ResponseEntity.ok(sessions);
         } catch (Exception e) {
             log.error("Failed to get recent sessions", e);
@@ -440,8 +441,8 @@ public class SessionController {
         switch (user.getRole()) {
             case COUNSELOR:
                 return SessionParticipant.ParticipantRole.COUNSELOR;
-            case SUPERVISOR:
-                return SessionParticipant.ParticipantRole.SUPERVISOR;
+            case TUTOR:
+                return SessionParticipant.ParticipantRole.TUTOR;
             case ADMIN:
                 return SessionParticipant.ParticipantRole.ADMIN;
             default:
@@ -459,10 +460,10 @@ public class SessionController {
         notification.put("sessionName", session.getName());
         notification.put("sessionType", session.getType().name());
         notification.put("inviterId", inviter.getId());
-        notification.put("inviterName", inviter.getUsername());
-        
+        notification.put("inviterName", inviter.getId());
+
         messagingTemplate.convertAndSendToUser(
-                invitee.getUsername(),
+                invitee.getId(),
                 "/queue/notifications",
                 notification
         );
@@ -473,16 +474,16 @@ public class SessionController {
      */
     private void notifySessionUpdated(ChatSession session) {
         List<User> participants = chatSessionService.getSessionParticipants(session.getId());
-        
+
         Map<String, Object> notification = new HashMap<>();
         notification.put("type", "SESSION_UPDATED");
         notification.put("sessionId", session.getId());
         notification.put("sessionName", session.getName());
         notification.put("sessionDescription", session.getDescription());
-        
+
         for (User participant : participants) {
             messagingTemplate.convertAndSendToUser(
-                    participant.getUsername(),
+                    participant.getId(),
                     "/queue/notifications",
                     notification
             );
@@ -492,33 +493,32 @@ public class SessionController {
     /**
      * 通知会话参与者有新成员加入
      */
-    private void notifyParticipantsAdded(ChatSession session, List<Long> addedUserIds, User adder) {
+    private void notifyParticipantsAdded(ChatSession session, List<String> addedUserIds, User adder) {
         List<User> participants = chatSessionService.getSessionParticipants(session.getId());
         List<User> addedUsers = addedUserIds.stream()
                 .map(id -> userService.findById(id))
                 .collect(Collectors.toList());
-        
+
         Map<String, Object> notification = new HashMap<>();
         notification.put("type", "PARTICIPANTS_ADDED");
         notification.put("sessionId", session.getId());
         notification.put("sessionName", session.getName());
         notification.put("adderId", adder.getId());
-        notification.put("adderName", adder.getUsername());
+        notification.put("adderName", adder.getId());
         notification.put("addedUsers", addedUsers.stream()
                 .filter(u -> u != null)
                 .map(u -> Map.of(
                         "id", u.getId(),
-                        "username", u.getUsername(),
-                        "nickname", u.getNickname(),
+                        "username", u.getName(),
                         "role", u.getRole().name()
                 ))
                 .collect(Collectors.toList()));
-        
+
         for (User participant : participants) {
             // 不向新加入的成员发送通知
             if (!addedUserIds.contains(participant.getId())) {
                 messagingTemplate.convertAndSendToUser(
-                        participant.getUsername(),
+                        participant.getId(),
                         "/queue/notifications",
                         notification
                 );
@@ -529,22 +529,22 @@ public class SessionController {
     /**
      * 通知会话参与者有成员离开
      */
-    private void notifyParticipantRemoved(ChatSession session, Long removedUserId, Long removerUserId) {
+    private void notifyParticipantRemoved(ChatSession session, String removedUserId, String removerUserId) {
         List<User> participants = chatSessionService.getSessionParticipants(session.getId());
         User removedUser = userService.findById(removedUserId);
-        
+
         if (removedUser != null) {
             Map<String, Object> notification = new HashMap<>();
             notification.put("type", "PARTICIPANT_REMOVED");
             notification.put("sessionId", session.getId());
             notification.put("sessionName", session.getName());
             notification.put("removedUserId", removedUserId);
-            notification.put("removedUsername", removedUser.getUsername());
+            notification.put("removedUsername", removedUser.getId());
             notification.put("removerUserId", removerUserId);
-            
+
             for (User participant : participants) {
                 messagingTemplate.convertAndSendToUser(
-                        participant.getUsername(),
+                        participant.getId(),
                         "/queue/notifications",
                         notification
                 );
@@ -560,10 +560,10 @@ public class SessionController {
         notification.put("type", "SESSION_DELETED");
         notification.put("sessionId", session.getId());
         notification.put("sessionName", session.getName());
-        
+
         for (User participant : participants) {
             messagingTemplate.convertAndSendToUser(
-                    participant.getUsername(),
+                    participant.getId(),
                     "/queue/notifications",
                     notification
             );
@@ -578,7 +578,7 @@ public class SessionController {
         private String name;
         private String description;
         private String type;
-        private List<Long> participantIds;
+        private List<String> participantIds;
     }
 
     /**
@@ -595,6 +595,6 @@ public class SessionController {
      */
     @Data
     public static class AddParticipantRequest {
-        private List<Long> userIds;
+        private List<String> userIds;
     }
 }

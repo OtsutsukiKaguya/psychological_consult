@@ -57,9 +57,9 @@ public class ChatController {
         ChatMessage message = ChatMessage.builder()
                 .session(chatSessionService.findById(messageRequest.getSessionId()))
                 .sender(sender)
-                .messageType(ChatMessage.MessageType.valueOf(messageRequest.getMessageType()))
+                .type(ChatMessage.MessageType.valueOf(messageRequest.getMessageType()))
                 .content(messageRequest.getContent())
-                .fileUrl(messageRequest.getFileUrl())
+                .file(messageRequest.getFileUrl()) //不知道怎么改
                 .readStatus(false)
                 .build();
         
@@ -68,21 +68,22 @@ public class ChatController {
         
         // 发送给会话中的所有参与者
         chatSessionService.getSessionParticipants(messageRequest.getSessionId()).forEach(participant -> {
-            if (!participant.getUser().getId().equals(sender.getId())) {
+            if (!participant.getId().equals(sender.getId())) {
                 messagingTemplate.convertAndSendToUser(
-                        participant.getUser().getUsername(),
+                        participant.getName(),
                         "/queue/messages",
                         MessageResponse.builder()
                                 .id(savedMessage.getId())
                                 .sessionId(savedMessage.getSession().getId())
                                 .senderId(savedMessage.getSender().getId())
-                                .senderUsername(savedMessage.getSender().getUsername())
-                                .senderNickname(savedMessage.getSender().getNickname())
-                                .messageType(savedMessage.getMessageType().name())
+                                .senderUsername(savedMessage.getSender().getName())
+//                                .senderNickname(savedMessage.getSender().getNickname())
+                                //我们没设置昵称这个字段
+                                .messageType(savedMessage.getType().name())
                                 .content(savedMessage.getContent())
-                                .fileUrl(savedMessage.getFileUrl())
+                                .fileUrl(savedMessage.getFile())  //这里File类型和String类型不匹配
                                 .sentAt(savedMessage.getSentAt())
-                                .readStatus(savedMessage.getReadStatus())
+                                .readStatus(savedMessage.isRead())
                                 .build()
                 );
             }
@@ -104,15 +105,15 @@ public class ChatController {
         }
         
         // 发送给会话中的所有参与者
-        chatSessionService.getParticipants(typingRequest.getSessionId()).forEach(participant -> {
-            if (!participant.getUser().getId().equals(sender.getId())) {
+        chatSessionService.getSessionParticipants(typingRequest.getSessionId()).forEach(participant -> {
+            if (!participant.getId().equals(sender.getId())) {
                 messagingTemplate.convertAndSendToUser(
-                        participant.getUser().getUsername(),
+                        participant.getName(),
                         "/queue/typing",
                         TypingResponse.builder()
                                 .sessionId(typingRequest.getSessionId())
                                 .senderId(sender.getId())
-                                .senderUsername(sender.getUsername())
+                                .senderUsername(sender.getName())
                                 .typing(typingRequest.isTyping())
                                 .build()
                 );
@@ -135,20 +136,20 @@ public class ChatController {
         }
         
         // 标记消息为已读
-        chatMessageService.markAsReadInSession(readStatusRequest.getSessionId(), user.getId());
+        chatMessageService.markSessionMessagesAsRead(readStatusRequest.getSessionId(), user.getId());
         
         // 通知发送者消息已读
-        Long senderId = readStatusRequest.getSenderId();
+        String senderId = readStatusRequest.getSenderId();
         if (senderId != null) {
             User sender = userService.findById(senderId);
             if (sender != null) {
                 messagingTemplate.convertAndSendToUser(
-                        sender.getUsername(),
+                        sender.getName(),
                         "/queue/read-status",
                         ReadStatusResponse.builder()
                                 .sessionId(readStatusRequest.getSessionId())
                                 .userId(user.getId())
-                                .username(user.getUsername())
+                                .username(user.getName())
                                 .messageIds(readStatusRequest.getMessageIds())
                                 .build()
                 );
@@ -165,6 +166,40 @@ public class ChatController {
         private String messageType;
         private String content;
         private String fileUrl;
+
+        //这个是我自己加的get和set
+        public String getSessionId() {
+            return sessionId;
+        }
+
+        public void setSessionId(String sessionId) {
+            this.sessionId = sessionId;
+        }
+
+        public String getMessageType() {
+            return messageType;
+        }
+
+        public void setMessageType(String messageType) {
+            this.messageType = messageType;
+        }
+
+        public String getContent() {
+            return content;
+        }
+
+        public void setContent(String content) {
+            this.content = content;
+        }
+
+        public String getFileUrl() {
+            return fileUrl;
+        }
+
+        public void setFileUrl(String fileUrl) {
+            this.fileUrl = fileUrl;
+        }
+
     }
 
     /**
@@ -192,17 +227,17 @@ public class ChatController {
         public static class Builder {
             private final MessageResponse response = new MessageResponse();
             
-            public Builder id(Long id) {
+            public Builder id(Integer id) {
                 response.id = id;
                 return this;
             }
             
-            public Builder sessionId(Long sessionId) {
+            public Builder sessionId(String sessionId) {
                 response.sessionId = sessionId;
                 return this;
             }
             
-            public Builder senderId(Long senderId) {
+            public Builder senderId(String senderId) {
                 response.senderId = senderId;
                 return this;
             }
@@ -253,7 +288,7 @@ public class ChatController {
      */
     @Data
     public static class TypingRequest {
-        private Long sessionId;
+        private String sessionId;
         private boolean typing;
     }
 
@@ -262,8 +297,8 @@ public class ChatController {
      */
     @Data
     public static class TypingResponse {
-        private Long sessionId;
-        private Long senderId;
+        private String sessionId;
+        private String senderId;
         private String senderUsername;
         private boolean typing;
         
@@ -276,12 +311,12 @@ public class ChatController {
         public static class Builder {
             private final TypingResponse response = new TypingResponse();
             
-            public Builder sessionId(Long sessionId) {
+            public Builder sessionId(String sessionId) {
                 response.sessionId = sessionId;
                 return this;
             }
             
-            public Builder senderId(Long senderId) {
+            public Builder senderId(String senderId) {
                 response.senderId = senderId;
                 return this;
             }
@@ -307,9 +342,9 @@ public class ChatController {
      */
     @Data
     public static class ReadStatusRequest {
-        private Long sessionId;
-        private Long senderId;
-        private List<Long> messageIds;
+        private String sessionId;
+        private String senderId;
+        private List<String> messageIds;
     }
 
     /**
@@ -317,10 +352,10 @@ public class ChatController {
      */
     @Data
     public static class ReadStatusResponse {
-        private Long sessionId;
-        private Long userId;
+        private String sessionId;
+        private String userId;
         private String username;
-        private List<Long> messageIds;
+        private List<String> messageIds;
         
         private ReadStatusResponse() {}
         
@@ -331,12 +366,12 @@ public class ChatController {
         public static class Builder {
             private final ReadStatusResponse response = new ReadStatusResponse();
             
-            public Builder sessionId(Long sessionId) {
+            public Builder sessionId(String sessionId) {
                 response.sessionId = sessionId;
                 return this;
             }
             
-            public Builder userId(Long userId) {
+            public Builder userId(String userId) {
                 response.userId = userId;
                 return this;
             }
@@ -346,7 +381,7 @@ public class ChatController {
                 return this;
             }
             
-            public Builder messageIds(List<Long> messageIds) {
+            public Builder messageIds(List<String> messageIds) {
                 response.messageIds = messageIds;
                 return this;
             }
