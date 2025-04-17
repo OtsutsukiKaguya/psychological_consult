@@ -59,7 +59,7 @@ public class ChatController {
                 .sender(sender)
                 .type(ChatMessage.MessageType.valueOf(messageRequest.getMessageType()))
                 .content(messageRequest.getContent())
-                .file(messageRequest.getFileUrl()) //不知道怎么改
+                .file(messageRequest.getFileUrl()) //File和String两个类型不匹配
                 .readStatus(false)
                 .build();
         
@@ -166,40 +166,6 @@ public class ChatController {
         private String messageType;
         private String content;
         private String fileUrl;
-
-        //这个是我自己加的get和set
-        public String getSessionId() {
-            return sessionId;
-        }
-
-        public void setSessionId(String sessionId) {
-            this.sessionId = sessionId;
-        }
-
-        public String getMessageType() {
-            return messageType;
-        }
-
-        public void setMessageType(String messageType) {
-            this.messageType = messageType;
-        }
-
-        public String getContent() {
-            return content;
-        }
-
-        public void setContent(String content) {
-            this.content = content;
-        }
-
-        public String getFileUrl() {
-            return fileUrl;
-        }
-
-        public void setFileUrl(String fileUrl) {
-            this.fileUrl = fileUrl;
-        }
-
     }
 
     /**

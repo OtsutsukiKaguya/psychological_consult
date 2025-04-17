@@ -30,4 +30,6 @@ public interface FileService {
      */
     void deleteFile(Integer id);  // 修改为 Integer 类型
 
+//    File findByUrl(String url); //gjx加的
+
 }

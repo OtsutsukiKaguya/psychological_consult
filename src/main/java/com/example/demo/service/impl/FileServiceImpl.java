@@ -95,4 +95,11 @@ public class FileServiceImpl implements FileService {
             throw new RuntimeException("Error deleting file", e);
         }
     }
+
+    //gjx加的
+//    @Override
+//    @Transactional(readOnly = true)
+//    public File findByUrl(String url) {
+//        return fileRepository.findByOssUrl(url);
+//    }
 }
