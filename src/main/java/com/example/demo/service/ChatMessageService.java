@@ -46,7 +46,7 @@ public interface ChatMessageService {
     /**
      * 标记消息为已读
      */
-    void markMessageAsRead(String messageId, String userId);
+    void markMessageAsRead(Integer messageId, String userId);
 
     /**
      * 标记会话所有消息为已读
@@ -56,7 +56,7 @@ public interface ChatMessageService {
     /**
      * 检查消息是否已读
      */
-    boolean isMessageRead(String messageId, String userId);
+    boolean isMessageRead(Integer messageId, String userId);
 
     /**
      * 获取未读消息数

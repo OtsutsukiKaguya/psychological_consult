@@ -25,11 +25,15 @@ public interface FileService {
      */
     List<File> getFilesByUploader(String uploaderId);  // 修改为 String 类型
 
+    // 根据文件 URL 查找文件
+    File getFileByUrl(String ossUrl);
+
     /**
      * 删除文件
      */
     void deleteFile(Integer id);  // 修改为 Integer 类型
 
-//    File findByUrl(String url); //gjx加的
+    //基于ossUrl下载文件
+    byte[] downloadFile(String ossUrl);
 
 }

@@ -60,20 +60,20 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         ChatMessage savedMessage = chatMessageRepository.save(message);
         
         // 更新会话最后活动时间
-        chatSessionService.updateLastActivity(message.getSessionId());
+        chatSessionService.updateLastActivity(message.getSession().getId());
         
         return savedMessage;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public ChatMessage findById(Long id) {
+    public ChatMessage findById(Integer id) {
         return chatMessageRepository.findById(id).orElse(null);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<ChatMessage> getSessionMessages(Long sessionId, int limit, int offset) {
+    public List<ChatMessage> getSessionMessages(String sessionId, int limit, int offset) {
         return chatMessageRepository.findBySessionIdOrderBySentAtDesc(
                 sessionId, 
                 PageRequest.of(offset / limit, limit));
@@ -81,13 +81,13 @@ public class ChatMessageServiceImpl implements ChatMessageService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ChatMessage> getSessionMessagesByType(Long sessionId, ChatMessage.MessageType type) {
+    public List<ChatMessage> getSessionMessagesByType(String sessionId, ChatMessage.MessageType type) {
         return chatMessageRepository.findBySessionIdAndTypeOrderBySentAtDesc(sessionId, type);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public ChatMessage getLastMessage(Long sessionId) {
+    public ChatMessage getLastMessage(String sessionId) {
         List<ChatMessage> messages = chatMessageRepository.findLastMessageBySessionId(
                 sessionId, 
                 PageRequest.of(0, 1));
@@ -97,13 +97,13 @@ public class ChatMessageServiceImpl implements ChatMessageService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ChatMessage> searchMessages(Long sessionId, String keyword) {
+    public List<ChatMessage> searchMessages(String sessionId, String keyword) {
         return chatMessageRepository.searchMessagesByKeyword(sessionId, keyword);
     }
 
     @Override
     @Transactional
-    public void markMessageAsRead(Long messageId, Long userId) {
+    public void markMessageAsRead(Integer messageId, String userId) {
         // 检查消息是否已读
         if (messageReadRepository.existsByMessageIdAndUserId(messageId, userId)) {
             return;
@@ -121,28 +121,28 @@ public class ChatMessageServiceImpl implements ChatMessageService {
 
     @Override
     @Transactional
-    public void markSessionMessagesAsRead(Long sessionId, Long userId) {
+    public void markSessionMessagesAsRead(String sessionId, String userId) {
         // 使用原生SQL批量插入已读记录
         chatMessageRepository.markMessagesAsRead(sessionId, userId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public boolean isMessageRead(Long messageId, Long userId) {
+    public boolean isMessageRead(Integer messageId, String userId) {
         return messageReadRepository.existsByMessageIdAndUserId(messageId, userId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public int getUnreadCount(Long sessionId, Long userId) {
+    public int getUnreadCount(String sessionId, String userId) {
         return chatMessageRepository.countUnreadMessages(sessionId, userId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<ChatMessage> getAllUnreadMessages(Long userId) {
+    public List<ChatMessage> getAllUnreadMessages(String userId) {
         // 使用自定义查询获取所有未读消息
-        String jpql = "SELECT cm FROM ChatMessage cm WHERE cm.senderId != :userId " +
+        String jpql = "SELECT cm FROM ChatMessage cm WHERE cm.sender.id != :userId " +
                       "AND NOT EXISTS (SELECT 1 FROM MessageRead mr WHERE mr.messageId = cm.id AND mr.userId = :userId) " +
                       "ORDER BY cm.sentAt DESC";
         
@@ -153,7 +153,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
 
     @Override
     @Transactional
-    public void deleteMessage(Long id) {
+    public void deleteMessage(Integer id) {
         // 删除消息的已读记录
         messageReadRepository.deleteByMessageId(id);
         
@@ -163,9 +163,9 @@ public class ChatMessageServiceImpl implements ChatMessageService {
 
     @Override
     @Transactional
-    public void deleteSessionMessages(Long sessionId) {
+    public void deleteSessionMessages(String sessionId) {
         // 获取会话所有消息ID
-        String jpql = "SELECT cm.id FROM ChatMessage cm WHERE cm.sessionId = :sessionId";
+        String jpql = "SELECT cm.id FROM ChatMessage cm WHERE cm.session.id = :sessionId";
         List<Long> messageIds = entityManager.createQuery(jpql, Long.class)
                 .setParameter("sessionId", sessionId)
                 .getResultList();
@@ -179,9 +179,16 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         }
         
         // 删除会话的所有消息
-        String deleteCmJpql = "DELETE FROM ChatMessage cm WHERE cm.sessionId = :sessionId";
+        String deleteCmJpql = "DELETE FROM ChatMessage cm WHERE cm.session.id = :sessionId";
         entityManager.createQuery(deleteCmJpql)
                 .setParameter("sessionId", sessionId)
                 .executeUpdate();
+    }
+
+    //save
+    @Override
+    @Transactional
+    public ChatMessage save(ChatMessage message) {
+        return createMessage(message);  // 转发调用，避免重复逻辑
     }
 }

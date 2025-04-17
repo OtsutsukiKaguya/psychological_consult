@@ -32,20 +32,21 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public User findById(Long id) {
+    public User findById(String id) {
         return userRepository.findById(id).orElse(null);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public User findByUsername(String username) {
-        return userRepository.findByUsername(username);
-    }
+    //感觉不需要专门写一个根据name查找，而可以直接用后面的模糊匹配
+//    @Override
+//    @Transactional(readOnly = true)
+//    public User findByUsername(String username) {
+//        return userRepository.findById(username).orElse(null);
+//    }
 
     @Override
     @Transactional(readOnly = true)
-    public boolean existsByUsername(String username) {
-        return userRepository.existsByUsername(username);
+    public boolean existsById(String id) {
+        return userRepository.existsById(id);
     }
 
     @Override
@@ -63,15 +64,15 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public List<User> findByStatus(User.UserStatus status) {
-        return userRepository.findByStatus(status);
+        return userRepository.findByState(status);
     }
 
     @Override
     @Transactional
     public User createUser(User user) {
         // 检查用户名是否已存在
-        if (userRepository.existsByUsername(user.getUsername())) {
-            log.error("Username already exists: {}", user.getUsername());
+        if (userRepository.existsById(user.getId())) {
+            log.error("Username already exists: {}", user.getId());
             throw new IllegalArgumentException("Username already exists");
         }
         
@@ -91,20 +92,20 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public User updateUser(Long id, User updatedUser) {
+    public User updateUser(String id, User updatedUser) {
         User existingUser = userRepository.findById(id).orElse(null);
         if (existingUser == null) {
             return null;
         }
         
         // 更新用户信息
-        if (updatedUser.getUsername() != null && !updatedUser.getUsername().equals(existingUser.getUsername())) {
+        if (updatedUser.getId() != null && !updatedUser.getId().equals(existingUser.getId())) {
             // 检查新用户名是否已存在
-            if (userRepository.existsByUsername(updatedUser.getUsername())) {
-                log.error("Username already exists: {}", updatedUser.getUsername());
+            if (userRepository.existsById(updatedUser.getId())) {
+                log.error("Username already exists: {}", updatedUser.getId());
                 throw new IllegalArgumentException("Username already exists");
             }
-            existingUser.setUsername(updatedUser.getUsername());
+            existingUser.setId(updatedUser.getId());
         }
         
         if (updatedUser.getPassword() != null && !updatedUser.getPassword().isEmpty()) {
@@ -112,20 +113,20 @@ public class UserServiceImpl implements UserService {
             existingUser.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
         }
         
-        if (updatedUser.getNickname() != null) {
-            existingUser.setNickname(updatedUser.getNickname());
+        if (updatedUser.getName() != null) {
+            existingUser.setName(updatedUser.getName());
         }
         
         if (updatedUser.getRole() != null) {
             existingUser.setRole(updatedUser.getRole());
         }
         
-        if (updatedUser.getStatus() != null) {
-            existingUser.setStatus(updatedUser.getStatus());
+        if (updatedUser.getState() != null) {
+            existingUser.setState(updatedUser.getState());
         }
         
-        if (updatedUser.getAvatarUrl() != null) {
-            existingUser.setAvatarUrl(updatedUser.getAvatarUrl());
+        if (updatedUser.getIdPictureLink() != null) {
+            existingUser.setIdPictureLink(updatedUser.getIdPictureLink());
         }
         
         existingUser.setUpdatedAt(LocalDateTime.now());
@@ -135,95 +136,99 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public User updateUserStatus(Long id, User.UserStatus status) {
+    public User updateUserStatus(String id, User.UserStatus status) {
         User user = userRepository.findById(id).orElse(null);
         if (user == null) {
             return null;
         }
         
-        user.setStatus(status);
+        user.setState(status);
         user.setUpdatedAt(LocalDateTime.now());
         
         return userRepository.save(user);
     }
 
-    @Override
-    @Transactional
-    public User updateUserStatusByUsername(String username, String status) {
-        User user = userRepository.findByUsername(username);
-        if (user == null) {
-            return null;
-        }
-        
-        try {
-            User.UserStatus userStatus = User.UserStatus.valueOf(status);
-            user.setStatus(userStatus);
-            user.setUpdatedAt(LocalDateTime.now());
-            
-            return userRepository.save(user);
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid user status: {}", status);
-            throw new IllegalArgumentException("Invalid user status");
-        }
-    }
+    //感觉不需要根据用户名来更新状态，所以注释掉
+//    @Override
+//    @Transactional
+//    public User updateUserStatusByUsername(String username, String status) {
+//        User user = userRepository.findByUsername(username);
+//        if (user == null) {
+//            return null;
+//        }
+//
+//        try {
+//            User.UserStatus userStatus = User.UserStatus.valueOf(status);
+//            user.setStatus(userStatus);
+//            user.setUpdatedAt(LocalDateTime.now());
+//
+//            return userRepository.save(user);
+//        } catch (IllegalArgumentException e) {
+//            log.error("Invalid user status: {}", status);
+//            throw new IllegalArgumentException("Invalid user status");
+//        }
+//    }
 
     @Override
     @Transactional
-    public User updateUserAvatar(Long id, String avatarUrl) {
+    public User updateUserAvatar(String id, String avatarUrl) {
         User user = userRepository.findById(id).orElse(null);
         if (user == null) {
             return null;
         }
         
-        user.setAvatarUrl(avatarUrl);
+        user.setIdPictureLink(avatarUrl);
         user.setUpdatedAt(LocalDateTime.now());
         
         return userRepository.save(user);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public User getSupervisor(Long counselorId) {
-        User counselor = userRepository.findById(counselorId).orElse(null);
-        if (counselor == null) {
-            return null;
-        }
-        
-        return counselor.getSupervisor();
-    }
+//    //获取咨询师对应的督导
+//    @Override
+//    @Transactional(readOnly = true)
+//    public User getSupervisor(String counselorId) {
+//        User counselor = userRepository.findById(counselorId).orElse(null);
+//        if (counselor == null) {
+//            return null;
+//        }
+//
+//        return counselor.getSupervisor();
+//    }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<User> getSupervisees(Long supervisorId) {
-        return userRepository.findBySupervisorId(supervisorId);
-    }
+//    //获取咨询师
+//    @Override
+//    @Transactional(readOnly = true)
+//    public List<User> getSupervisees(String supervisorId) {
+//        return userRepository.findBySupervisorId(supervisorId);
+//    }
+
+//    //设置督导关系
+//    @Override
+//    @Transactional
+//    public User assignSupervisor(String counselorId, String supervisorId) {
+//        User counselor = userRepository.findById(counselorId).orElse(null);
+//        User supervisor = userRepository.findById(supervisorId).orElse(null);
+//
+//        if (counselor == null || supervisor == null) {
+//            return null;
+//        }
+//
+//        // 检查督导角色
+//        if (supervisor.getRole() != User.UserRole.SUPERVISOR && supervisor.getRole() != User.UserRole.ADMIN) {
+//            log.error("User is not a supervisor or admin: {}", supervisorId);
+//            throw new IllegalArgumentException("User is not a supervisor or admin");
+//        }
+//
+//        // 设置督导关系
+//        counselor.setSupervisor(supervisor);
+//        counselor.setUpdatedAt(LocalDateTime.now());
+//
+//        return userRepository.save(counselor);
+//    }
 
     @Override
     @Transactional
-    public User assignSupervisor(Long counselorId, Long supervisorId) {
-        User counselor = userRepository.findById(counselorId).orElse(null);
-        User supervisor = userRepository.findById(supervisorId).orElse(null);
-        
-        if (counselor == null || supervisor == null) {
-            return null;
-        }
-        
-        // 检查督导角色
-        if (supervisor.getRole() != User.UserRole.SUPERVISOR && supervisor.getRole() != User.UserRole.ADMIN) {
-            log.error("User is not a supervisor or admin: {}", supervisorId);
-            throw new IllegalArgumentException("User is not a supervisor or admin");
-        }
-        
-        // 设置督导关系
-        counselor.setSupervisor(supervisor);
-        counselor.setUpdatedAt(LocalDateTime.now());
-        
-        return userRepository.save(counselor);
-    }
-
-    @Override
-    @Transactional
-    public void deleteUser(Long id) {
+    public void deleteUser(String id) {
         // 检查用户是否存在
         if (!userRepository.existsById(id)) {
             log.error("User not found: {}", id);

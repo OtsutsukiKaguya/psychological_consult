@@ -50,11 +50,11 @@ public class UserController {
      * 根据ID获取用户
      */
     @GetMapping("/{id}")
-    public ResponseEntity<?> getUserById(@PathVariable Long id) {
+    public ResponseEntity<?> getUserById(@PathVariable String id) {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
+            User currentUser = userService.findById(authentication.getName());
             
             // 如果不是管理员，且不是查询自己的信息，则拒绝
             if (currentUser.getRole() != User.UserRole.ADMIN && !currentUser.getId().equals(id)) {
@@ -77,11 +77,11 @@ public class UserController {
      * 更新用户信息
      */
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateUser(@PathVariable Long id, @Valid @RequestBody UpdateUserRequest request) {
+    public ResponseEntity<?> updateUser(@PathVariable String id, @Valid @RequestBody UpdateUserRequest request) {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
+            User currentUser = userService.findById(authentication.getName());
             
             // 如果不是管理员，且不是修改自己的信息，则拒绝
             if (currentUser.getRole() != User.UserRole.ADMIN && !currentUser.getId().equals(id)) {
@@ -95,9 +95,9 @@ public class UserController {
             
             // 构建更新对象
             User userToUpdate = User.builder()
-                    .username(request.getUsername())
+                    .id(request.getUsername())
                     .password(request.getPassword())
-                    .nickname(request.getNickname())
+                    .name(request.getNickname())
                     .build();
             
             // 仅管理员可以修改角色
@@ -125,11 +125,11 @@ public class UserController {
      * 更新用户状态
      */
     @PutMapping("/{id}/status")
-    public ResponseEntity<?> updateUserStatus(@PathVariable Long id, @Valid @RequestBody UpdateStatusRequest request) {
+    public ResponseEntity<?> updateUserStatus(@PathVariable String id, @Valid @RequestBody UpdateStatusRequest request) {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
+            User currentUser = userService.findById(authentication.getName());
             
             // 如果不是管理员，且不是更新自己的状态，则拒绝
             if (currentUser.getRole() != User.UserRole.ADMIN && !currentUser.getId().equals(id)) {
@@ -156,11 +156,11 @@ public class UserController {
      * 更新用户头像
      */
     @PutMapping("/{id}/avatar")
-    public ResponseEntity<?> updateUserAvatar(@PathVariable Long id, @Valid @RequestBody UpdateAvatarRequest request) {
+    public ResponseEntity<?> updateUserAvatar(@PathVariable String id, @Valid @RequestBody UpdateAvatarRequest request) {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
+            User currentUser = userService.findById(authentication.getName());
             
             // 如果不是管理员，且不是更新自己的头像，则拒绝
             if (currentUser.getRole() != User.UserRole.ADMIN && !currentUser.getId().equals(id)) {
@@ -180,78 +180,78 @@ public class UserController {
         }
     }
 
-    /**
-     * 分配督导给咨询师
-     * 仅管理员可访问
-     */
-    @PutMapping("/{counselorId}/supervisor/{supervisorId}")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<?> assignSupervisor(@PathVariable Long counselorId, @PathVariable Long supervisorId) {
-        try {
-            User updatedUser = userService.assignSupervisor(counselorId, supervisorId);
-            if (updatedUser == null) {
-                return ResponseEntity.notFound().build();
-            }
-            
-            return ResponseEntity.ok(updatedUser);
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid request to assign supervisor", e);
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            log.error("Failed to assign supervisor", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to assign supervisor: " + e.getMessage());
-        }
-    }
+//    /**
+//     * 分配督导给咨询师
+//     * 仅管理员可访问
+//     */
+//    @PutMapping("/{counselorId}/supervisor/{supervisorId}")
+//    @PreAuthorize("hasRole('ROLE_ADMIN')")
+//    public ResponseEntity<?> assignSupervisor(@PathVariable String counselorId, @PathVariable String supervisorId) {
+//        try {
+//            User updatedUser = userService.assignSupervisor(counselorId, supervisorId);
+//            if (updatedUser == null) {
+//                return ResponseEntity.notFound().build();
+//            }
+//
+//            return ResponseEntity.ok(updatedUser);
+//        } catch (IllegalArgumentException e) {
+//            log.error("Invalid request to assign supervisor", e);
+//            return ResponseEntity.badRequest().body(e.getMessage());
+//        } catch (Exception e) {
+//            log.error("Failed to assign supervisor", e);
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to assign supervisor: " + e.getMessage());
+//        }
+//    }
 
-    /**
-     * 获取督导的咨询师
-     */
-    @GetMapping("/supervisor/{supervisorId}/supervisees")
-    public ResponseEntity<?> getSupervisees(@PathVariable Long supervisorId) {
-        try {
-            // 获取当前用户
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
-            
-            // 如果不是管理员，且不是查询自己的下属，则拒绝
-            if (currentUser.getRole() != User.UserRole.ADMIN && !currentUser.getId().equals(supervisorId)) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized to access this information");
-            }
-            
-            List<User> supervisees = userService.getSupervisees(supervisorId);
-            return ResponseEntity.ok(supervisees);
-        } catch (Exception e) {
-            log.error("Failed to get supervisees", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to get supervisees: " + e.getMessage());
-        }
-    }
+//    /**
+//     * 获取督导的咨询师
+//     */
+//    @GetMapping("/supervisor/{supervisorId}/supervisees")
+//    public ResponseEntity<?> getSupervisees(@PathVariable String supervisorId) {
+//        try {
+//            // 获取当前用户
+//            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+//            User currentUser = userService.findById(authentication.getName());
+//
+//            // 如果不是管理员，且不是查询自己的下属，则拒绝
+//            if (currentUser.getRole() != User.UserRole.ADMIN && !currentUser.getId().equals(supervisorId)) {
+//                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized to access this information");
+//            }
+//
+//            List<User> supervisees = userService.getSupervisees(supervisorId);
+//            return ResponseEntity.ok(supervisees);
+//        } catch (Exception e) {
+//            log.error("Failed to get supervisees", e);
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to get supervisees: " + e.getMessage());
+//        }
+//    }
 
-    /**
-     * 获取咨询师的督导
-     */
-    @GetMapping("/counselor/{counselorId}/supervisor")
-    public ResponseEntity<?> getSupervisor(@PathVariable Long counselorId) {
-        try {
-            // 获取当前用户
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
-            
-            // 如果不是管理员，且不是查询自己的督导，则拒绝
-            if (currentUser.getRole() != User.UserRole.ADMIN && !currentUser.getId().equals(counselorId)) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized to access this information");
-            }
-            
-            User supervisor = userService.getSupervisor(counselorId);
-            if (supervisor == null) {
-                return ResponseEntity.noContent().build();
-            }
-            
-            return ResponseEntity.ok(supervisor);
-        } catch (Exception e) {
-            log.error("Failed to get supervisor", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to get supervisor: " + e.getMessage());
-        }
-    }
+//    /**
+//     * 获取咨询师的督导
+//     */
+//    @GetMapping("/counselor/{counselorId}/supervisor")
+//    public ResponseEntity<?> getSupervisor(@PathVariable String counselorId) {
+//        try {
+//            // 获取当前用户
+//            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+//            User currentUser = userService.findById(authentication.getName());
+//
+//            // 如果不是管理员，且不是查询自己的督导，则拒绝
+//            if (currentUser.getRole() != User.UserRole.ADMIN && !currentUser.getId().equals(counselorId)) {
+//                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized to access this information");
+//            }
+//
+//            User supervisor = userService.getSupervisor(counselorId);
+//            if (supervisor == null) {
+//                return ResponseEntity.noContent().build();
+//            }
+//
+//            return ResponseEntity.ok(supervisor);
+//        } catch (Exception e) {
+//            log.error("Failed to get supervisor", e);
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to get supervisor: " + e.getMessage());
+//        }
+//    }
 
     /**
      * 删除用户
@@ -259,7 +259,7 @@ public class UserController {
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<?> deleteUser(@PathVariable String id) {
         try {
             userService.deleteUser(id);
             return ResponseEntity.ok().build();

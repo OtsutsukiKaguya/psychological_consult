@@ -78,6 +78,12 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public File getFileByUrl(String ossUrl) {
+        return fileRepository.findByOssUrl(ossUrl);  // 调用 Repository 查找文件
+    }
+
+    @Override
     @Transactional
     public void deleteFile(Integer id) {
         try {
@@ -96,10 +102,10 @@ public class FileServiceImpl implements FileService {
         }
     }
 
-    //gjx加的
-//    @Override
-//    @Transactional(readOnly = true)
-//    public File findByUrl(String url) {
-//        return fileRepository.findByOssUrl(url);
-//    }
+    //基于ossUrl下载文件
+    @Override
+    public byte[] downloadFile(String ossUrl) {
+        return ossService.downloadFile(ossUrl);
+    }
 }
+

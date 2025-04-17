@@ -172,4 +172,10 @@ public class CallRecordServiceImpl implements CallRecordService {
         
         callRecordRepository.deleteById(id);
     }
+
+    //gjx加的save方法
+    @Override
+    public CallRecord save(CallRecord callRecord) {
+        return callRecordRepository.save(callRecord);
+    }
 }

@@ -7,7 +7,9 @@ package com.example.demo.controller;
 //import com.counseling.platform.services.ChatSessionService;
 //import com.counseling.platform.services.UserService;
 import com.example.demo.models.CallRecord;
+import com.example.demo.models.ChatSession;
 import com.example.demo.models.User;
+import com.example.demo.repositories.ChatSessionRepository;
 import com.example.demo.service.CallRecordService;
 import com.example.demo.service.ChatSessionService;
 import com.example.demo.service.UserService;
@@ -48,6 +50,9 @@ public class WebRTCSignalingController {
     @Autowired
     private ChatSessionService chatSessionService;
 
+    @Autowired
+    private ChatSessionRepository chatSessionRepository;
+
     /**
      * 处理WebRTC信令
      */
@@ -55,7 +60,7 @@ public class WebRTCSignalingController {
     public void handleSignal(@Payload SignalMessage message, Authentication authentication) {
         try {
             // 获取当前用户
-            User sender = userService.findByUsername(authentication.getName());
+            User sender = userService.findById(authentication.getName());
             if (sender == null) {
                 log.error("User not authenticated");
                 return;
@@ -72,8 +77,8 @@ public class WebRTCSignalingController {
             Map<String, Object> signalData = new HashMap<>();
             signalData.put("type", message.getType());
             signalData.put("senderUserId", sender.getId());
-            signalData.put("senderUsername", sender.getUsername());
-            signalData.put("senderNickname", sender.getNickname());
+            signalData.put("senderUsername", sender.getName());
+//            signalData.put("senderNickname", sender.getNickname());
             signalData.put("sessionId", message.getSessionId());
             signalData.put("callId", message.getCallId());
             signalData.put("callType", message.getCallType());
@@ -83,7 +88,8 @@ public class WebRTCSignalingController {
             
             // 传递给接收者
             messagingTemplate.convertAndSendToUser(
-                    receiver.getUsername(),
+//                    receiver.getUsername(),
+                    receiver.getId(),
                     "/queue/webrtc/signal",
                     signalData
             );
@@ -145,13 +151,25 @@ public class WebRTCSignalingController {
     /**
      * 创建通话记录
      */
-    private void createCallRecord(SignalMessage message, Long callerId, Long calleeId) {
+    private void createCallRecord(SignalMessage message, String callerId, String calleeId) {
         try {
+            // 先根据 sessionId 查到 ChatSession 对象
+            ChatSession session = chatSessionRepository.findById(message.getSessionId()).orElse(null);
+            if (session == null) {
+                log.error("ChatSession not found for id: {}", message.getSessionId());
+                return; // 如果查不到，不继续往下执行
+            }
+
+            // 查询 Caller 和 Callee 用户
+            User caller = userService.findById(callerId);
+            User callee = userService.findById(calleeId);
+
+            // 构建 CallRecord
             CallRecord callRecord = CallRecord.builder()
-                    .sessionId(message.getSessionId())
-                    .callerId(callerId)
-                    .calleeId(calleeId)
-                    .type(message.getCallType() != null ? CallRecord.CallType.valueOf(message.getCallType()) : CallRecord.CallType.AUDIO)
+                    .session(session) // 这里传 ChatSession 类型
+                    .caller(caller)
+                    .callee(callee)
+                    .callType(message.getCallType() != null ? CallRecord.CallType.valueOf(message.getCallType()) : CallRecord.CallType.AUDIO)
                     .status(CallRecord.CallStatus.MISSED) // 默认为未接
                     .startTime(LocalDateTime.now())
                     .build();
@@ -173,7 +191,7 @@ public class WebRTCSignalingController {
     public Map<String, Object> initiateCall(@RequestBody InitiateCallRequest request, Authentication authentication) {
         try {
             // 获取当前用户
-            User caller = userService.findByUsername(authentication.getName());
+            User caller = userService.findById(authentication.getName());
             if (caller == null) {
                 return Map.of("success", false, "message", "User not authenticated");
             }
@@ -185,7 +203,7 @@ public class WebRTCSignalingController {
             }
             
             // 检查用户是否在线
-            if (callee.getStatus() != User.UserStatus.ONLINE) {
+            if (callee.getState() != User.UserStatus.ONLINE) {
                 return Map.of("success", false, "message", "User is not online");
             }
             
@@ -194,13 +212,19 @@ public class WebRTCSignalingController {
                 !chatSessionService.isSessionParticipant(request.getSessionId(), callee.getId())) {
                 return Map.of("success", false, "message", "User is not a participant of the session");
             }
-            
+
+            // 获取 ChatSession 对象
+            ChatSession session = chatSessionRepository.findById(request.getSessionId()).orElse(null);
+            if (session == null) {
+                return Map.of("success", false, "message", "Chat session not found");
+            }
+
             // 创建通话记录
             CallRecord callRecord = CallRecord.builder()
-                    .sessionId(request.getSessionId())
-                    .callerId(caller.getId())
-                    .calleeId(callee.getId())
-                    .type(CallRecord.CallType.valueOf(request.getCallType()))
+                    .session(session) // ✅ 传 ChatSession 对象
+                    .caller(caller)
+                    .callee(callee)
+                    .callType(CallRecord.CallType.valueOf(request.getCallType()))
                     .status(CallRecord.CallStatus.MISSED) // 默认为未接
                     .startTime(LocalDateTime.now())
                     .build();
@@ -212,14 +236,14 @@ public class WebRTCSignalingController {
             callSignal.put("type", "incoming_call");
             callSignal.put("callId", savedRecord.getId());
             callSignal.put("callerId", caller.getId());
-            callSignal.put("callerName", caller.getUsername());
-            callSignal.put("callerNickname", caller.getNickname());
+            callSignal.put("callerName", caller.getName());
+//            callSignal.put("callerNickname", caller.getNickname());
             callSignal.put("sessionId", request.getSessionId());
             callSignal.put("callType", request.getCallType());
             callSignal.put("timestamp", LocalDateTime.now().toString());
             
             messagingTemplate.convertAndSendToUser(
-                    callee.getUsername(),
+                    callee.getId(),
                     "/queue/calls",
                     callSignal
             );
@@ -231,7 +255,7 @@ public class WebRTCSignalingController {
                     "success", true,
                     "callId", savedRecord.getId(),
                     "calleeId", callee.getId(),
-                    "calleeName", callee.getUsername()
+                    "calleeName", callee.getName()
             );
         } catch (Exception e) {
             log.error("Failed to initiate call", e);
@@ -245,10 +269,10 @@ public class WebRTCSignalingController {
     @Data
     public static class SignalMessage {
         private String type;
-        private Long senderUserId;
-        private Long receiverUserId;
-        private Long sessionId;
-        private Long callId;
+        private String senderUserId;
+        private String receiverUserId;
+        private String sessionId;
+        private Integer callId;
         private String callType;
         private String sdp;
         private String candidate;
@@ -259,8 +283,8 @@ public class WebRTCSignalingController {
      */
     @Data
     public static class InitiateCallRequest {
-        private Long sessionId;
-        private Long calleeId;
+        private String sessionId;
+        private String calleeId;
         private String callType;
     }
 }

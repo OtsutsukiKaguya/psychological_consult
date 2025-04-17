@@ -19,12 +19,12 @@ public interface UserService {
     /**
      * 根据用户名查找用户
      */
-    User findByUsername(String username);
+//    User findByUsername(String username);
 
     /**
      * 检查用户名是否已存在
      */
-    boolean existsByUsername(String username);
+    boolean existsById(String id);
 
     /**
      * 获取所有用户
@@ -56,30 +56,30 @@ public interface UserService {
      */
     User updateUserStatus(String id, User.UserStatus status);
 
-    /**
-     * 根据用户名更新用户状态
-     */
-    User updateUserStatusByUsername(String username, String status);
+//    /**
+//     * 根据用户名更新用户状态
+//     */
+//    User updateUserStatusByUsername(String username, String status);
 
     /**
      * 更新用户头像
      */
     User updateUserAvatar(String id, String avatarUrl);
 
-    /**
-     * 获取咨询师的督导
-     */
-    User getSupervisor(String counselorId);
+//    /**
+//     * 获取咨询师的督导
+//     */
+//    User getSupervisor(String counselorId);
 
-    /**
-     * 获取督导的咨询师
-     */
-    List<User> getSupervisees(String supervisorId);
+//    /**
+//     * 获取督导的咨询师
+//     */
+//    List<User> getSupervisees(String supervisorId);
 
-    /**
-     * 分配督导给咨询师
-     */
-    User assignSupervisor(String counselorId, String supervisorId);
+//    /**
+//     * 分配督导给咨询师
+//     */
+//    User assignSupervisor(String counselorId, String supervisorId);
 
     /**
      * 删除用户

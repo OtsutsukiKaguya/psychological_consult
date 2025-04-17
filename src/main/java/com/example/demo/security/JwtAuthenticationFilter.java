@@ -53,7 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 
                 // 更新用户的最后活动时间（可选）
                 String username = jwtTokenProvider.getUsernameFromToken(token);
-                userService.findByUsername(username); // 触发更新
+                userService.findById(username); // 触发更新
             }
         } catch (Exception e) {
             log.error("Could not set user authentication in security context", e);

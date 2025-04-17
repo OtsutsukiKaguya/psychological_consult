@@ -57,7 +57,7 @@ public class CallController {
             
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User caller = userService.findByUsername(authentication.getName());
+            User caller = userService.findById(authentication.getName());
             if (caller == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
@@ -120,7 +120,7 @@ public class CallController {
             
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
+            User currentUser = userService.findById(authentication.getName());
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
@@ -171,7 +171,7 @@ public class CallController {
             
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
+            User currentUser = userService.findById(authentication.getName());
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
@@ -222,7 +222,7 @@ public class CallController {
             
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
+            User currentUser = userService.findById(authentication.getName());
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
@@ -285,7 +285,7 @@ public class CallController {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
+            User currentUser = userService.findById(authentication.getName());
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
@@ -314,7 +314,7 @@ public class CallController {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
+            User currentUser = userService.findById(authentication.getName());
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }

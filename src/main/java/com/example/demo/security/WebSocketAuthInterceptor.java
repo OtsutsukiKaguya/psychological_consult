@@ -57,10 +57,10 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                         if (jwtTokenProvider.validateToken(token)) {
                             // 获取用户名并更新用户状态
                             String username = jwtTokenProvider.getUsernameFromToken(token);
-                            userService.updateUserStatusByUsername(username, "ONLINE");
+                            userService.updateUserStatus(username, User.UserStatus.ONLINE);
                             
                             // 获取用户并设置认证信息
-                            User user = userService.findByUsername(username);
+                            User user = userService.findById(username);
                             
                             if (user != null) {
                                 // 创建认证对象并设置到上下文中
@@ -90,7 +90,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             try {
                 if (accessor.getUser() != null) {
                     String username = accessor.getUser().getName();
-                    userService.updateUserStatusByUsername(username, "OFFLINE");
+                    userService.updateUserStatus(username, User.UserStatus.OFFLINE);
                     log.debug("User {} disconnected from WebSocket", username);
                 }
             } catch (Exception e) {

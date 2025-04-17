@@ -45,7 +45,7 @@ public class FileController {
 
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User user = userService.findByUsername(authentication.getName());
+            User user = userService.findById(authentication.getName());
             if (user == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }

@@ -77,7 +77,7 @@ public class SessionController {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
+            User currentUser = userService.findById(authentication.getName());
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
@@ -100,7 +100,7 @@ public class SessionController {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
+            User currentUser = userService.findById(authentication.getName());
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
@@ -134,7 +134,7 @@ public class SessionController {
 
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
+            User currentUser = userService.findById(authentication.getName());
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
@@ -190,7 +190,7 @@ public class SessionController {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
+            User currentUser = userService.findById(authentication.getName());
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
@@ -233,7 +233,7 @@ public class SessionController {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
+            User currentUser = userService.findById(authentication.getName());
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
@@ -267,7 +267,7 @@ public class SessionController {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
+            User currentUser = userService.findById(authentication.getName());
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
@@ -326,7 +326,7 @@ public class SessionController {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
+            User currentUser = userService.findById(authentication.getName());
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
@@ -379,7 +379,7 @@ public class SessionController {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
+            User currentUser = userService.findById(authentication.getName());
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
@@ -419,7 +419,7 @@ public class SessionController {
         try {
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findByUsername(authentication.getName());
+            User currentUser = userService.findById(authentication.getName());
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }

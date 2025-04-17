@@ -8,10 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.UUID;
 
 @Service
@@ -95,5 +92,32 @@ public class OssService {
     public void deleteFile(String fileUrl) {
         String fileName = fileUrl.substring(fileUrl.lastIndexOf("/") + 1);
         ossClient.deleteObject(bucketName, fileName);
+    }
+
+    //基于ossUrl下载文件
+    public byte[] downloadFile(String ossUrl) {
+        try {
+            // 从完整 URL 中提取 OSS 内部的文件名（key）
+            String fileName = ossUrl.substring(ossUrl.lastIndexOf("/") + 1);
+
+            // 获取 OSS 对象（文件内容）
+            OSSObject ossObject = ossClient.getObject(bucketName, fileName);
+            InputStream inputStream = ossObject.getObjectContent();
+
+            // 读取文件内容为字节数组（Java 8 兼容写法）
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            byte[] buffer = new byte[4096];
+            int length;
+            while ((length = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, length);
+            }
+            inputStream.close();
+
+            return outputStream.toByteArray();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 }

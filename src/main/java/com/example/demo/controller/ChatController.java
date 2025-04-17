@@ -2,9 +2,11 @@
 package com.example.demo.controller;
 
 import com.example.demo.models.ChatMessage;
+import com.example.demo.models.File;
 import com.example.demo.models.User;
 import com.example.demo.service.ChatMessageService;
 import com.example.demo.service.ChatSessionService;
+import com.example.demo.service.FileService;
 import com.example.demo.service.UserService;
 //import com.counseling.platform.models.ChatMessage;
 //import com.counseling.platform.models.User;
@@ -39,6 +41,9 @@ public class ChatController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private FileService fileService;
+
     /**
      * 处理发送消息
      */
@@ -47,11 +52,14 @@ public class ChatController {
         log.debug("Received message: {}", messageRequest);
         
         // 获取发送者信息
-        User sender = userService.findByUsername(principal.getName());
+        User sender = userService.findById(principal.getName());
         if (sender == null) {
             log.error("Unable to find sender: {}", principal.getName());
             return;
         }
+
+        // 获取 File 实体
+        File file = fileService.getFileByUrl(messageRequest.getFileUrl());
         
         // 创建消息
         ChatMessage message = ChatMessage.builder()
@@ -59,8 +67,8 @@ public class ChatController {
                 .sender(sender)
                 .type(ChatMessage.MessageType.valueOf(messageRequest.getMessageType()))
                 .content(messageRequest.getContent())
-                .file(messageRequest.getFileUrl()) //File和String两个类型不匹配
-                .readStatus(false)
+                .file(file) //File和String两个类型不匹配
+                .read(false)
                 .build();
         
         // 保存消息
@@ -81,7 +89,8 @@ public class ChatController {
                                 //我们没设置昵称这个字段
                                 .messageType(savedMessage.getType().name())
                                 .content(savedMessage.getContent())
-                                .fileUrl(savedMessage.getFile())  //这里File类型和String类型不匹配
+//                                .fileUrl(savedMessage.getFile())  //这里File类型和String类型不匹配
+                                .fileUrl(savedMessage.getFile() != null ? savedMessage.getFile().getOssUrl() : null)
                                 .sentAt(savedMessage.getSentAt())
                                 .readStatus(savedMessage.isRead())
                                 .build()
@@ -98,7 +107,7 @@ public class ChatController {
         log.debug("Received typing notification: {}", typingRequest);
         
         // 获取发送者信息
-        User sender = userService.findByUsername(principal.getName());
+        User sender = userService.findById(principal.getName());
         if (sender == null) {
             log.error("Unable to find sender: {}", principal.getName());
             return;
@@ -129,7 +138,7 @@ public class ChatController {
         log.debug("Marking messages as read: {}", readStatusRequest);
         
         // 获取用户信息
-        User user = userService.findByUsername(principal.getName());
+        User user = userService.findById(principal.getName());
         if (user == null) {
             log.error("Unable to find user: {}", principal.getName());
             return;

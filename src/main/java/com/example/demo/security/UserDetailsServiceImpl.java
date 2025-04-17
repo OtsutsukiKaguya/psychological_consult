@@ -5,6 +5,7 @@ package com.example.demo.security;
 //import com.counseling.platform.repositories.UserRepository;
 import com.example.demo.models.User;
 import com.example.demo.repositories.UserRepository;
+import org.apache.ibatis.jdbc.Null;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -22,14 +23,14 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(username);
+        User user = userRepository.findById(username).orElse(null);
         
         if (user == null) {
             throw new UsernameNotFoundException("User not found: " + username);
         }
         
         return new org.springframework.security.core.userdetails.User(
-                user.getUsername(),
+                user.getId(),
                 user.getPassword(),
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
         );
