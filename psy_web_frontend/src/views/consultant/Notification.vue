@@ -1,72 +1,12 @@
 <template>
     <ConsultantBaseLayout>
-        <div class="notification-container">
-            <h2 class="page-title">通知列表</h2>
-            <div class="content-card">
-                <div class="notification-list">
-                    <div v-for="item in notifications" :key="item.id" class="notification-item">
-                        <div class="notification-content">
-                            <span :class="['dot', { 'read': item.read }]"></span>
-                            <p>{{ item.content }}</p>
-                        </div>
-                        <div class="notification-meta">
-                            <span class="date">{{ item.date }}</span>
-                            <el-button type="success" size="small" plain @click="viewDetails(item.id)">
-                                查看详情
-                            </el-button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize"
-                :page-sizes="[10, 20, 30, 50]" layout="total, sizes, prev, pager, next, jumper"
-                :total="totalNotifications" @size-change="handleSizeChange" @current-change="handleCurrentChange"
-                class="pagination-container" />
-        </div>
+        <NotificationForm />
     </ConsultantBaseLayout>
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import ConsultantBaseLayout from '@/components/layout/ConsultantBaseLayout.vue';
-import { ElPagination, ElButton } from 'element-plus';
-
-// Mock data for notifications
-const notifications = ref([
-    { id: 1, content: '系统将于今晚10点进行维护，请提前保存工作。', date: '2023.12.10', read: false },
-    { id: 2, content: '您有一条新的督导反馈，请查收。', date: '2023.12.09', read: false },
-    { id: 3, content: '张三预约了明天下午3点的咨询，请确认。', date: '2023.12.08', read: true },
-    { id: 4, content: '【重要】请更新您的个人信息以符合最新要求。', date: '2023.12.07', read: false },
-    { id: 5, content: '本月度培训安排已发布，请查看。', date: '2023.12.06', read: true },
-]);
-
-// Pagination state
-const currentPage = ref(1);
-const pageSize = ref(10);
-const totalNotifications = ref(notifications.value.length * 5); // Mock total count
-
-// Pagination handlers
-const handleSizeChange = (val) => {
-    pageSize.value = val;
-    // TODO: Fetch data for the new page size
-    console.log(`每页 ${val} 条`);
-};
-const handleCurrentChange = (val) => {
-    currentPage.value = val;
-    // TODO: Fetch data for the new page
-    console.log(`当前页: ${val}`);
-};
-
-// View details handler
-const viewDetails = (id) => {
-    console.log('查看通知详情:', id);
-    // TODO: Navigate to detail page or show modal
-    // Mark as read potentially
-    const notification = notifications.value.find(n => n.id === id);
-    if (notification) {
-        notification.read = true;
-    }
-};
+import ConsultantBaseLayout from '@/components/layout/ConsultantBaseLayout.vue'
+import NotificationForm from '@/components/notification/NotificationForm.vue'
 </script>
 
 <style scoped>

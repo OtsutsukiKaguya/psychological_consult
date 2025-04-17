@@ -418,4 +418,16 @@ onMounted(() => {
     display: inline-flex;
     align-items: center;
 }
+
+:deep(.el-table__fixed-right-patch) {
+    background-color: #f2f4f9 !important;
+}
+
+:deep(.el-table__fixed-right) th {
+    background-color: #f2f4f9 !important;
+}
+
+:deep(.el-table th.el-table-fixed-column--right) {
+    background-color: #f2f4f9 !important;
+}
 </style>

@@ -16,6 +16,11 @@ import ConsultationDetail from '../views/consultant/ConsultationDetail.vue'
 import Chat from '@/views/consultant/Chat.vue'
 import ConsultantNotification from '@/views/consultant/Notification.vue'
 import Schedule from '@/views/consultant/Schedule.vue'
+import SupervisorDashboard from '@/views/supervisor/SupervisorDashboard.vue'
+import SupervisorNotification from '@/views/supervisor/Notification.vue'
+import SupervisorRecords from '@/views/supervisor/Records.vue'
+import ConsultantTreeHole from '@/views/consultant/TreeHole.vue'
+import ConsultantTreeHoleDetail from '@/views/consultant/TreeHoleDetail.vue'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -56,7 +61,7 @@ const router = createRouter({
             path: '/admin/tree-hole/:id',
             name: 'adminTreeHoleDetail',
             component: TreeHoleDetail,
-            props: true  // 允许通过 props 传递路由参数
+            props: true
         },
         {
             path: '/admin/consultation',
@@ -98,7 +103,7 @@ const router = createRouter({
         },
         {
             path: '/consultant/consultation/:id',
-            name: 'consultationDetail',
+            name: 'consultantConsultationDetail',
             component: ConsultationDetail,
             props: true,
             meta: {
@@ -107,20 +112,110 @@ const router = createRouter({
         },
         {
             path: '/consultant/chat/:id',
-            name: 'ConsultantChat',
-            component: Chat
+            name: 'consultantChat',
+            component: Chat,
+            props: true,
+            meta: {
+                role: 'consultant'
+            }
         },
         {
             path: '/consultant/notification',
-            name: 'ConsultantNotification',
-            component: ConsultantNotification
+            name: 'consultantNotification',
+            component: ConsultantNotification,
+            meta: {
+                role: 'consultant'
+            }
         },
         {
             path: '/consultant/schedule',
-            name: 'ConsultantSchedule',
-            component: Schedule
+            name: 'consultantSchedule',
+            component: Schedule,
+            meta: {
+                role: 'consultant'
+            }
+        },
+        {
+            path: '/supervisor/dashboard',
+            name: 'supervisorDashboard',
+            component: SupervisorDashboard,
+            meta: {
+                role: 'supervisor'
+            }
+        },
+        {
+            path: '/supervisor/notification',
+            name: 'supervisorNotification',
+            component: SupervisorNotification,
+            meta: {
+                role: 'supervisor'
+            }
+        },
+        {
+            path: '/supervisor/records',
+            name: 'supervisorRecords',
+            component: SupervisorRecords,
+            meta: {
+                role: 'supervisor'
+            }
+        },
+        {
+            path: '/consultant/tree-hole',
+            name: 'consultantTreeHole',
+            component: ConsultantTreeHole,
+            meta: {
+                role: 'consultant'
+            }
+        },
+        {
+            path: '/consultant/tree-hole/:id',
+            name: 'consultantTreeHoleDetail',
+            component: ConsultantTreeHoleDetail,
+            props: true,
+            meta: {
+                role: 'consultant'
+            }
         }
     ]
+})
+
+// 路由守卫
+router.beforeEach((to, from, next) => {
+    const userInfo = localStorage.getItem('userInfo')
+    const user = userInfo ? JSON.parse(userInfo) : null
+
+    // 如果访问登录或注册页面，直接放行
+    if (to.path === '/login' || to.path === '/register') {
+        next()
+        return
+    }
+
+    // 如果用户未登录，重定向到登录页
+    if (!user) {
+        next('/login')
+        return
+    }
+
+    // 检查用户角色权限
+    if (to.meta.role && to.meta.role !== user.role) {
+        // 如果角色不匹配，重定向到对应的首页
+        switch (user.role) {
+            case 'ADMIN':
+                next('/admin/dashboard')
+                break
+            case 'COUNSELOR':
+                next('/consultant/dashboard')
+                break
+            case 'TUTOR':
+                next('/supervisor/dashboard')
+                break
+            default:
+                next('/login')
+        }
+        return
+    }
+
+    next()
 })
 
 export default router 

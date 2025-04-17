@@ -9,13 +9,14 @@
                 </el-avatar>
                 <div class="user-detail">
                     <div class="welcome">欢迎，</div>
-                    <div class="role">咨询师{{ currentUser?.name }}</div>
+                    <div class="role">督导{{ currentUser?.name }}</div>
                 </div>
             </div>
 
             <!-- 菜单列表 -->
-            <el-menu class="sidebar-menu" :default-active="activeMenu" @select="handleMenuClick">
-                <el-menu-item v-for="item in menuItems" :key="item.path" :index="item.path">
+            <el-menu class="sidebar-menu" :default-active="route.path" @select="handleMenuClick">
+                <el-menu-item v-for="item in menuItems" :key="item.path" :index="item.path"
+                    :class="{ 'is-active': isMenuActive(item.path) }">
                     <el-icon>
                         <component :is="item.icon" />
                     </el-icon>
@@ -87,18 +88,17 @@ const handleLogout = () => {
 
 // 菜单配置
 const menuItems = [
-    { icon: 'House', label: '首页', path: '/consultant/dashboard' },
-    { icon: 'Document', label: '咨询记录', path: '/consultant/consultation' },
-    { icon: Calendar, label: '预约情况', path: '/consultant/schedule' },
+    { icon: 'House', label: '首页', path: '/supervisor/dashboard' },
+    { icon: 'Document', label: '会话记录', path: '/supervisor/Records' },
     { icon: 'Share', label: '树洞', path: '/consultant/tree-hole' },
-    { icon: Bell, label: '通知', path: '/consultant/notification' }
+    { icon: Bell, label: '通知', path: '/supervisor/notification' }
 ]
 
 // 用户信息
 const userInfo = {
     avatar: '', // 头像URL
-    name: '咨询师',
-    role: '咨询师'
+    name: '督导',
+    role: '督导'
 }
 
 // 会话列表
@@ -133,18 +133,17 @@ watch(() => route.params.id, () => {
     updateActiveConversation()
 })
 
-// 计算当前激活的菜单项
-const activeMenu = computed(() => {
-    // 如果是树洞详情页面，返回树洞列表的路径
-    if (route.path.startsWith('/consultant/tree-hole/')) {
-        return '/consultant/tree-hole'
-    }
-    return route.path
-})
-
 // 菜单点击处理
 const handleMenuClick = (path) => {
     router.push(path)
+}
+
+// 判断菜单项是否激活
+const isMenuActive = (path) => {
+    if (path === '/consultant/consultation') {
+        return route.path.startsWith('/consultant/consultation') || route.path.includes('consultation-detail')
+    }
+    return route.path === path
 }
 
 // 获取当前用户信息
@@ -155,7 +154,7 @@ const currentUser = computed(() => {
 
 // 欢迎文本
 const welcomeText = computed(() => {
-    return currentUser.value ? `欢迎，咨询师${currentUser.value.name}` : '欢迎'
+    return currentUser.value ? `欢迎，督导${currentUser.value.name}` : '欢迎'
 })
 </script>
 

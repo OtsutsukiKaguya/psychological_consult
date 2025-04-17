@@ -1,8 +1,11 @@
 <!-- 预约情况页面 -->
 <script setup>
 import ConsultantBaseLayout from '@/components/layout/ConsultantBaseLayout.vue'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
+import { API } from '@/config'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 
@@ -10,19 +13,53 @@ const router = useRouter()
 const currentPage = ref(1)
 const pageSize = ref(10)
 
-// 搜索表单 (结构保留，内容可后续调整)
+// 搜索表单
 const searchForm = ref({
     name: '',
     date: ''
 })
 
-// 静态占位数据 - 根据新列更新
-const tableData = ref([
-    { id: 1, visitor: 'Apple', appointmentDate: '12.09.2019', appointmentTime: '11:11:11', description: '我有什么什么问题', details: '查看详情' },
-    { id: 2, visitor: 'Banana', appointmentDate: '12.10.2019', appointmentTime: '14:00', description: '最近感到焦虑', details: '查看详情' },
-    { id: 3, visitor: 'Orange', appointmentDate: '12.11.2019', appointmentTime: '09:30', description: '学习压力大', details: '查看详情' },
-    // 添加更多示例数据...
-]);
+// 预约数据
+const tableData = ref([])
+const loading = ref(false)
+
+// 获取当前用户信息
+const currentUser = computed(() => {
+    const userInfo = localStorage.getItem('userInfo')
+    return userInfo ? JSON.parse(userInfo) : null
+})
+
+// 获取预约记录
+const fetchReservations = async () => {
+    if (!currentUser.value?.id) {
+        ElMessage.error('获取用户信息失败')
+        return
+    }
+
+    loading.value = true
+    try {
+        const response = await axios.get(`${API.RESERVATION.GET_COUNSELOR_RESERVATIONS}/${currentUser.value.id}`)
+        console.log(response.data)
+        if (response.data.code === 0) {
+            // 处理返回的数据
+            tableData.value = response.data.data.map(item => ({
+                id: item.id || '',
+                visitor: item.userId,
+                appointmentDate: item.reservationTime.split(' ')[0],
+                appointmentTime: item.reservationTime.split(' ')[1],
+                description: item.reservationDescription,
+                details: '查看详情'
+            }))
+        } else {
+            ElMessage.error(response.data.message || '获取预约记录失败')
+        }
+    } catch (error) {
+        console.error('获取预约记录失败:', error)
+        ElMessage.error('获取预约记录失败')
+    } finally {
+        loading.value = false
+    }
+}
 
 // 计算当前页的数据
 const currentPageData = computed(() => {
@@ -31,37 +68,47 @@ const currentPageData = computed(() => {
     return tableData.value.slice(start, end)
 })
 
-const totalItems = computed(() => tableData.value.length);
+const totalItems = computed(() => tableData.value.length)
 
-// 查看详情处理函数 (可以复用或修改)
+// 查看详情处理函数
 const handleViewDetails = (row) => {
-    console.log('查看预约详情:', row.id);
+    console.log('查看预约详情:', row)
     // TODO: 实现跳转或显示详情逻辑
     // router.push(...) 或 显示弹窗
-};
+}
+
+// 搜索处理
+const handleSearch = () => {
+    // 重置页码
+    currentPage.value = 1
+    // TODO: 实现搜索逻辑
+}
+
+// 页面加载时获取数据
+onMounted(() => {
+    fetchReservations()
+})
 </script>
 
 <template>
     <ConsultantBaseLayout>
-        <div class="schedule-container"> <!-- 使用新的类名以区分 -->
-            <!-- 搜索区域 (保持结构) -->
+        <div class="schedule-container">
+            <!-- 搜索区域 -->
             <div class="search-area">
                 <div class="search-item">
                     <div class="label">搜索姓名</div>
-                    <el-input v-model="searchForm.name" placeholder="输入姓名进行搜索" clearable />
+                    <el-input v-model="searchForm.name" placeholder="输入姓名进行搜索" clearable @keyup.enter="handleSearch" />
                 </div>
                 <div class="search-item">
                     <div class="label">选择日期</div>
                     <el-date-picker v-model="searchForm.date" type="date" placeholder="请选择日期" format="YYYY-MM-DD"
-                        value-format="YYYY-MM-DD" />
+                        value-format="YYYY-MM-DD" @change="handleSearch" />
                 </div>
-                <!-- 可以移除或修改按钮 -->
-                <!-- <el-button class="export-button">其他操作</el-button> -->
             </div>
 
-            <!-- 表格区域 - 更新列定义 -->
+            <!-- 表格区域 -->
             <div class="table-area">
-                <el-table :data="currentPageData" style="width: 100%" height="600">
+                <el-table :data="currentPageData" style="width: 100%" height="600" v-loading="loading">
                     <el-table-column prop="visitor" label="咨询人" width="150" />
                     <el-table-column prop="appointmentDate" label="预约日期" width="180" />
                     <el-table-column prop="appointmentTime" label="预约时间" width="180" />
@@ -75,7 +122,7 @@ const handleViewDetails = (row) => {
                 </el-table>
             </div>
 
-            <!-- 分页 (保持结构和样式) -->
+            <!-- 分页 -->
             <div class="pagination">
                 <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize"
                     :page-sizes="[10, 20, 30, 50]" :total="totalItems" :pager-count="7"

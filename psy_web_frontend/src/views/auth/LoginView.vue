@@ -3,25 +3,26 @@
 import { ref, reactive } from 'vue'
 import AuthCard from '../../components/auth/AuthCard.vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import axios from 'axios'
+import { API } from '@/config'
 
 const router = useRouter()
 
 // 表单数据
 const loginForm = reactive({
-  email: '',
+  id: '',
   password: '',
   remember: false
 })
 
 // 表单规则
 const rules = {
-  email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
+  id: [
+    { required: true, message: '请输入ID', trigger: 'blur' }
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能小于6位', trigger: 'blur' }
+    { required: true, message: '请输入密码', trigger: 'blur' }
   ]
 }
 
@@ -31,9 +32,51 @@ const formRef = ref(null)
 // 登录方法
 const handleLogin = async (formEl) => {
   if (!formEl) return
-  await formEl.validate((valid) => {
+  await formEl.validate(async (valid) => {
     if (valid) {
-      console.log('登录成功', loginForm)
+      try {
+        const response = await axios.get(`${API.AUTH.LOGIN}/${loginForm.id}/${loginForm.password}`)
+        console.log(response.data)
+        if (response.data[0]) {
+          const userData = response.data[0]
+
+          // 确保角色名称与路由守卫中的一致
+          const roleMap = {
+            'ADMIN': 'ADMIN',
+            'COUNSELOR': 'consultant',
+            'TUTOR': 'supervisor'
+          }
+
+          // 更新用户角色
+          userData.role = roleMap[userData.role] || userData.role
+
+          // 存储用户信息
+          localStorage.setItem('userInfo', JSON.stringify(userData))
+
+          // 根据角色跳转到不同页面
+          switch (userData.role) {
+            case 'ADMIN':
+              router.push('/admin/dashboard')
+              break
+            case 'consultant':
+              router.push('/consultant/dashboard')
+              break
+            case 'supervisor':
+              router.push('/supervisor/dashboard')
+              break
+            default:
+              ElMessage.error('未知的用户角色')
+              return
+          }
+
+          ElMessage.success('登录成功')
+        } else {
+          ElMessage.error('登录失败')
+        }
+      } catch (error) {
+        console.error('登录失败:', error)
+        ElMessage.error('登录失败，请检查网络连接')
+      }
     }
   })
 }
@@ -45,11 +88,11 @@ const goToRegister = () => {
 </script>
 
 <template>
-  <auth-card title="登录" subtitle="请输入您的邮箱和密码以登录">
+  <auth-card title="登录" subtitle="请输入您的ID和密码以登录">
     <el-form ref="formRef" :model="loginForm" :rules="rules" label-position="top" @keyup.enter="handleLogin(formRef)">
-      <!-- 邮箱输入框 -->
-      <el-form-item prop="email" label="邮箱">
-        <el-input v-model="loginForm.email" placeholder="请输入邮箱" type="email" size="large" />
+      <!-- ID输入框 -->
+      <el-form-item prop="id" label="ID">
+        <el-input v-model="loginForm.id" placeholder="请输入ID" size="large" />
       </el-form-item>
 
       <!-- 密码输入框 -->
@@ -66,14 +109,14 @@ const goToRegister = () => {
       </div>
 
       <!-- 登录按钮 -->
-      <el-button type="primary" size="large" class="login-button" @click="handleLogin(formRef)">
+      <el-button type="primary" class="login-button" @click="handleLogin(formRef)">
         登录
       </el-button>
 
       <!-- 注册链接 -->
       <div class="register-link">
         还没有账号？
-        <el-link type="primary" :underline="true" @click="goToRegister">注册</el-link>
+        <el-link type="primary" :underline="true" @click="goToRegister">立即注册</el-link>
       </div>
     </el-form>
   </auth-card>
@@ -89,30 +132,19 @@ const goToRegister = () => {
 
 .login-button {
   width: 100%;
+  height: 40px;
   margin-bottom: 16px;
+  background-color: #557ff7;
+  border: none;
+}
+
+.login-button:hover {
+  background-color: #4a6fd9;
 }
 
 .register-link {
   text-align: center;
-  color: #606266;
-}
-
-:deep(.el-form-item__label) {
   font-size: 14px;
-  color: #606266;
-}
-
-:deep(.el-input__wrapper) {
-  background-color: #f5f7fa;
-}
-
-:deep(.el-button--primary) {
-  background-color: #6c8cff;
-  border-color: #6c8cff;
-}
-
-:deep(.el-button--primary:hover) {
-  background-color: #5a75d9;
-  border-color: #5a75d9;
+  color: #666;
 }
 </style>

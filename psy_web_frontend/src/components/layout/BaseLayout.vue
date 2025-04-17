@@ -1,6 +1,6 @@
 <!-- 基础布局组件 -->
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   House,
@@ -13,10 +13,21 @@ import {
   Share,
   SwitchButton
 } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 // 路由
 const router = useRouter()
 const route = useRoute()
+
+// 处理退出登录
+const handleLogout = () => {
+  // 清空本地存储的用户信息
+  localStorage.removeItem('userInfo')
+  // 跳转到登录页面
+  router.push('/login')
+  // 显示提示消息
+  ElMessage.success('退出登录成功')
+}
 
 // 菜单配置
 const menuItems = [
@@ -38,17 +49,30 @@ const menuItems = [
   { icon: Share, label: '树洞', path: '/admin/tree-hole' }
 ]
 
-// 用户信息
-const userInfo = {
-  avatar: '', // 头像URL
-  name: '机构管理员',
-  role: '机构管理员'
-}
+// 获取当前用户信息
+const currentUser = computed(() => {
+  const userInfo = localStorage.getItem('userInfo')
+  return userInfo ? JSON.parse(userInfo) : null
+})
+
+// 欢迎文本
+const welcomeText = computed(() => {
+  return currentUser.value ? `欢迎，管理员${currentUser.value.name}` : '欢迎'
+})
 
 // 菜单点击处理
 const handleMenuClick = (path) => {
   router.push(path)
 }
+
+// 计算当前激活的菜单项
+const activeMenu = computed(() => {
+  // 如果是树洞详情页面，返回树洞列表的路径
+  if (route.path.startsWith('/admin/tree-hole/')) {
+    return '/admin/tree-hole'
+  }
+  return route.path
+})
 </script>
 
 <template>
@@ -57,17 +81,17 @@ const handleMenuClick = (path) => {
     <div class="sidebar">
       <!-- 用户信息区域 -->
       <div class="user-info">
-        <el-avatar :size="50" :src="userInfo.avatar">
-          {{ userInfo.name.charAt(0) }}
+        <el-avatar :size="50" :src="currentUser?.idPictureLink">
+          {{ currentUser?.name?.charAt(0) }}
         </el-avatar>
         <div class="user-detail">
           <div class="welcome">欢迎，</div>
-          <div class="role">{{ userInfo.role }}</div>
+          <div class="role">管理员{{ currentUser?.name }}</div>
         </div>
       </div>
 
       <!-- 菜单列表 -->
-      <el-menu class="sidebar-menu" :default-active="route.path" @select="handleMenuClick">
+      <el-menu class="sidebar-menu" :default-active="activeMenu" @select="handleMenuClick">
         <el-menu-item v-for="item in menuItems" :key="item.path" :index="item.path">
           <el-icon>
             <component :is="item.icon" />
@@ -79,7 +103,7 @@ const handleMenuClick = (path) => {
       <!-- 退出登录 -->
       <div class="logout-section">
         <el-menu>
-          <el-menu-item index="logout">
+          <el-menu-item index="logout" @click="handleLogout">
             <el-icon>
               <SwitchButton />
             </el-icon>

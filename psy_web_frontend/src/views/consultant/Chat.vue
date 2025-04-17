@@ -1,55 +1,55 @@
 # 创建聊天页面
 <template>
     <ConsultantBaseLayout>
-        <div class="chat-layout">
+        <div class="chat-layout" v-if="chatInfo">
             <!-- 左侧栏：咨询信息 -->
             <div class="left-panel">
                 <div class="consult-info">
                     <img src="@/assets/avatar.png" alt="头像" class="avatar" />
                     <div class="info-text">
-                        <h2>张先生</h2>
-                        <p>12788903028</p>
+                        <h2>{{ chatInfo.name }}</h2>
+                        <p>{{ chatInfo.id }}</p>
                     </div>
                 </div>
                 <hr class="divider" />
                 <div class="consult-status">
                     <p>正在咨询中</p>
                     <p>已咨询时间</p>
-                    <h3>00:12:11</h3>
+                    <h3>{{ chatInfo.duration || '00:00:00' }}</h3>
                 </div>
                 <div class="actions">
-                    <button>请求督导</button>
-                    <button>结束咨询</button>
+                    <button @click="requestSupervisor">请求督导</button>
+                    <button @click="endConsultation">结束咨询</button>
                 </div>
             </div>
 
             <!-- 中间栏：咨询师与用户聊天 -->
             <div class="center-panel">
-                <div class="chat-box">
-                    <!-- Consultant Message -->
-                    <div class="message consultant">
-                        <img src="@/assets/avatar.png" alt="咨询师头像" class="avatar" />
-                        <div class="bubble consultant-bubble">
-                            您好，请问您要咨询什么
-                        </div>
-                    </div>
-                    <!-- User Message -->
-                    <div class="message user">
-                        <div class="bubble user-bubble">
-                            您好，我是xxx，我想问
-                        </div>
-                        <img src="@/assets/avatar.png" alt="用户头像" class="avatar" />
+                <div class="chat-box" ref="chatBoxRef">
+                    <div v-for="(message, index) in messages" :key="index" :class="['message', message.type]">
+                        <template v-if="message.type === 'user'">
+                            <img src="@/assets/avatar.png" :alt="`${message.type}头像`" class="avatar" />
+                            <div class="bubble user-bubble">
+                                {{ message.content }}
+                            </div>
+                        </template>
+                        <template v-else>
+                            <div class="bubble consultant-bubble">
+                                {{ message.content }}
+                            </div>
+                            <img src="@/assets/avatar.png" :alt="`${message.type}头像`" class="avatar" />
+                        </template>
                     </div>
                 </div>
                 <div class="input-area">
                     <div class="toolbar">
-                        <img src="@/assets/chat/icon_microphone.png" alt="Mic" />
-                        <img src="@/assets/chat/icon-photo.png" alt="Image" />
-                        <img src="@/assets/chat/icon-emoji.png" alt="Emoji" />
-                        <img src="@/assets/chat/Phone.png" alt="Phone" />
+                        <img src="@/assets/chat/icon_microphone.png" alt="Mic" @click="handleVoice" />
+                        <img src="@/assets/chat/icon-photo.png" alt="Image" @click="handleImage" />
+                        <img src="@/assets/chat/icon-emoji.png" alt="Emoji" @click="handleEmoji" />
+                        <img src="@/assets/chat/Phone.png" alt="Phone" @click="handleCall" />
                     </div>
-                    <textarea placeholder="输入消息..."></textarea>
-                    <button class="send-button">发送</button>
+                    <textarea v-model="inputMessage" placeholder="输入消息..." @keyup.enter="sendMessage"></textarea>
+                    <button class="send-button" @click="sendMessage">发送</button>
                 </div>
             </div>
 
@@ -59,30 +59,31 @@
                     <img src="@/assets/avatar.png" alt="督导头像" class="avatar" />
                     <h3>督导</h3>
                 </div>
-                <div class="chat-box supervisor-chat-box">
-                    <!-- Supervisor Message -->
-                    <div class="message supervisor">
-                        <img src="@/assets/avatar.png" alt="督导头像" class="avatar" />
-                        <div class="bubble supervisor-bubble">
-                            您好，请问您要咨询什么
-                        </div>
-                    </div>
-                    <!-- Consultant Message -->
-                    <div class="message consultant">
-                        <div class="bubble consultant-bubble-right">
-                            您好，我是xxx，我想问
-                        </div>
-                        <img src="@/assets/avatar.png" alt="咨询师头像" class="avatar" />
+                <div class="chat-box supervisor-chat-box" ref="supervisorChatBoxRef">
+                    <div v-for="(message, index) in supervisorMessages" :key="index" :class="['message', message.type]">
+                        <template v-if="message.type === 'supervisor'">
+                            <img src="@/assets/avatar.png" alt="督导头像" class="avatar" />
+                            <div class="bubble supervisor-bubble">
+                                {{ message.content }}
+                            </div>
+                        </template>
+                        <template v-else>
+                            <div class="bubble consultant-bubble">
+                                {{ message.content }}
+                            </div>
+                            <img src="@/assets/avatar.png" alt="咨询师头像" class="avatar" />
+                        </template>
                     </div>
                 </div>
                 <div class="input-area supervisor-input-area">
                     <div class="toolbar">
-                        <img src="@/assets/chat/icon_microphone.png" alt="Mic" />
-                        <img src="@/assets/chat/icon-photo.png" alt="Image" />
-                        <img src="@/assets/chat/icon-emoji.png" alt="Emoji" />
+                        <img src="@/assets/chat/icon_microphone.png" alt="Mic" @click="handleSupervisorVoice" />
+                        <img src="@/assets/chat/icon-photo.png" alt="Image" @click="handleSupervisorImage" />
+                        <img src="@/assets/chat/icon-emoji.png" alt="Emoji" @click="handleSupervisorEmoji" />
                     </div>
-                    <textarea placeholder="输入消息..."></textarea>
-                    <button class="send-button">发送</button>
+                    <textarea v-model="supervisorInputMessage" placeholder="输入消息..."
+                        @keyup.enter="sendSupervisorMessage"></textarea>
+                    <button class="send-button" @click="sendSupervisorMessage">发送</button>
                 </div>
             </div>
         </div>
@@ -91,6 +92,115 @@
 
 <script setup>
 import ConsultantBaseLayout from '@/components/layout/ConsultantBaseLayout.vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
+
+const route = useRoute()
+const chatId = route.params.id
+
+// 聊天信息
+const chatInfo = ref(null)
+const messages = ref([])
+const supervisorMessages = ref([])
+const inputMessage = ref('')
+const supervisorInputMessage = ref('')
+
+// 聊天框ref
+const chatBoxRef = ref(null)
+const supervisorChatBoxRef = ref(null)
+
+// 滚动到底部
+const scrollToBottom = () => {
+    nextTick(() => {
+        if (chatBoxRef.value) {
+            chatBoxRef.value.scrollTop = chatBoxRef.value.scrollHeight
+        }
+    })
+}
+const scrollSupervisorToBottom = () => {
+    nextTick(() => {
+        if (supervisorChatBoxRef.value) {
+            supervisorChatBoxRef.value.scrollTop = supervisorChatBoxRef.value.scrollHeight
+        }
+    })
+}
+
+// 初始化聊天
+const initChat = async () => {
+    try {
+        chatInfo.value = {
+            id: chatId,
+            name: '张先生',
+            duration: '00:12:11'
+        }
+        messages.value = [
+            { type: 'user', content: '您好，我是xxx，我想问' },
+            { type: 'consultant', content: '您好，请问您要咨询什么' }
+        ]
+        supervisorMessages.value = [
+            { type: 'supervisor', content: '您好，请问您要咨询什么' },
+            { type: 'consultant', content: '您好，我是xxx，我想问' }
+        ]
+        scrollToBottom()
+        scrollSupervisorToBottom()
+    } catch (error) {
+        console.error('初始化聊天失败:', error)
+        ElMessage.error('初始化聊天失败')
+    }
+}
+
+// 发送消息
+const sendMessage = () => {
+    if (!inputMessage.value.trim()) return
+    messages.value.push({
+        type: 'consultant',
+        content: inputMessage.value
+    })
+    inputMessage.value = ''
+    scrollToBottom()
+}
+
+// 发送督导消息
+const sendSupervisorMessage = () => {
+    if (!supervisorInputMessage.value.trim()) return
+    supervisorMessages.value.push({
+        type: 'consultant',
+        content: supervisorInputMessage.value
+    })
+    supervisorInputMessage.value = ''
+    scrollSupervisorToBottom()
+}
+
+// 请求督导
+const requestSupervisor = () => {
+    ElMessage.success('已发送督导请求')
+}
+
+// 结束咨询
+const endConsultation = () => {
+    ElMessage.warning('确定要结束咨询吗？')
+}
+
+// 工具栏功能
+const handleVoice = () => ElMessage.info('语音功能开发中')
+const handleImage = () => ElMessage.info('图片功能开发中')
+const handleEmoji = () => ElMessage.info('表情功能开发中')
+const handleCall = () => ElMessage.info('通话功能开发中')
+const handleSupervisorVoice = () => ElMessage.info('督导语音功能开发中')
+const handleSupervisorImage = () => ElMessage.info('督导图片功能开发中')
+const handleSupervisorEmoji = () => ElMessage.info('督导表情功能开发中')
+
+onMounted(() => {
+    initChat()
+})
+
+watch(messages, () => {
+    scrollToBottom()
+})
+watch(supervisorMessages, () => {
+    scrollSupervisorToBottom()
+})
 </script>
 
 <style scoped>
@@ -194,11 +304,11 @@ import ConsultantBaseLayout from '@/components/layout/ConsultantBaseLayout.vue'
 }
 
 .message.consultant {
-    align-self: flex-start;
+    align-self: flex-end;
 }
 
 .message.user {
-    align-self: flex-end;
+    align-self: flex-start;
 }
 
 .message .avatar {
@@ -215,14 +325,14 @@ import ConsultantBaseLayout from '@/components/layout/ConsultantBaseLayout.vue'
 }
 
 .consultant-bubble {
-    background-color: #fff;
-    border: 1px solid #e0e0e0;
-    color: #333;
+    background-color: #19c490;
+    color: #fff;
 }
 
 .user-bubble {
-    background-color: #19c490;
-    color: #fff;
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    color: #333;
 }
 
 .input-area {

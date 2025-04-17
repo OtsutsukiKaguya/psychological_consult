@@ -1,16 +1,10 @@
 <script setup>
-import ConsultantBaseLayout from '@/components/layout/ConsultantBaseLayout.vue'
 import { ElCalendar } from 'element-plus'
 import profileImage from '@/assets/组合 5.png'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import { ElConfigProvider } from 'element-plus'
-
-// 获取当前用户信息
-const currentUser = computed(() => {
-    const userInfo = localStorage.getItem('userInfo')
-    return userInfo ? JSON.parse(userInfo) : null
-})
+import SupervisorBaseLayout from '@/components/layout/SupervisorBaseLayout.vue'
 
 const rating = ref(3.5)
 const locale = zhCn
@@ -64,7 +58,7 @@ const handleLeaveSubmit = () => {
 </script>
 
 <template>
-    <ConsultantBaseLayout>
+    <SupervisorBaseLayout>
         <el-config-provider :locale="locale">
             <div class="home-container">
                 <div class="left-section">
@@ -75,7 +69,7 @@ const handleLeaveSubmit = () => {
                             </div>
                             <div class="info">
                                 <div class="info-header">
-                                    <h2>咨询师</h2>
+                                    <h2>督导</h2>
                                     <div class="status">空闲</div>
                                 </div>
                                 <p>我的综合评价</p>
@@ -125,8 +119,8 @@ const handleLeaveSubmit = () => {
                         </div>
                         <div class="settings-right">
                             <h3>自我介绍</h3>
-                            <el-input v-model="introduction" type="textarea" :rows="6"
-                                :placeholder="currentUser?.selfDescription || '请输入'" resize="none" />
+                            <el-input v-model="introduction" type="textarea" :rows="6" placeholder="请输入"
+                                resize="none" />
                         </div>
                     </div>
                 </div>
@@ -183,7 +177,7 @@ const handleLeaveSubmit = () => {
                 </template>
             </el-dialog>
         </el-config-provider>
-    </ConsultantBaseLayout>
+    </SupervisorBaseLayout>
 </template>
 
 <style scoped>
@@ -608,6 +602,7 @@ const handleLeaveSubmit = () => {
     display: flex;
     gap: 20px;
     margin-top: 20px;
+    flex: 1;
 }
 
 .consultant-settings .settings-left {
