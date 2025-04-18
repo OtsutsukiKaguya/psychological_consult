@@ -4,14 +4,18 @@ package com.example.demo.controller;
 //import com.counseling.platform.models.User;
 //import com.counseling.platform.services.UserService;
 import com.example.demo.models.User;
+import com.example.demo.security.JwtTokenProvider;
 import com.example.demo.service.UserService;
+import jakarta.transaction.Transactional;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,16 +28,49 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/users")
+@Transactional
 @Slf4j
 public class UserController {
 
     @Autowired
     private UserService userService;
 
+    private final JwtTokenProvider jwtTokenProvider;  // 用来生成 JWT Token
+
+    public UserController(JwtTokenProvider jwtTokenProvider) {
+        this.jwtTokenProvider = jwtTokenProvider;
+    }
+
+    @PostMapping("/setCurrentUser")
+    public ResponseEntity<?> setCurrentUser(@RequestBody String userId) {
+        try {
+            // 通过 userId 查找用户
+            User currentUser = userService.findById(userId);
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+            }
+
+            // 在 SecurityContext 中设置认证信息
+            Authentication authentication = new UsernamePasswordAuthenticationToken(
+                    currentUser, null, AuthorityUtils.createAuthorityList(currentUser.getRole().toString())
+            );
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            // 生成 JWT Token
+            String token = jwtTokenProvider.generateToken(currentUser);
+
+            return ResponseEntity.ok("Current user set successfully. Token: " + token);
+
+        } catch (Exception e) {
+            log.error("Failed to set current user", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to set current user: " + e.getMessage());
+        }
+    }
+
     /**
      * 获取所有用户
      * 仅管理员可访问
-     */
+
     @GetMapping
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<?> getAllUsers() {
@@ -45,10 +82,10 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to get all users: " + e.getMessage());
         }
     }
+    */
 
     /**
      * 根据ID获取用户
-     */
     @GetMapping("/{id}")
     public ResponseEntity<?> getUserById(@PathVariable String id) {
         try {
@@ -72,6 +109,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to get user: " + e.getMessage());
         }
     }
+    */
 
     /**
      * 更新用户信息
@@ -95,9 +133,9 @@ public class UserController {
             
             // 构建更新对象
             User userToUpdate = User.builder()
-                    .id(request.getUsername())
+                    .id(request.getId())
                     .password(request.getPassword())
-                    .name(request.getNickname())
+                    .name(request.getName())
                     .build();
             
             // 仅管理员可以修改角色
@@ -256,7 +294,6 @@ public class UserController {
     /**
      * 删除用户
      * 仅管理员可访问
-     */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<?> deleteUser(@PathVariable String id) {
@@ -271,15 +308,16 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to delete user: " + e.getMessage());
         }
     }
+    */
 
     /**
      * 更新用户请求
      */
     @Data
     public static class UpdateUserRequest {
-        private String username;
+        private String id;
         private String password;
-        private String nickname;
+        private String name;
         private String role;
     }
 

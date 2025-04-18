@@ -26,6 +26,10 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         
         String token = jwtTokenProvider.resolveToken(request);
+        // 打印 token
+        if (token != null) {
+            log.info("Received JWT token: {}", token);  // 打印 token 到日志
+        }
         
         try {
             if (token != null && jwtTokenProvider.validateToken(token)) {

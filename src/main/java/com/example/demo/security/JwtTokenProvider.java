@@ -26,10 +26,8 @@ import java.util.stream.Collectors;
 @Component
 @Slf4j
 public class JwtTokenProvider {
-
     @Value("${jwt.secret:counseling-platform-secret-key}")
     private String jwtSecret;
-
     @Value("${jwt.expiration:86400}")
     private int jwtExpiration;
 
@@ -62,7 +60,7 @@ public class JwtTokenProvider {
     public String generateToken(User user) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpiration * 1000);
-        
+
         return Jwts.builder()
                 .setSubject(user.getName())
                 .claim("roles", "ROLE_" + user.getRole().name())
@@ -74,27 +72,15 @@ public class JwtTokenProvider {
     }
 
     /**
-     * 从JWT令牌获取用户名
-     */
-    public String getUsernameFromToken(String token) {
-        Claims claims = Jwts.parser()
-                .setSigningKey(jwtSecret)
-                .parseClaimsJws(token)
-                .getBody();
-        
-        return claims.getSubject();
-    }
-
-    /**
      * 从JWT令牌获取用户ID
      */
-    public Long getUserIdFromToken(String token) {
+    public String getUserIdFromToken(String token) {
         Claims claims = Jwts.parser()
                 .setSigningKey(jwtSecret)
                 .parseClaimsJws(token)
                 .getBody();
         
-        return claims.get("userId", Long.class);
+        return claims.get("userId", String.class);
     }
 
     /**
@@ -118,7 +104,7 @@ public class JwtTokenProvider {
     public boolean validateToken(String token) {
         try {
             Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(token);
-            return true;
+        return true;
         } catch (SignatureException e) {
             log.error("Invalid JWT signature: {}", e.getMessage());
         } catch (MalformedJwtException e) {
@@ -137,22 +123,23 @@ public class JwtTokenProvider {
     /**
      * 从请求中解析JWT令牌
      */
+    // 从请求中获取并返回 token
     public String resolveToken(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
+            return bearerToken.substring(7);  // 去掉 "Bearer " 前缀
         }
-        return null;
+        return null;  // 如果没有 token，返回 null
     }
 
     /**
      * 从令牌获取认证信息
      */
     public Authentication getAuthentication(String token) {
-        String username = getUsernameFromToken(token);
+        String userId = getUserIdFromToken(token);
         Collection<? extends GrantedAuthority> authorities = getAuthorities(token);
         
         // 创建认证对象
-        return new UsernamePasswordAuthenticationToken(username, "", authorities);
+        return new UsernamePasswordAuthenticationToken(userId, "", authorities);
     }
 }

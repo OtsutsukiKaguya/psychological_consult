@@ -47,8 +47,8 @@ public class SessionParticipant {
     @Column(name = "joined_at", nullable = false)
     private LocalDateTime joinedAt;
 
-    @Column(name = "last_read_message_id")
-    private Long lastReadMessageId;
+    //@Column(name = "last_read_message_id")
+    //private Long lastReadMessageId;
 
     @PrePersist
     protected void onCreate() {

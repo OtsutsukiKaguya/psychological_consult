@@ -56,7 +56,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                         // 验证令牌有效性
                         if (jwtTokenProvider.validateToken(token)) {
                             // 获取用户名并更新用户状态
-                            String username = jwtTokenProvider.getUsernameFromToken(token);
+                            String username = jwtTokenProvider.getUserIdFromToken(token);
                             userService.updateUserStatus(username, User.UserStatus.ONLINE);
                             
                             // 获取用户并设置认证信息

@@ -30,11 +30,11 @@ public class ChatSession {
     @Column(name = "id", length = 100)  // 修改为 String 类型以匹配数据库中的 VARCHAR(100) 类型
     private String id;
 
-    @Column(name = "name")
-    private String name;
+    //@Column(name = "name")
+    //private String name;
 
-    @Column(name = "description")
-    private String description;
+    //@Column(name = "description")
+    //private String description;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "session_type", nullable = false)

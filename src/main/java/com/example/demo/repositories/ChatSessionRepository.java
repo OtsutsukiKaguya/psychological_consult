@@ -44,8 +44,8 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, String
     List<ChatSession> findRecentSessionsByIds(@Param("sessionIds") List<String> sessionIds);  // 修改会话ID为 String 类型
 
     // 根据名称模糊查询会话
-    @Query("SELECT cs FROM ChatSession cs WHERE cs.name LIKE %:keyword% OR cs.description LIKE %:keyword%")
-    List<ChatSession> findByKeyword(@Param("keyword") String keyword);  // 无需修改
+    //@Query("SELECT cs FROM ChatSession cs WHERE cs.name LIKE %:keyword% OR cs.description LIKE %:keyword%")
+    //List<ChatSession> findByKeyword(@Param("keyword") String keyword);  // 无需修改
 
     // 获取用户参与的最近活跃的会话
     @Query("SELECT cs FROM ChatSession cs JOIN SessionParticipant sp ON cs.id = sp.session.id " +

@@ -152,8 +152,8 @@ public class SessionController {
 
             // 创建新会话
             ChatSession session = ChatSession.builder()
-                    .name(request.getName())
-                    .description(request.getDescription())
+                    //.name(request.getName())
+                    //.description(request.getDescription())
                     .type(ChatSession.SessionType.valueOf(request.getType()))
                     .build();
 
@@ -209,8 +209,8 @@ public class SessionController {
 
             // 更新会话信息
             ChatSession updatedSession = ChatSession.builder()
-                    .name(request.getName())
-                    .description(request.getDescription())
+                    //.name(request.getName())
+                    //.description(request.getDescription())
                     .build();
 
             ChatSession result = chatSessionService.updateSession(id, updatedSession);
@@ -457,7 +457,7 @@ public class SessionController {
         Map<String, Object> notification = new HashMap<>();
         notification.put("type", "SESSION_INVITATION");
         notification.put("sessionId", session.getId());
-        notification.put("sessionName", session.getName());
+        //notification.put("sessionName", session.getName());
         notification.put("sessionType", session.getType().name());
         notification.put("inviterId", inviter.getId());
         notification.put("inviterName", inviter.getId());
@@ -478,8 +478,8 @@ public class SessionController {
         Map<String, Object> notification = new HashMap<>();
         notification.put("type", "SESSION_UPDATED");
         notification.put("sessionId", session.getId());
-        notification.put("sessionName", session.getName());
-        notification.put("sessionDescription", session.getDescription());
+        //notification.put("sessionName", session.getName());
+        //notification.put("sessionDescription", session.getDescription());
 
         for (User participant : participants) {
             messagingTemplate.convertAndSendToUser(
@@ -502,7 +502,7 @@ public class SessionController {
         Map<String, Object> notification = new HashMap<>();
         notification.put("type", "PARTICIPANTS_ADDED");
         notification.put("sessionId", session.getId());
-        notification.put("sessionName", session.getName());
+        //notification.put("sessionName", session.getName());
         notification.put("adderId", adder.getId());
         notification.put("adderName", adder.getId());
         notification.put("addedUsers", addedUsers.stream()
@@ -537,7 +537,7 @@ public class SessionController {
             Map<String, Object> notification = new HashMap<>();
             notification.put("type", "PARTICIPANT_REMOVED");
             notification.put("sessionId", session.getId());
-            notification.put("sessionName", session.getName());
+            //notification.put("sessionName", session.getName());
             notification.put("removedUserId", removedUserId);
             notification.put("removedUsername", removedUser.getId());
             notification.put("removerUserId", removerUserId);
@@ -559,7 +559,7 @@ public class SessionController {
         Map<String, Object> notification = new HashMap<>();
         notification.put("type", "SESSION_DELETED");
         notification.put("sessionId", session.getId());
-        notification.put("sessionName", session.getName());
+        //notification.put("sessionName", session.getName());
 
         for (User participant : participants) {
             messagingTemplate.convertAndSendToUser(

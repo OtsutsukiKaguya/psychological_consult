@@ -64,7 +64,7 @@ public class CallRecord {
     @Column(name = "end_time")
     private LocalDateTime endTime;  // end_time 映射为 TIMESTAMP 类型
 
-    @Column(name = "duration_seconds")
+    @Column(name = "duration")
     private Integer durationSeconds;  // duration 映射为 INT 类型，使用 Integer 类型
 
     @PrePersist

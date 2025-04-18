@@ -93,7 +93,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
             return null;
         }
         
-        // 更新会话信息
+        /* 更新会话信息
         if (session.getName() != null) {
             existingSession.setName(session.getName());
         }
@@ -101,6 +101,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         if (session.getDescription() != null) {
             existingSession.setDescription(session.getDescription());
         }
+        */
         
 //        existingSession.setLastActivityAt(LocalDateTime.now());
         existingSession.setUpdatedAt(LocalDateTime.now());

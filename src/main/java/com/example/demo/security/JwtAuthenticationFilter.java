@@ -37,6 +37,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             // 从请求中获取JWT令牌
             String token = jwtTokenProvider.resolveToken(request);
+            // 打印 token
+            if (token != null) {
+                log.info("Received JWT token: {}", token);  // 打印 token 到日志
+            }
             
             // 检查令牌是否有效
             if (token != null && jwtTokenProvider.validateToken(token)) {
@@ -47,8 +51,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
                 
                 // 更新用户的最后活动时间（可选）
-                String username = jwtTokenProvider.getUsernameFromToken(token);
-                userService.findById(username); // 触发更新
+                String id = jwtTokenProvider.getUserIdFromToken(token);
+                userService.findById(id); // 触发更新
             }
         } catch (Exception e) {
             log.error("Could not set user authentication in security context", e);
