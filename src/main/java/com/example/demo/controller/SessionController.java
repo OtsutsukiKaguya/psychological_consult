@@ -8,6 +8,8 @@ package com.example.demo.controller;
 //import com.counseling.platform.services.ChatSessionService;
 //import com.counseling.platform.services.UserService;
 
+import java.util.UUID;
+
 import com.example.demo.models.ChatSession;
 import com.example.demo.models.SessionParticipant;
 import com.example.demo.models.User;
@@ -26,7 +28,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -147,13 +152,21 @@ public class SessionController {
                 }
             }
 
-            // 创建新会话
+            // ✅ 手动生成 UUID 作为主键
+            String generatedSessionId = UUID.randomUUID().toString();
+
+            // 创建新会话（显式设置 ID）
             ChatSession session = ChatSession.builder()
-                    //.name(request.getName())
-                    //.description(request.getDescription())
-                    .id(UUID.randomUUID().toString())  // 为 id 赋一个唯一的 UUID
+                    .id(generatedSessionId)  // ✅ 显式设置 ID，避免 Hibernate 报错
                     .type(ChatSession.SessionType.valueOf(request.getType()))
                     .build();
+
+//            // 创建新会话
+//            ChatSession session = ChatSession.builder()
+//                    //.name(request.getName())
+//                    //.description(request.getDescription())
+//                    .type(ChatSession.SessionType.valueOf(request.getType()))
+//                    .build();
 
             ChatSession savedSession = chatSessionService.createSession(session);
 
@@ -573,6 +586,8 @@ public class SessionController {
      */
     @Data
     public static class CreateSessionRequest {
+        private String name;
+        private String description;
         private String type;
         private List<String> participantIds;
     }

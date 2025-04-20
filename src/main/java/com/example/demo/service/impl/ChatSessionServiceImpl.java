@@ -48,18 +48,36 @@ public class ChatSessionServiceImpl implements ChatSessionService {
     @Autowired
     private UserRepository userRepository;
 
+//    @Override
+//    @Transactional
+//    public ChatSession createSession(ChatSession session) {
+//        // 设置创建时间和最后活动时间
+//        if (session.getCreatedAt() == null) {
+//            session.setCreatedAt(LocalDateTime.now());
+//        }
+////        session.setLastActivityAt(LocalDateTime.now());
+//        session.setUpdatedAt(LocalDateTime.now());
+//
+//        return chatSessionRepository.save(session);
+//    }
+
     @Override
     @Transactional
     public ChatSession createSession(ChatSession session) {
-        // 设置创建时间和最后活动时间
         if (session.getCreatedAt() == null) {
             session.setCreatedAt(LocalDateTime.now());
         }
-//        session.setLastActivityAt(LocalDateTime.now());
         session.setUpdatedAt(LocalDateTime.now());
-        
-        return chatSessionRepository.save(session);
+
+        ChatSession saved = chatSessionRepository.save(session);
+
+        // ✅ 加入日志：确认成功插入会话记录
+        log.info("✅ 新会话已成功保存到数据库，ID = {}, 类型 = {}, 创建时间 = {}",
+                saved.getId(), saved.getType(), saved.getCreatedAt());
+
+        return saved;
     }
+
 
     @Override
     @Transactional(readOnly = true)
