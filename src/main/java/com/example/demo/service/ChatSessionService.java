@@ -25,6 +25,11 @@ public interface ChatSessionService {
      */
     ChatSession findById(String id);  //因为sessionId是String类型的，我觉得这里的形参改成sessionId更好懂一点
 
+//    /**
+//     * 根据ID查找会话(能返回参与者信息)
+//     */
+//    ChatSession findByIdWithParticipants(String id);
+
     /**
      * 获取所有会话
      */

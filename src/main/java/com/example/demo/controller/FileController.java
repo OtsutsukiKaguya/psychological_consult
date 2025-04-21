@@ -5,6 +5,8 @@ import com.example.demo.models.User;
 import com.example.demo.service.FileService;
 import com.example.demo.service.OssService;
 import com.example.demo.service.UserService;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -34,25 +36,27 @@ public class FileController {
     private OssService ossService;
 
     // 上传文件
-    @PostMapping("/upload")
-    public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> uploadFile(
+            @ApiParam(value = "要上传的文件", required = true)
+            @RequestPart("file") MultipartFile file) {
         try {
-            log.debug("Uploading file: {}", file.getOriginalFilename());
-
+            if (file.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("没有文件上传");
+            }
+            log.debug("上传文件: {}", file.getOriginalFilename());
             // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             User user = userService.findById(authentication.getName());
             if (user == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("用户未认证");
             }
-
             // 调用 FileService 保存文件
             File savedFile = fileService.saveFile(file, user.getId());
-
             return ResponseEntity.ok(savedFile);
         } catch (Exception e) {
-            log.error("Failed to upload file", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to upload file: " + e.getMessage());
+            log.error("文件上传失败", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("文件上传失败: " + e.getMessage());
         }
     }
 
@@ -66,23 +70,22 @@ public class FileController {
                 return ResponseEntity.notFound().build();  // 文件未找到
             }
 
-            // 调用 OssService 下载文件
-            String localFilePath = "/path/to/save/location/" + file.getOriginalName();  // 指定保存文件的本地路径
-            java.io.File downloadedFile = ossService.downloadFile(file.getOssUrl(), localFilePath);
-
-            if (downloadedFile == null) {
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to download file.");
+            // 调用 OssService 获取文件内容（文件存储在 OSS 上）
+            String fileUrl = file.getOssUrl();
+            if (fileUrl == null) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("File URL not found.");
             }
 
-            // 成功下载文件并返回
+            // 设置下载文件的响应头，浏览器会自动弹出保存文件的对话框
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(file.getFileType()))
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getOriginalName() + "\"")
-                    .body(Files.readAllBytes(downloadedFile.toPath()));  // 将文件内容作为响应体返回
+                    .body(ossService.downloadFile(fileUrl));  // 使用 OssService 来返回文件内容
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Failed to download file", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to download file: " + e.getMessage());
         }
     }
+
 }

@@ -3,6 +3,7 @@ package com.example.demo.config;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.interceptor.KeyGenerator;
@@ -32,6 +33,15 @@ public class RedisConfig {
             return sb.toString();
         };
     }
+
+    /** 注册支持 Java8 时间类型的 ObjectMapper */
+    @Bean
+    public ObjectMapper redisObjectMapper() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule()); // ✅ 添加支持
+        return objectMapper;
+    }
+
 
     /** 高级序列化的 RedisTemplate */
     @Bean

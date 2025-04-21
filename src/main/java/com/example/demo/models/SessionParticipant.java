@@ -1,5 +1,6 @@
 package com.example.demo.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -34,10 +35,12 @@ public class SessionParticipant {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "session_id", nullable = false)
+    @JsonIgnoreProperties({"participants", "messages", "callRecords"}) // 避免死循环
     private ChatSession session;  // session_id 映射
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnoreProperties({"sessions", "supervisor", "supervisees", "password"}) // 避免嵌套太多或隐私字段
     private User user;  // user_id 映射
 
     @Enumerated(EnumType.STRING)

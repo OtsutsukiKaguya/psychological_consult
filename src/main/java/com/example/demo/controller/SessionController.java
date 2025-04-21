@@ -10,12 +10,16 @@ package com.example.demo.controller;
 
 import java.util.UUID;
 
+import com.example.demo.DTO.ChatSessionWithParticipantsDTO;
 import com.example.demo.models.ChatSession;
 import com.example.demo.models.SessionParticipant;
 import com.example.demo.models.User;
 import com.example.demo.service.ChatMessageService;
 import com.example.demo.service.ChatSessionService;
 import com.example.demo.service.UserService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -119,7 +123,20 @@ public class SessionController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized to access this session");
             }
 
-            return ResponseEntity.ok(session);
+            // ✅ 获取参与者（通过已有方法）
+            List<User> participants = chatSessionService.getSessionParticipants(id);
+
+            // ✅ 手动构造返回 DTO
+            ChatSessionWithParticipantsDTO result = new ChatSessionWithParticipantsDTO(
+                    session.getId(),
+                    session.getType().name(),
+                    session.getCreatedAt(),
+                    session.getUpdatedAt(),
+                    participants
+            );
+
+            return ResponseEntity.ok(result);
+//            return ResponseEntity.ok(session);
         } catch (Exception e) {
             log.error("Failed to get session by id: {}", id, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to get session: " + e.getMessage());
@@ -193,48 +210,48 @@ public class SessionController {
         }
     }
 
-    /**
-     * 更新会话信息
-     */
-    @PutMapping("/{id}")
-    public ResponseEntity<?> updateSession(@PathVariable String id, @Valid @RequestBody UpdateSessionRequest request) {
-        try {
-            // 获取当前用户
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            User currentUser = userService.findById(authentication.getName());
-            if (currentUser == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
-            }
-
-            // 获取会话
-            ChatSession session = chatSessionService.findById(id);
-            if (session == null) {
-                return ResponseEntity.notFound().build();
-            }
-
-            // 检查用户是否是会话的参与者，或者是管理员
-            if (!chatSessionService.isSessionParticipant(id, currentUser.getId()) &&
-                    currentUser.getRole() != User.UserRole.ADMIN) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized to update this session");
-            }
-
-            // 更新会话信息
-            ChatSession updatedSession = ChatSession.builder()
-                    //.name(request.getName())
-                    //.description(request.getDescription())
-                    .build();
-
-            ChatSession result = chatSessionService.updateSession(id, updatedSession);
-
-            // 通知会话参与者
-            notifySessionUpdated(result);
-
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            log.error("Failed to update session: {}", id, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to update session: " + e.getMessage());
-        }
-    }
+//    /**
+//     * 更新会话信息
+//     */
+//    @PutMapping("/{id}")
+//    public ResponseEntity<?> updateSession(@PathVariable String id, @Valid @RequestBody UpdateSessionRequest request) {
+//        try {
+//            // 获取当前用户
+//            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+//            User currentUser = userService.findById(authentication.getName());
+//            if (currentUser == null) {
+//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
+//            }
+//
+//            // 获取会话
+//            ChatSession session = chatSessionService.findById(id);
+//            if (session == null) {
+//                return ResponseEntity.notFound().build();
+//            }
+//
+//            // 检查用户是否是会话的参与者，或者是管理员
+//            if (!chatSessionService.isSessionParticipant(id, currentUser.getId()) &&
+//                    currentUser.getRole() != User.UserRole.ADMIN) {
+//                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized to update this session");
+//            }
+//
+//            // 更新会话信息
+//            ChatSession updatedSession = ChatSession.builder()
+//                    //.name(request.getName())
+//                    //.description(request.getDescription())
+//                    .build();
+//
+//            ChatSession result = chatSessionService.updateSession(id, updatedSession);
+//
+//            // 通知会话参与者
+//            notifySessionUpdated(result);
+//
+//            return ResponseEntity.ok(result);
+//        } catch (Exception e) {
+//            log.error("Failed to update session: {}", id, e);
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to update session: " + e.getMessage());
+//        }
+//    }
 
     /**
      * 获取会话参与者
@@ -438,7 +455,23 @@ public class SessionController {
             // 获取最近的会话
             List<ChatSession> sessions = chatSessionService.getRecentSessions(currentUser.getId());
 
-            return ResponseEntity.ok(sessions);
+            // 遍历每个会话，手动获取参与者并构建 DTO
+            List<ChatSessionWithParticipantsDTO> resultList = sessions.stream()
+                    .map(session -> {
+                        List<User> participants = chatSessionService.getSessionParticipants(session.getId());
+                        return new ChatSessionWithParticipantsDTO(
+                                session.getId(),
+                                session.getType().name(),
+                                session.getCreatedAt(),
+                                session.getUpdatedAt(),
+                                participants
+                        );
+                    })
+                    .toList();
+
+            return ResponseEntity.ok(resultList);
+
+//            return ResponseEntity.ok(sessions);
         } catch (Exception e) {
             log.error("Failed to get recent sessions", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to get recent sessions: " + e.getMessage());

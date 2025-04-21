@@ -1,15 +1,6 @@
 //package com.counseling.platform.services.impl;
 package com.example.demo.service.impl;
 
-//import com.counseling.platform.models.ChatSession;
-//import com.counseling.platform.models.ChatMessage;
-//import com.counseling.platform.models.SessionParticipant;
-//import com.counseling.platform.models.User;
-//import com.counseling.platform.repositories.ChatSessionRepository;
-//import com.counseling.platform.repositories.ChatMessageRepository;
-//import com.counseling.platform.repositories.SessionParticipantRepository;
-//import com.counseling.platform.services.ChatSessionService;
-
 import com.example.demo.models.ChatSession;
 import com.example.demo.models.SessionParticipant;
 import com.example.demo.models.User;
@@ -84,6 +75,14 @@ public class ChatSessionServiceImpl implements ChatSessionService {
     public ChatSession findById(String id) {
         return chatSessionRepository.findById(id).orElse(null);
     }
+
+//    @Override
+//    @Transactional(readOnly = true)
+//    public ChatSession findByIdWithParticipants(String id) {
+////        return chatSessionRepository.findByIdWithParticipantsAndUsers(id);
+//        log.info("✅ ✅ 正在调用 fetch join 查询会话及参与者...");
+//        return chatSessionRepository.findByIdWithParticipantsAndUsers(id).orElse(null);
+//    }
 
     @Override
     @Transactional(readOnly = true)

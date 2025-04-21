@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ChatSessionRepository extends JpaRepository<ChatSession, String> {  // 修改主键类型为 String
@@ -17,6 +18,23 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, String
     // 根据参与者ID查找会话
     @Query("SELECT DISTINCT cs FROM ChatSession cs JOIN SessionParticipant sp ON cs.id = sp.session.id WHERE sp.user.id = :userId ORDER BY cs.updatedAt DESC")
     List<ChatSession> findByParticipantsUserId(@Param("userId") String userId);  // 修改参与者和用户ID为 String 类型
+
+//    // 根据会话 ID 查询并同时加载参与者和用户信息
+//    @Query("""
+//    SELECT cs FROM ChatSession cs
+//    LEFT JOIN FETCH cs.participants p
+//    LEFT JOIN FETCH p.user
+//    WHERE cs.id = :id
+//    """)
+//    ChatSession findByIdWithParticipantsAndUsers(@Param("id") String id);
+
+//    @Query("""
+//    SELECT DISTINCT cs FROM ChatSession cs
+//    LEFT JOIN FETCH cs.participants p
+//    LEFT JOIN FETCH p.user
+//    WHERE cs.id = :id
+//""")
+//    Optional<ChatSession> findByIdWithParticipantsAndUsers(@Param("id") String id);
 
     // 根据类型查找会话
     List<ChatSession> findByType(ChatSession.SessionType type);  // 无需修改
