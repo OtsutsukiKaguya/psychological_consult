@@ -106,4 +106,18 @@ public class ReservationController {
         data.put("total", reservationMapper.countAllReservations());
         return Result.success(data);
     }
+
+    // 8. 使用用户id和日期查询预约
+    @GetMapping("/user/{userId}/date/{date}")
+    public Result getUserReservationsByDate(@PathVariable String userId, @PathVariable String date) {
+        // 调用ReservationMapper查询该用户在指定日期的所有预约
+        List<Map<String, Object>> reservations = reservationMapper.getReservationsByUserAndDate(userId, date);
+
+        if (reservations.isEmpty()) {
+            return Result.error("没有找到该用户的预约记录");
+        }
+
+        return Result.success(reservations);
+    }
+
 }

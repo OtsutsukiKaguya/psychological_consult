@@ -46,5 +46,13 @@ public interface ReservationMapper {
     @Select("SELECT counselor_sametime FROM counselor WHERE id = #{counselorId}")
     Integer getCounselorSameTimeById(@Param("counselorId") String counselorId);
 
+    @Select("SELECT r.reservation_time, r.reservation_description, " +
+            "c.id AS counselor_id, c.job_title, c.tag, p.name AS counselor_name, p.id_picture_link AS counselor_avatar " +
+            "FROM reservation r " +
+            "JOIN person p ON r.counselor_id = p.id " +
+            "JOIN counselor c ON r.counselor_id = c.id " +
+            "WHERE r.user_id = #{userId} AND DATE(r.reservation_time) = #{date}")
+    List<Map<String, Object>> getReservationsByUserAndDate(@Param("userId") String userId, @Param("date") String date);
+
 
 }
