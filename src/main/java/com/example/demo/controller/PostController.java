@@ -2,6 +2,7 @@ package com.example.demo.controller;
 
 import com.example.demo.common.Result;
 import com.example.demo.dto.DeletePostRequest;
+import com.example.demo.dto.PostWithUserDTO;
 import com.example.demo.dto.UpdatePostRequest;
 import com.example.demo.entity.Post;
 import com.example.demo.mapper.PostMapper;
@@ -17,9 +18,15 @@ public class PostController {
     @Autowired
     private PostMapper postMapper;
 
+//    @GetMapping("/api/posts") // 获取所有帖子列表
+//    public Result findAll() {
+//        List<Post> list = postMapper.find();
+//        return Result.success(list);
+//    }
+
     @GetMapping("/api/posts") // 获取所有帖子列表
     public Result findAll() {
-        List<Post> list = postMapper.find();
+        List<PostWithUserDTO> list = postMapper.findAllWithUser();
         return Result.success(list);
     }
 

@@ -1,12 +1,13 @@
 package com.example.demo.entity;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.time.Duration;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 public class Mood {
     private String userId;
-    private LocalDateTime moodDate;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate moodDate; // 改为 LocalDate
     private String moodType;
     private String moodContent;
 
@@ -18,11 +19,11 @@ public class Mood {
         this.userId = userId;
     }
 
-    public LocalDateTime getMoodDate() {
+    public LocalDate getMoodDate() {
         return moodDate;
     }
 
-    public void setMoodDate(LocalDateTime moodDate) {
+    public void setMoodDate(LocalDate moodDate) {
         this.moodDate = moodDate;
     }
 

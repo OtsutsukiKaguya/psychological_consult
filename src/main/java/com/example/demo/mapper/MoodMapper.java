@@ -3,6 +3,7 @@ package com.example.demo.mapper;
 import com.example.demo.entity.Mood;
 import org.apache.ibatis.annotations.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Mapper
@@ -37,5 +38,17 @@ public interface MoodMapper {
     //根据用户ID及日期删除心情记录
     @Delete("DELETE FROM mood WHERE user_id = #{userId} AND mood_date = #{moodDate}")
     int deleteByUserIdAndDate(@Param("userId") String userId, @Param("moodDate") String moodDate);
+
+    // 新增：根据 user_id + date 查询是否已有记录
+    @Select("SELECT * FROM mood WHERE user_id = #{userId} AND mood_date = #{moodDate}")
+    Mood selectByUserIdAndDate(@Param("userId") String userId, @Param("moodDate") LocalDate moodDate);
+
+    // 新增：更新内容和标签
+    @Update("UPDATE mood SET mood_type = #{moodType}, mood_content = #{moodContent} " +
+            "WHERE user_id = #{userId} AND mood_date = #{moodDate}")
+    int updateMoodContentAndType(@Param("userId") String userId,
+                                 @Param("moodDate") LocalDate moodDate,
+                                 @Param("moodType") String moodType,
+                                 @Param("moodContent") String moodContent);
 
 }

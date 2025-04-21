@@ -6,10 +6,13 @@ import com.example.demo.dto.MoodQueryRequest;
 import com.example.demo.entity.Mood;
 import com.example.demo.mapper.MoodMapper;
 import com.example.demo.service.ExportService;
+import com.example.demo.dto.MoodUpsertRequestDTO;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.*;
 
 @RestController
@@ -20,20 +23,69 @@ public class MoodController {
     @Autowired
     private ExportService exportService; //注入导出服务
 
-    @PostMapping("/api/moods")
-    public Result recordMood(@RequestBody Mood mood){
+//    @PostMapping("/api/moods")
+//    public Result recordMood(@RequestBody Mood mood){
+//
+//        int i = moodMapper.recordMood(mood);
+//        if (i > 0) {
+//            Map<String, Object> data = new HashMap<>();
+//            data.put("message", "心情记录成功");
+//            data.put("status", "recorded");
+//            return Result.success(data);
+//        } else {
+//            return Result.error("心情记录失败");
+//        }
+//
+//    }
 
-        int i = moodMapper.recordMood(mood);
-        if (i > 0) {
-            Map<String, Object> data = new HashMap<>();
-            data.put("message", "心情记录成功");
-            data.put("status", "recorded");
-            return Result.success(data);
-        } else {
-            return Result.error("心情记录失败");
+    @PostMapping("/api/moods")
+    public Result upsertMood(@RequestBody MoodUpsertRequestDTO request) {
+        if (request.getUserId() == null || request.getMoodDate() == null) {
+            return Result.error("userId 和 moodDate 不能为空");
         }
 
+        Mood existing = moodMapper.selectByUserIdAndDate(request.getUserId(), request.getMoodDate());
+        boolean inserted = false;
+
+        if (existing == null) {
+            // 插入
+            Mood mood = new Mood();
+            mood.setUserId(request.getUserId());
+            mood.setMoodDate(request.getMoodDate());
+            mood.setMoodType(request.getMoodType());
+            mood.setMoodContent(request.getMoodContent());
+
+            int result = moodMapper.recordMood(mood);
+            if (result <= 0) {
+                return Result.error("插入失败");
+            }
+            inserted = true;
+        } else {
+            // 更新
+            int result = moodMapper.updateMoodContentAndType(
+                    request.getUserId(), request.getMoodDate(),
+                    request.getMoodType(), request.getMoodContent()
+            );
+            if (result <= 0) {
+                return Result.error("更新失败");
+            }
+        }
+
+        // 插入或更新后再次查询数据库中的最新记录
+        Mood latest = moodMapper.selectByUserIdAndDate(request.getUserId(), request.getMoodDate());
+        if (latest == null) {
+            return Result.error("操作后未找到记录，数据库可能异常");
+        }
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("message", inserted ? "记录已新增" : "记录已更新");
+        data.put("status", inserted ? "inserted" : "updated");
+        data.put("moodType", latest.getMoodType());
+        data.put("moodContent", latest.getMoodContent());
+
+        return Result.success(data);
     }
+
 
     @PostMapping("/api/moods/query")
     public Result queryMoodRecords(@RequestBody MoodQueryRequest request) {
@@ -102,6 +154,27 @@ public class MoodController {
 
         return Result.success(data);
     }
+
+    @GetMapping("/api/moods/byDate")
+    public Result getMoodByDate(@RequestParam("userId") String userId,
+                                @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        if (userId == null || userId.isEmpty() || date == null) {
+            return Result.error("userId 和 date 不能为空");
+        }
+
+        Mood mood = moodMapper.selectByUserIdAndDate(userId, date);
+        if (mood == null) {
+            return Result.error("未找到该日期的心情记录");
+        }
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("moodType", mood.getMoodType());
+        data.put("moodContent", mood.getMoodContent());
+        data.put("moodDate", mood.getMoodDate());  // 可选返回
+
+        return Result.success(data);
+    }
+
 
 
 }

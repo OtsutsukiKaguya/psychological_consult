@@ -92,7 +92,6 @@ public class Post {
         this.thumbNum = thumbNum;
     }
 
-
     @Override
     public String toString() {
         return "Post{" +

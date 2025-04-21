@@ -1,6 +1,7 @@
 package com.example.demo.controller;
 
 import com.example.demo.common.Result;
+import com.example.demo.dto.CounselorInfoDTO;
 import com.example.demo.entity.Star;
 import com.example.demo.mapper.StarMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,18 +59,19 @@ public class StarController {
 
     //获取收藏的咨询师列表
     @GetMapping("/api/stars/{user_id}")
-    public Result getStarredCounselors(@RequestParam("user_id") String userId){
+    public Result getStarredCounselors(@PathVariable("user_id") String userId) {
         if (userId == null || userId.isEmpty()) {
             return Result.error("user_id 不能为空");
         }
-        List<String> counselorIds = starMapper.getStarredCounselors(userId);
+
+        List<CounselorInfoDTO> counselorInfos = starMapper.getStarredCounselors(userId);
 
         Map<String, Object> data = new HashMap<>();
         data.put("userId", userId);
-        data.put("counselorIds", counselorIds);
+        data.put("counselors", counselorInfos);
 
         return Result.success(data);
-
     }
+
 
 }

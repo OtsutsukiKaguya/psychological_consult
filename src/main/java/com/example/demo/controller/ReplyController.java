@@ -2,6 +2,7 @@ package com.example.demo.controller;
 
 import com.example.demo.common.Result;
 import com.example.demo.dto.DeleteReplyRequest;
+import com.example.demo.dto.ReplyWithUserDTO;
 import com.example.demo.dto.UpdateReplyRequest;
 import com.example.demo.entity.Post;
 import com.example.demo.entity.Reply;
@@ -22,9 +23,15 @@ public class ReplyController {
     @Autowired
     private PostMapper postMapper;
 
-    @GetMapping("/api/posts/{post_id}/replys")  //获取回复列表
-    public Result findAllReply(@PathVariable("post_id")  String postId){
-        List<Reply> list = replyMapper.find(postId);
+//    @GetMapping("/api/posts/{post_id}/replys")  //获取回复列表
+//    public Result findAllReply(@PathVariable("post_id")  String postId){
+//        List<Reply> list = replyMapper.find(postId);
+//        return Result.success(list);
+//    }
+
+    @GetMapping("/api/posts/{post_id}/replys")
+    public Result findAllReply(@PathVariable("post_id") String postId) {
+        List<ReplyWithUserDTO> list = replyMapper.findAll(postId);
         return Result.success(list);
     }
 

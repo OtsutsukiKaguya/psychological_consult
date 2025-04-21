@@ -2,6 +2,7 @@ package com.example.demo.mapper;
 
 import com.example.demo.dto.PostSqlProvider;
 import com.example.demo.dto.ReplySqlProvider;
+import com.example.demo.dto.ReplyWithUserDTO;
 import com.example.demo.entity.Post;
 import com.example.demo.entity.Reply;
 import org.apache.ibatis.annotations.*;
@@ -14,8 +15,26 @@ import java.util.List;
 @Mapper
 public interface ReplyMapper {
     //获取所有回复
-    @Select("SELECT * FROM reply WHERE post_id=#{postId} AND reply_isdeleted = 0 ORDER BY reply_time DESC")
-    public List<Reply> find(String postId);
+//    @Select("SELECT * FROM reply WHERE post_id=#{postId} AND reply_isdeleted = 0 ORDER BY reply_time DESC")
+//    public List<Reply> find(String postId);
+
+    @Select("SELECT r.reply_id, r.post_id, r.reply_content, r.reply_time, r.picture_link, " +
+            "p.id AS user_id, p.name AS user_name, p.id_picture_link AS avatar_url " +
+            "FROM reply r " +
+            "LEFT JOIN person p ON r.person_id = p.id " +
+            "WHERE r.post_id = #{postId} AND r.reply_isdeleted = 0 " +
+            "ORDER BY r.reply_time DESC")
+    @Results({
+            @Result(property = "replyId", column = "reply_id"),
+            @Result(property = "postId", column = "post_id"),
+            @Result(property = "replyContent", column = "reply_content"),
+            @Result(property = "replyTime", column = "reply_time"),
+            @Result(property = "pictureLink", column = "picture_link"),
+            @Result(property = "userInfo.id", column = "user_id"),
+            @Result(property = "userInfo.name", column = "user_name"),
+            @Result(property = "userInfo.avatarUrl", column = "avatar_url")
+    })
+    List<ReplyWithUserDTO> findAll(@Param("postId") String postId);
 
     //根据id查询
     @Select("SELECT * FROM reply WHERE post_id=#{postId} AND reply_id=#{replyId} AND reply_isdeleted = 0")
