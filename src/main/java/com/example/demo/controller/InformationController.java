@@ -288,7 +288,7 @@ public class InformationController {
             int updateResult = informationMapper.login(id, lastLoginTime, password);
             if (updateResult > 0) {
                 // 登录成功后，查询人员信息
-                List<Person> personList = informationMapper.getPersonById(id, password);
+                List<Person> personList = informationMapper.loginPerson(id, password);
                 if (!personList.isEmpty()) {
                     return Result.success(personList); // 返回人员信息
                 } else {
