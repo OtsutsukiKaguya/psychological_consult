@@ -436,9 +436,14 @@ public class ChatMessageController {
 //            messageData.put("senderNickname", sender.getNickname()); //没有昵称字段
             messageData.put("content", message.getContent());
             messageData.put("type", message.getType().name());
-            messageData.put("fileId", message.getFile().getId());
+//            messageData.put("fileId", message.getFile().getId());  //文件为空会导致空指针报错，下面有一个判空逻辑
             messageData.put("sentAt", message.getSentAt().toString());
-            
+
+            // ✅ 文件为 null 时不加入 fileId 字段，避免空指针
+            if (message.getFile() != null) {
+                messageData.put("fileId", message.getFile().getId());
+            }
+
             // 广播给所有参与者
             for (User participant : participants) {
                 // 不向发送者广播
