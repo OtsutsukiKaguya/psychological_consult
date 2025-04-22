@@ -282,19 +282,23 @@ public class InformationController {
 
 
     @PostMapping("/login")
-    public Result updateLastLoginTime(@RequestParam String id, @RequestParam String lastLoginTime, @RequestParam String password) {
+    public Result login(@RequestParam String id, @RequestParam String lastLoginTime, @RequestParam String password) {
         try {
-
-            // 调用 Mapper 层方法
-            int result = informationMapper.login(id, lastLoginTime, password);
-
-            if (result > 0) {
-                return Result.success("成功登录");
+            // 调用 Mapper 层更新最后登录时间
+            int updateResult = informationMapper.login(id, lastLoginTime, password);
+            if (updateResult > 0) {
+                // 登录成功后，查询人员信息
+                List<Person> personList = informationMapper.getPersonById(id, password);
+                if (!personList.isEmpty()) {
+                    return Result.success(personList); // 返回人员信息
+                } else {
+                    return Result.error("未找到匹配的用户信息");
+                }
             } else {
-                return Result.error("登录失败");
+                return Result.error("登录失败，用户名或密码错误");
             }
         } catch (Exception e) {
-            return Result.error("无效的日期格式或错误: " + e.getMessage());
+            return Result.error("无效的日期格式或服务器错误: " + e.getMessage());
         }
     }
 
