@@ -20,7 +20,8 @@ public interface PostMapper {
     @Select("SELECT p.post_id, p.post_title, p.post_content, p.post_time, p.picture_link, " +
             "u.id AS user_id, u.name AS user_name, u.id_picture_link AS avatar_url " +
             "FROM post p " +
-            "LEFT JOIN person u ON p.person_id = u.id")
+            "LEFT JOIN person u ON p.person_id = u.id "+
+            "ORDER BY p.post_time DESC")
     @Results({
             @Result(property = "postId", column = "post_id"),
             @Result(property = "postTitle", column = "post_title"),

@@ -6,7 +6,7 @@ public class PostWithUserDTO {
     private String postId;
     private String postTitle;
     private String postContent;
-    private LocalDateTime postTime;
+    private String postTime;
     private String pictureLink;
     private TreeHoleUserInfoDTO userInfo;
 
@@ -44,11 +44,11 @@ public class PostWithUserDTO {
         this.postContent = postContent;
     }
 
-    public LocalDateTime getPostTime() {
+    public String getPostTime() {
         return postTime;
     }
 
-    public void setPostTime(LocalDateTime postTime) {
+    public void setPostTime(String postTime) {
         this.postTime = postTime;
     }
 
