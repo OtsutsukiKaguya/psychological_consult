@@ -46,13 +46,28 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Intege
     int countUnreadMessages(@Param("sessionId") String sessionId, @Param("userId") String userId);  // 修改会话ID、发送者ID为 String 类型
 
     // 标记消息为已读
+//    @Modifying
+//    @Query(value = "INSERT INTO message_read (message_id, user_id, read_at) " +
+//            "SELECT cm.id, :userId, CURRENT_TIMESTAMP FROM ChatMessage cm " +
+//            "WHERE cm.session.id = :sessionId AND cm.sender.id != :userId " +
+//            "AND NOT EXISTS (SELECT 1 FROM message_read mr WHERE mr.message_id = cm.id AND mr.user_id = :userId)",
+//            nativeQuery = true)
+//    void markMessagesAsRead(@Param("sessionId") String sessionId, @Param("userId") String userId);  // 修改会话ID、发送者ID为 String 类型
     @Modifying
-    @Query(value = "INSERT INTO message_read (message_id, user_id, read_at) " +
-            "SELECT cm.id, :userId, CURRENT_TIMESTAMP FROM chat_message cm " +
-            "WHERE cm.session.id = :sessionId AND cm.sender.id != :userId " +
-            "AND NOT EXISTS (SELECT 1 FROM message_read mr WHERE mr.message_id = cm.id AND mr.user_id = :userId)",
-            nativeQuery = true)
-    void markMessagesAsRead(@Param("sessionId") String sessionId, @Param("userId") String userId);  // 修改会话ID、发送者ID为 String 类型
+    @Query(value = """
+    INSERT INTO message_read (message_id, user_id, read_at)
+    SELECT cm.id, :userId, CURRENT_TIMESTAMP
+    FROM chat_messages cm
+    WHERE cm.session_id = :sessionId
+      AND cm.sender_id != :userId
+      AND NOT EXISTS (
+        SELECT 1 FROM message_read mr
+        WHERE mr.message_id = cm.id
+          AND mr.user_id = :userId
+    )
+    """, nativeQuery = true)
+    void markMessagesAsRead(@Param("sessionId") String sessionId, @Param("userId") String userId);
+
 
     // 根据关键字搜索消息
     @Query("SELECT cm FROM ChatMessage cm WHERE cm.session.id = :sessionId AND cm.content LIKE %:keyword%")
