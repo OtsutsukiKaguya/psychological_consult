@@ -29,24 +29,36 @@ public class ReservationController {
             return Result.error("预约时间必须为整点（例如 10:00, 14:00）");
         }
         LocalDateTime endTime = startTime.plusHours(1);
+
         // 查询时间段内冲突的预约数量
         int conflictCount = reservationMapper.countConflictingReservations(
                 reservation.getCounselorId(),
                 startTime.toString(),
                 endTime.toString()
         );
+
         // 查询咨询师支持的最大并发预约数
         Integer maxCount = reservationMapper.getCounselorSameTimeById(reservation.getCounselorId());
         if (maxCount == null) {
             return Result.error("未找到该咨询师信息");
         }
-        if (conflictCount >= maxCount) {
-            return Result.error("该时间段预约已满，请选择其他时间");
+
+        int afterCount = conflictCount + 1; // 加上当前这次预约后的数量
+
+        if (afterCount > maxCount) {
+            return Result.error("该时间段预约人数已超出限制，请选择其他时间");
         }
+
         // 插入预约
         reservationMapper.insertReservation(reservation);
+
+        // 返回信息
+        String message = afterCount == maxCount
+                ? "预约成功，预约人数已满"
+                : "预约成功";
+
         Map<String, Object> data = new HashMap<>();
-        data.put("message", "预约成功");
+        data.put("message", message);
         data.put("user_id", reservation.getUserId());
         data.put("reservation_time", reservation.getReservationTime());
         data.put("counselor_id", reservation.getCounselorId());

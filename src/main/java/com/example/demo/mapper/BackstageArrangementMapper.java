@@ -19,7 +19,7 @@ public interface BackstageArrangementMapper {
     @Select("SELECT p.id, p.name, p.gender,p.age, p.id_picture_link, p.self_description, c.tag FROM person p JOIN duty_calendar dc JOIN counselor c ON  p.id = dc.staff_id AND p.id = c.id WHERE p.role = #{role} AND dc.duty_date=#{dutyDate}")
     public List<BackstageArrangementDTO> searchCounselorWorkDays(String role, String dutyDate);
 
-    @Select("SELECT p.id, p.name, p.role FROM person p JOIN duty_calendar dc ON p.id = dc.staff_id WHERE dc.duty_date=#{dutyDate}")
+    @Select("SELECT p.id, p.name, p.role FROM person p JOIN duty_calendar dc ON p.id = dc.staff_id WHERE dc.duty_date=#{dutyDate} AND (p.role='COUNSELOR' OR p.role='TUTOR')")
     public List<BackstageArrangement1DTO> getDutyByDate(String dutyDate);
 
     @Insert("INSERT INTO duty_calendar(staff_id, duty_date) VALUES (#{staffId}, #{dutyDate})")
