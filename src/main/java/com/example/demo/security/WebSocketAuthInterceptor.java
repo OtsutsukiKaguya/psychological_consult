@@ -1,103 +1,99 @@
-//package com.counseling.platform.security;
 package com.example.demo.security;
 
-//import com.counseling.platform.models.User;
-//import com.counseling.platform.services.UserService;
 import com.example.demo.models.User;
 import com.example.demo.service.UserService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
+import java.security.Principal;
 
-/**
- * WebSocket认证拦截器
- * 用于验证WebSocket连接的认证信息
- */
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
-    @Autowired
-    private JwtTokenProvider jwtTokenProvider;
-    
-    @Autowired
-    private UserService userService;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final UserService userService;
 
-    /**
-     * 处理入站消息前执行
-     */
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
-        // 获取STOMP消息头
-        StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-        
+        StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class); // ✅ 更安全的写法
+
+        if (accessor != null) {
+            log.info("📩 接收到STOMP命令: {}", accessor.getCommand());
+        }
+
         if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
-            // 连接时验证JWT令牌
-            try {
-                // 从请求头中获取令牌
-                List<String> authorizationHeaders = accessor.getNativeHeader("Authorization");
-                if (authorizationHeaders != null && !authorizationHeaders.isEmpty()) {
-                    String authorizationHeader = authorizationHeaders.get(0);
-                    
-                    // 检查是否包含Bearer前缀
-                    if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-                        String token = authorizationHeader.substring(7);
-                        
-                        // 验证令牌有效性
-                        if (jwtTokenProvider.validateToken(token)) {
-                            // 获取用户名并更新用户状态
-                            String username = jwtTokenProvider.getUserIdFromToken(token);
-                            userService.updateUserStatus(username, User.UserStatus.ONLINE);
-                            
-                            // 获取用户并设置认证信息
-                            User user = userService.findById(username);
-                            
-                            if (user != null) {
-                                // 创建认证对象并设置到上下文中
-                                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                                        username, null, jwtTokenProvider.getAuthorities(token));
-                                SecurityContextHolder.getContext().setAuthentication(authentication);
-                                accessor.setUser(authentication);
-                                
-                                log.debug("User {} connected to WebSocket", username);
-                            } else {
-                                log.error("User not found: {}", username);
-                            }
-                        } else {
-                            log.error("Invalid JWT token");
-                        }
-                    } else {
-                        log.error("Authorization header does not contain Bearer token");
-                    }
-                } else {
-                    log.error("No Authorization header found");
-                }
-            } catch (Exception e) {
-                log.error("Error during WebSocket authentication", e);
+            log.info("🔐 开始进行WebSocket连接认证...");
+
+            String authHeader = accessor.getFirstNativeHeader("Authorization");
+
+            if (authHeader == null) {
+                log.error("❌ 没有找到Authorization头");
+                throw new AccessDeniedException("Missing Authorization header");
             }
-        } else if (accessor != null && StompCommand.DISCONNECT.equals(accessor.getCommand())) {
-            // 断开连接时更新用户状态
-            try {
-                if (accessor.getUser() != null) {
-                    String username = accessor.getUser().getName();
-                    userService.updateUserStatus(username, User.UserStatus.OFFLINE);
-                    log.debug("User {} disconnected from WebSocket", username);
-                }
-            } catch (Exception e) {
-                log.error("Error during WebSocket disconnection", e);
+
+            if (!authHeader.startsWith("Bearer ")) {
+                log.error("❌ Authorization头格式错误，应以Bearer开头");
+                throw new AccessDeniedException("Invalid Authorization header format");
+            }
+
+            String token = authHeader.substring(7);
+
+            if (!jwtTokenProvider.validateToken(token)) {
+                log.error("❌ JWT Token验证失败");
+                throw new AccessDeniedException("Invalid JWT token");
+            }
+
+            String userId = jwtTokenProvider.getUserIdFromToken(token);
+
+            if (userId == null) {
+                log.error("❌ Token中提取不到userId");
+                throw new AccessDeniedException("Invalid JWT token content");
+            }
+
+            // ✅ 关键！强制绑定用户到accessor
+            accessor.setUser(new StompPrincipal(userId));
+            log.info("✅ WebSocket连接认证通过，绑定用户userId: {}", userId);
+
+            userService.updateUserStatus(userId, User.UserStatus.ONLINE);
+            log.info("✅ 用户{} 状态更新为ONLINE", userId);
+        }
+
+        else if (accessor != null && StompCommand.DISCONNECT.equals(accessor.getCommand())) {
+            log.info("🔌 检测到WebSocket断开连接...");
+
+            Principal principal = accessor.getUser();
+            if (principal != null) {
+                String userId = principal.getName();
+                userService.updateUserStatus(userId, User.UserStatus.OFFLINE);
+                log.info("✅ 用户{} 状态更新为OFFLINE", userId);
+            } else {
+                log.warn("⚠️ 断开连接时找不到用户信息");
             }
         }
-        
+
         return message;
+    }
+
+    public static class StompPrincipal implements Principal {
+        private final String userId;
+
+        public StompPrincipal(String userId) {
+            this.userId = userId;
+        }
+
+        @Override
+        public String getName() {
+            return userId;
+        }
     }
 }

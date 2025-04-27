@@ -1,12 +1,5 @@
-//package com.counseling.platform.services.impl;
 package com.example.demo.service.impl;
 
-//import com.counseling.platform.models.ChatMessage;
-//import com.counseling.platform.models.MessageRead;
-//import com.counseling.platform.repositories.ChatMessageRepository;
-//import com.counseling.platform.repositories.MessageReadRepository;
-//import com.counseling.platform.services.ChatMessageService;
-//import com.counseling.platform.services.ChatSessionService;
 
 import com.example.demo.models.ChatMessage;
 import com.example.demo.models.MessageRead;
@@ -49,22 +42,6 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     @PersistenceContext
     private EntityManager entityManager;
 
-//    @Override
-//    @Transactional
-//    public ChatMessage createMessage(ChatMessage message) {
-//        // 设置发送时间
-//        if (message.getSentAt() == null) {
-//            message.setSentAt(LocalDateTime.now());
-//        }
-//
-//        // 保存消息
-//        ChatMessage savedMessage = chatMessageRepository.save(message);
-//
-//        // 更新会话最后活动时间
-//        chatSessionService.updateLastActivity(message.getSession().getId());
-//
-//        return savedMessage;
-//    }
     @Override
     @Transactional
     public ChatMessage createMessage(ChatMessage message) {
