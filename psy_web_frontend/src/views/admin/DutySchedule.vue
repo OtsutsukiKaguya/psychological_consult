@@ -20,79 +20,136 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import BaseLayout from '@/components/layout/BaseLayout.vue'
 import Calendar from '@/components/schedule/Calendar.vue'
 import StaffList from '@/components/schedule/StaffList.vue'
 import { ElMessage } from 'element-plus'
+import axios from 'axios'
+import { API } from '@/config'
 
-// 当前选中的日期
-const selectedDate = ref(new Date(2025, 3, 1)) // 设置为2025年4月1日
+const selectedDate = ref(new Date())
+const scheduleData = ref([])
 
-// 日程数据
-const scheduleData = ref([
-    {
-        date: '2025-04-01',
-        consultants: ['张三', '李四'],
-        supervisors: ['王督导']
-    },
-    {
-        date: '2025-04-02',
-        consultants: ['王五', '赵六'],
-        supervisors: ['李督导']
-    },
-    {
-        date: '2025-04-03',
-        consultants: ['孙七', '周八'],
-        supervisors: ['陈督导']
-    },
-    {
-        date: '2025-04-08',
-        consultants: ['吴九', '郑十'],
-        supervisors: ['刘督导']
-    },
-    {
-        date: '2025-04-09',
-        consultants: ['张三', '王五'],
-        supervisors: ['王督导']
-    },
-    {
-        date: '2025-04-10',
-        consultants: ['李四', '赵六'],
-        supervisors: ['李督导']
+// 格式化日期显示
+const formatDate = (date) => {
+    if (!date) return ''
+    const month = date.getMonth() + 1
+    const day = date.getDate()
+    const weekDay = ['日', '一', '二', '三', '四', '五', '六'][date.getDay()]
+    return `${month}月${day}日 星期${weekDay}`
+}
+
+// 格式化日期为 YYYY-MM-DD（用于API请求）
+const formatDateForApi = (date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+}
+
+// 获取指定日期的排班信息
+const fetchDutyByDate = async (date) => {
+    try {
+        const formattedDate = formatDateForApi(date)
+        const response = await axios.get(API.DUTY.GET_BY_DATE(formattedDate))
+
+        if (response.data.code === 0) {
+            const consultants = response.data.data.filter(item => item.role === 'COUNSELOR')
+            const supervisors = response.data.data.filter(item => item.role === 'TUTOR')
+
+            // 更新或添加该日期的排班信息
+            const existingIndex = scheduleData.value.findIndex(item => item.date === formattedDate)
+            const scheduleItem = {
+                date: formattedDate,
+                consultants: consultants.length > 0 ? consultants.map(c => c.name) : null,
+                supervisors: supervisors.length > 0 ? supervisors.map(s => s.name) : null
+            }
+
+            if (existingIndex !== -1) {
+                scheduleData.value[existingIndex] = scheduleItem
+            } else {
+                scheduleData.value.push(scheduleItem)
+            }
+        }
+    } catch (error) {
+        ElMessage.error('获取排班信息失败')
     }
-])
+}
 
-// 根据选中日期获取值班人员
-const getScheduleForSelectedDate = () => {
-    const year = selectedDate.value.getFullYear()
-    const month = String(selectedDate.value.getMonth() + 1).padStart(2, '0')
-    const day = String(selectedDate.value.getDate()).padStart(2, '0')
-    const dateStr = `${year}-${month}-${day}`
-    return scheduleData.value.find(schedule => schedule.date === dateStr)
+// 获取当前月份的排班信息
+const fetchCurrentMonthDuty = async () => {
+    try {
+        // 清空现有数据
+        scheduleData.value = []
+
+        const currentYear = selectedDate.value.getFullYear()
+        const currentMonth = selectedDate.value.getMonth()
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
+
+        // 获取上个月的最后几天
+        const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay()
+        const daysFromPrevMonth = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1
+        const prevMonth = new Date(currentYear, currentMonth, 0)
+        const prevMonthDays = prevMonth.getDate()
+
+        // 获取下个月的前几天
+        const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDay()
+        const nextMonthDays = lastDayOfMonth === 6 ? 0 : 6 - lastDayOfMonth
+
+        // 获取上个月最后几天的数据
+        for (let i = daysFromPrevMonth; i > 0; i--) {
+            const date = new Date(currentYear, currentMonth - 1, prevMonthDays - i + 1)
+            await fetchDutyByDate(date)
+        }
+
+        // 获取当前月份的数据
+        for (let i = 1; i <= daysInMonth; i++) {
+            const date = new Date(currentYear, currentMonth, i)
+            await fetchDutyByDate(date)
+        }
+
+        // 获取下个月前几天的数据
+        for (let i = 1; i <= nextMonthDays; i++) {
+            const date = new Date(currentYear, currentMonth + 1, i)
+            await fetchDutyByDate(date)
+        }
+    } catch (error) {
+        ElMessage.error('获取当月排班信息失败')
+    }
+}
+
+// 获取选中日期的排班信息
+const getScheduleForSelectedDate = (date) => {
+    const formattedDate = formatDateForApi(date)
+    const schedule = scheduleData.value.find(item => item.date === formattedDate)
+    return {
+        consultants: schedule?.consultants || [],
+        supervisors: schedule?.supervisors || []
+    }
+}
+
+// 处理日期变化
+const handleDateChange = (date) => {
+    selectedDate.value = date
 }
 
 // 当前值班人员列表
 const currentSchedule = computed(() => {
-    const schedule = getScheduleForSelectedDate()
+    const schedule = getScheduleForSelectedDate(selectedDate.value)
     return {
-        consultants: schedule ? schedule.consultants.map(name => ({
+        consultants: schedule.consultants.map(name => ({
             id: name,
             name: name,
-            avatar: 'path/to/avatar'
-        })) : [],
-        supervisors: schedule ? schedule.supervisors.map(name => ({
+            avatar: ''
+        })),
+        supervisors: schedule.supervisors.map(name => ({
             id: name,
             name: name,
-            avatar: 'path/to/avatar'
-        })) : []
+            avatar: ''
+        }))
     }
 })
-
-// 日期变化处理
-const handleDateChange = (date) => {
-    selectedDate.value = date
-}
 
 // 添加咨询师
 const handleAddConsultant = () => {
@@ -106,17 +163,9 @@ const handleRemoveConsultant = (id) => {
     ElMessage.info('移除咨询师功能待实现')
 }
 
-// 格式化日期
-const formatDate = (date) => {
-    const month = date.getMonth() + 1
-    const day = date.getDate()
-    const weekDay = ['日', '一', '二', '三', '四', '五', '六'][date.getDay()]
-    return `${month}月${day}日 星期${weekDay}`
-}
-
-// 初始化
-onMounted(() => {
-    // TODO: 获取初始数据
+// 页面加载时获取数据
+onMounted(async () => {
+    await fetchCurrentMonthDuty()
 })
 </script>
 

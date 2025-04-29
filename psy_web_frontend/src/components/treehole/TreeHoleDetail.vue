@@ -33,9 +33,11 @@
                 <div class="reply-item" v-for="reply in replies" :key="reply.replyId">
                     <div class="reply-header">
                         <div class="reply-relation">
-                            <span class="replier">{{ reply.personId }}</span>
-                            <span class="reply-to">回复</span>
-                            <span class="author">{{ personId }}</span>
+                            <div class="reply-box">
+                                <span class="replier-name">{{ reply.userInfo.id }}</span>
+                                <span class="reply-action">回复了</span>
+                                <span class="replier-name">{{ personId }}</span>
+                            </div>
                         </div>
                         <span class="reply-time">{{ reply.replyTime }}</span>
                     </div>
@@ -341,22 +343,22 @@ onMounted(() => {
 .reply-relation {
     display: flex;
     align-items: center;
-    gap: 4px;
+}
+
+.reply-box {
+    display: inline-block;
+    border-radius: 4px;
     font-size: 14px;
 }
 
-.replier {
-    color: #557ff7;
+.replier-name {
+    color: #333;
     font-weight: 500;
 }
 
-.reply-to {
-    color: #999;
-}
-
-.author {
-    color: #557ff7;
-    font-weight: 500;
+.reply-action {
+    color: #409EFF;
+    margin: 0 4px;
 }
 
 .reply-time {

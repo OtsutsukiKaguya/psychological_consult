@@ -26,6 +26,11 @@
                         <el-table-column prop="notificationTitle" label="标题" />
                         <el-table-column prop="notificationContent" label="内容" />
                         <el-table-column prop="notificationTime" label="发送时间" />
+                        <el-table-column prop="receiverId" label="接收者" align="center" min-width="120">
+                            <template #default="scope">
+                                <span>{{ scope.row.receiverId }}</span>
+                            </template>
+                        </el-table-column>
                     </el-table>
                 </div>
 
@@ -163,6 +168,25 @@ const paginatedData = computed(() => {
 onMounted(async () => {
     await fetchSentList()
 })
+
+// 标记通知为已读
+const handleMarkAsRead = async (notification) => {
+    try {
+        const response = await axios.post(
+            API.NOTIFICATION.READ(notification.id, currentUser.value?.id)
+        )
+        if (response.data.code === 0) {
+            ElMessage.success('已标记为已读')
+            // 更新本地数据状态
+            notification.isRead = true
+        } else {
+            ElMessage.error('操作失败')
+        }
+    } catch (error) {
+        console.error('标记已读失败:', error)
+        ElMessage.error('操作失败')
+    }
+}
 </script>
 
 <style scoped>
@@ -251,5 +275,21 @@ onMounted(async () => {
 
 :deep(.el-pagination) {
     justify-content: flex-end;
+}
+
+:deep(.el-table .unread-row) {
+    position: relative;
+}
+
+:deep(.el-table .unread-row::before) {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background-color: #f56c6c;
+    border-radius: 50%;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
 }
 </style>

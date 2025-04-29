@@ -94,6 +94,15 @@ const router = createRouter({
             component: Notification
         },
         {
+            path: '/admin/leave-approval',
+            name: 'LeaveApproval',
+            component: () => import('@/views/admin/LeaveApproval.vue'),
+            meta: {
+                requiresAuth: true,
+                role: 'ADMIN'
+            }
+        },
+        {
             path: '/consultant/consultation',
             name: 'consultantConsultation',
             component: ConsultantConsultationRecord,

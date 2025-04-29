@@ -29,16 +29,43 @@ const rules = {
 // 表单引用
 const formRef = ref(null)
 
+// 获取当前格式化的时间
+const getCurrentFormattedTime = () => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  const seconds = String(now.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
+
 // 登录方法
 const handleLogin = async (formEl) => {
   if (!formEl) return
   await formEl.validate(async (valid) => {
     if (valid) {
       try {
-        const response = await axios.get(`${API.AUTH.LOGIN}/${loginForm.id}/${loginForm.password}`)
-        console.log(response.data)
-        if (response.data[0]) {
-          const userData = response.data[0]
+        // 准备登录参数
+        const loginData = {
+          id: loginForm.id,
+          password: loginForm.password,
+          lastLoginTime: getCurrentFormattedTime()
+        }
+
+        // 打印登录参数
+        console.log('登录参数：', loginData)
+
+        // 发送POST请求，参数通过query string传递
+        const response = await axios.post(API.AUTH.LOGIN, null, {
+          params: loginData
+        })
+
+        console.log('登录返回数据：', response.data)
+
+        if (response.data.code === 0) {
+          const userData = response.data.data[0]
 
           // 确保角色名称与路由守卫中的一致
           const roleMap = {
@@ -51,7 +78,20 @@ const handleLogin = async (formEl) => {
           userData.role = roleMap[userData.role] || userData.role
 
           // 存储用户信息
-          localStorage.setItem('userInfo', JSON.stringify(userData))
+          localStorage.setItem('userInfo', JSON.stringify({
+            id: userData.id,
+            role: userData.role,
+            name: userData.name,
+            email: userData.email,
+            gender: userData.gender,
+            idcard: userData.idcard,
+            age: userData.age,
+            phone: userData.phone,
+            lastLoginTime: userData.lastLoginTime,
+            state: userData.state,
+            selfDescription: userData.selfDescription,
+            idPictureLink: userData.idPictureLink
+          }))
 
           // 根据角色跳转到不同页面
           switch (userData.role) {
@@ -71,7 +111,7 @@ const handleLogin = async (formEl) => {
 
           ElMessage.success('登录成功')
         } else {
-          ElMessage.error('登录失败')
+          ElMessage.error(response.data.message || '登录失败')
         }
       } catch (error) {
         console.error('登录失败:', error)

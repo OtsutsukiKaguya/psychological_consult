@@ -12,19 +12,13 @@
 
             <!-- 表格区域 -->
             <div class="table-container">
-                <el-table :data="currentTableData" style="width: 100%">
-                    <!-- 姓名列 -->
-                    <el-table-column label="姓名" min-width="120" prop="name" />
+                <el-table :data="currentTableData" style="width: 100%" v-loading="loading">
+                    <!-- ID列 -->
+                    <el-table-column label="id" min-width="120" prop="id" />
                     <el-table-column label="身份" min-width="100" prop="role" />
-                    <el-table-column label="绑定咨询师" min-width="150" prop="consultants" />
-                    <el-table-column label="平均督导评级" min-width="150">
-                        <template #default="{ row }">
-                            <el-rate v-model="row.rating" disabled show-score text-color="#ff9900" />
-                        </template>
-                    </el-table-column>
-                    <el-table-column label="总督导次数" min-width="120" prop="supervisionCount" />
-                    <el-table-column label="督导总时长" min-width="120" prop="totalTime" />
-                    <el-table-column label="周值班安排" min-width="150" prop="schedule" />
+                    <el-table-column label="绑定咨询师" min-width="120" prop="counselorId" />
+                    <el-table-column label="总督导次数" min-width="120" prop="totalSessions" />
+                    <el-table-column label="周值班安排" min-width="150" prop="dutyArrangement" />
 
                     <el-table-column label="操作" width="100" fixed="right">
                         <template #default="{ row }">
@@ -39,8 +33,7 @@
             <!-- 分页 -->
             <div class="pagination">
                 <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10]"
-                    :total="tableData.length" :pager-count="7" layout="prev, pager, next, ->, total, sizes, jumper"
-                    background />
+                    :total="total" :pager-count="7" layout="prev, pager, next, ->, total, sizes, jumper" background />
             </div>
         </div>
     </BaseLayout>
@@ -50,172 +43,61 @@
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import BaseLayout from '../../components/layout/BaseLayout.vue'
+import axios from 'axios'
+import { API } from '@/config'
+import { debounce } from 'lodash'
 
 // 搜索相关
 const searchQuery = ref('')
-
-const handleSearch = () => {
-    currentPage.value = 1
-    fetchData()
-}
+const loading = ref(false)
 
 // 表格数据
-const tableData = ref([
-    {
-        id: 1,
-        name: '王教授',
-        role: '督导',
-        consultants: '张三、李四、王五',
-        rating: 4.5,
-        supervisionCount: 156,
-        totalTime: '48h',
-        schedule: '周一、周三、周五'
-    },
-    {
-        id: 2,
-        name: '李教授',
-        role: '督导',
-        consultants: '赵六、钱七',
-        rating: 4.8,
-        supervisionCount: 189,
-        totalTime: '56h',
-        schedule: '周二、周四、周六'
-    },
-    {
-        id: 3,
-        name: '陈教授',
-        role: '督导',
-        consultants: '孙八、周九',
-        rating: 4.3,
-        supervisionCount: 134,
-        totalTime: '42h',
-        schedule: '周一、周三、周日'
-    },
-    {
-        id: 4,
-        name: '张教授',
-        role: '督导',
-        consultants: '吴十、郑十一',
-        rating: 4.6,
-        supervisionCount: 167,
-        totalTime: '52h',
-        schedule: '周二、周五、周日'
-    },
-    {
-        id: 5,
-        name: '刘教授',
-        role: '督导',
-        consultants: '王十二、李十三',
-        rating: 4.7,
-        supervisionCount: 178,
-        totalTime: '54h',
-        schedule: '周一、周四、周六'
-    },
-    {
-        id: 6,
-        name: '杨教授',
-        role: '督导',
-        consultants: '赵十四、钱十五',
-        rating: 4.4,
-        supervisionCount: 145,
-        totalTime: '46h',
-        schedule: '周三、周五、周日'
-    },
-    {
-        id: 7,
-        name: '吴教授',
-        role: '督导',
-        consultants: '孙十六、周十七',
-        rating: 4.9,
-        supervisionCount: 198,
-        totalTime: '58h',
-        schedule: '周一、周四、周七'
-    },
-    {
-        id: 8,
-        name: '郑教授',
-        role: '督导',
-        consultants: '吴十八、郑十九',
-        rating: 4.2,
-        supervisionCount: 123,
-        totalTime: '38h',
-        schedule: '周二、周五、周日'
-    },
-    {
-        id: 9,
-        name: '周教授',
-        role: '督导',
-        consultants: '王二十、李二一',
-        rating: 4.5,
-        supervisionCount: 156,
-        totalTime: '48h',
-        schedule: '周一、周三、周六'
-    },
-    {
-        id: 10,
-        name: '赵教授',
-        role: '督导',
-        consultants: '张二二、陈二三',
-        rating: 4.7,
-        supervisionCount: 178,
-        totalTime: '54h',
-        schedule: '周二、周四、周日'
-    },
-    {
-        id: 11,
-        name: '钱教授',
-        role: '督导',
-        consultants: '刘二四、杨二五',
-        rating: 4.6,
-        supervisionCount: 167,
-        totalTime: '52h',
-        schedule: '周一、周五、周六'
-    },
-    {
-        id: 12,
-        name: '孙教授',
-        role: '督导',
-        consultants: '吴二六、郑二七',
-        rating: 4.3,
-        supervisionCount: 134,
-        totalTime: '42h',
-        schedule: '周三、周五、周日'
-    },
-    {
-        id: 13,
-        name: '李教授',
-        role: '督导',
-        consultants: '周二八、赵二九',
-        rating: 4.8,
-        supervisionCount: 189,
-        totalTime: '56h',
-        schedule: '周二、周四、周六'
-    },
-    {
-        id: 14,
-        name: '周教授',
-        role: '督导',
-        consultants: '钱三十、孙三一',
-        rating: 4.4,
-        supervisionCount: 145,
-        totalTime: '46h',
-        schedule: '周一、周三、周五'
-    },
-    {
-        id: 15,
-        name: '王教授',
-        role: '督导',
-        consultants: '李三二、张三三',
-        rating: 4.5,
-        supervisionCount: 156,
-        totalTime: '48h',
-        schedule: '周二、周四、周日'
-    }
-])
+const tableData = ref<any[]>([])
+const total = ref(0)
 
 // 分页相关
 const currentPage = ref(1)
 const pageSize = ref(10)
+
+// 获取数据
+const fetchData = async () => {
+    loading.value = true
+    try {
+        const response = await axios.get(API.TUTOR.SEARCH)
+        console.log('获取督导列表返回数据：', response)
+        if (response.data.code === 0) {
+            tableData.value = response.data.data
+            total.value = response.data.data.length
+        } else {
+            ElMessage.error(response.data.message || '获取督导列表失败')
+        }
+    } catch (error) {
+        ElMessage.error('获取督导列表失败')
+        console.error('Error fetching tutors:', error)
+    } finally {
+        loading.value = false
+    }
+}
+
+// 搜索处理
+const handleSearch = debounce(async () => {
+    loading.value = true
+    try {
+        const response = await axios.get(API.TUTOR.SEARCH)
+        console.log('搜索督导返回数据：', response)
+        if (response.data.code === 0) {
+            tableData.value = response.data.data
+            total.value = response.data.data.length
+        } else {
+            ElMessage.error(response.data.message || '搜索失败')
+        }
+    } catch (error) {
+        ElMessage.error('搜索失败')
+        console.error('Error searching tutors:', error)
+    } finally {
+        loading.value = false
+    }
+}, 300)
 
 // 表格数据计算属性
 const currentTableData = computed(() => {
@@ -226,24 +108,12 @@ const currentTableData = computed(() => {
 
 const handleSizeChange = (val: number) => {
     pageSize.value = val
-    currentPage.value = 1
     fetchData()
 }
 
 const handleCurrentChange = (val: number) => {
     currentPage.value = val
     fetchData()
-}
-
-// 获取数据
-const fetchData = async () => {
-    try {
-        // TODO: 调用API获取数据
-        await new Promise(resolve => setTimeout(resolve, 500))
-    } catch (error) {
-        console.error('获取数据失败：', error)
-        ElMessage.error('获取数据失败')
-    }
 }
 
 // 新增督导

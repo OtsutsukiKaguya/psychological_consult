@@ -12,19 +12,18 @@
 
             <!-- 表格区域 -->
             <div class="table-container">
-                <el-table :data="currentTableData" style="width: 100%">
-                    <!-- 姓名列 -->
-                    <el-table-column label="姓名" min-width="120" prop="name" />
+                <el-table :data="currentTableData" style="width: 100%" v-loading="loading">
+                    <!-- ID列 -->
+                    <el-table-column label="id" min-width="120" prop="id" />
                     <el-table-column label="身份" min-width="100" prop="role" />
-                    <el-table-column label="绑定督导" min-width="120" prop="supervisor" />
+                    <el-table-column label="绑定督导" min-width="120" prop="tutorId" />
                     <el-table-column label="平均咨询评级" min-width="150">
                         <template #default="{ row }">
-                            <el-rate v-model="row.rating" disabled show-score text-color="#ff9900" />
+                            <el-rate v-model="row.averageRating" disabled show-score text-color="#ff9900" />
                         </template>
                     </el-table-column>
-                    <el-table-column label="总咨询数" min-width="120" prop="consultCount" />
-                    <el-table-column label="咨询总时长" min-width="120" prop="totalTime" />
-                    <el-table-column label="周值班安排" min-width="150" prop="schedule" />
+                    <el-table-column label="总咨询数" min-width="120" prop="totalSessions" />
+                    <el-table-column label="周值班安排" min-width="150" prop="dutyArrangement" />
 
                     <el-table-column label="操作" width="100" fixed="right">
                         <template #default="{ row }">
@@ -38,10 +37,40 @@
 
             <!-- 分页 -->
             <div class="pagination">
-                <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10]"
-                    :total="tableData.length" :pager-count="7" layout="prev, pager, next, ->, total, sizes, jumper"
-                    background />
+                <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize"
+                    :page-sizes="[10, 20, 30, 50]" :total="total" @size-change="handleSizeChange"
+                    @current-change="handleCurrentChange" layout="total, sizes, prev, pager, next, jumper" />
             </div>
+
+            <!-- 新增咨询师弹窗 -->
+            <el-dialog v-model="dialogVisible" title="新增咨询师" width="500px">
+                <el-form ref="addFormRef" :model="addForm" :rules="addFormRules" label-width="120px">
+                    <el-form-item label="ID" prop="id">
+                        <el-input v-model="addForm.id" placeholder="请输入ID" />
+                    </el-form-item>
+                    <el-form-item label="值班安排" prop="dutyArrangement">
+                        <el-input v-model="addForm.dutyArrangement" placeholder="请输入值班安排，如：周一-周三" />
+                    </el-form-item>
+                    <el-form-item label="所属学院" prop="institute">
+                        <el-input v-model="addForm.institute" placeholder="请输入所属学院" />
+                    </el-form-item>
+                    <el-form-item label="职称" prop="jobTitle">
+                        <el-input v-model="addForm.jobTitle" placeholder="请输入职称" />
+                    </el-form-item>
+                    <el-form-item label="同时咨询人数" prop="counselorSameTime">
+                        <el-input-number v-model="addForm.counselorSameTime" :min="1" :max="10" />
+                    </el-form-item>
+                    <el-form-item label="专长标签" prop="tag">
+                        <el-input v-model="addForm.tag" placeholder="请输入专长标签" />
+                    </el-form-item>
+                </el-form>
+                <template #footer>
+                    <span class="dialog-footer">
+                        <el-button @click="dialogVisible = false">取消</el-button>
+                        <el-button type="primary" @click="submitAdd">确认</el-button>
+                    </span>
+                </template>
+            </el-dialog>
         </div>
     </BaseLayout>
 </template>
@@ -50,172 +79,63 @@
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import BaseLayout from '../../components/layout/BaseLayout.vue'
+import axios from 'axios'
+import { API } from '@/config'
+import { debounce } from 'lodash'
 
 // 搜索相关
 const searchQuery = ref('')
 
-const handleSearch = () => {
-    currentPage.value = 1
-    fetchData()
-}
+// 加载状态
+const loading = ref(false)
 
 // 表格数据
-const tableData = ref([
-    {
-        id: 1,
-        name: 'Apple',
-        role: '咨询师',
-        supervisor: '督导A',
-        rating: 3.5,
-        consultCount: 123,
-        totalTime: '12h',
-        schedule: '周一、周二、周三'
-    },
-    {
-        id: 2,
-        name: 'Banana',
-        role: '咨询师',
-        supervisor: '督导B',
-        rating: 4.0,
-        consultCount: 98,
-        totalTime: '10h',
-        schedule: '周二、周四、周六'
-    },
-    {
-        id: 3,
-        name: 'Cherry',
-        role: '咨询师',
-        supervisor: '督导A',
-        rating: 4.5,
-        consultCount: 156,
-        totalTime: '15h',
-        schedule: '周一、周三、周五'
-    },
-    {
-        id: 4,
-        name: 'David',
-        role: '咨询师',
-        supervisor: '督导C',
-        rating: 3.8,
-        consultCount: 89,
-        totalTime: '9h',
-        schedule: '周二、周四、周日'
-    },
-    {
-        id: 5,
-        name: 'Emma',
-        role: '咨询师',
-        supervisor: '督导B',
-        rating: 4.2,
-        consultCount: 134,
-        totalTime: '13h',
-        schedule: '周一、周三、周六'
-    },
-    {
-        id: 6,
-        name: 'Frank',
-        role: '咨询师',
-        supervisor: '督导A',
-        rating: 4.7,
-        consultCount: 178,
-        totalTime: '18h',
-        schedule: '周二、周五、周日'
-    },
-    {
-        id: 7,
-        name: 'Grace',
-        role: '咨询师',
-        supervisor: '督导C',
-        rating: 3.9,
-        consultCount: 112,
-        totalTime: '11h',
-        schedule: '周一、周四、周六'
-    },
-    {
-        id: 8,
-        name: 'Henry',
-        role: '咨询师',
-        supervisor: '督导B',
-        rating: 4.1,
-        consultCount: 145,
-        totalTime: '14h',
-        schedule: '周三、周五、周日'
-    },
-    {
-        id: 9,
-        name: 'Ivy',
-        role: '咨询师',
-        supervisor: '督导A',
-        rating: 4.4,
-        consultCount: 167,
-        totalTime: '16h',
-        schedule: '周一、周四、周七'
-    },
-    {
-        id: 10,
-        name: 'Jack',
-        role: '咨询师',
-        supervisor: '督导C',
-        rating: 3.7,
-        consultCount: 98,
-        totalTime: '10h',
-        schedule: '周二、周五、周日'
-    },
-    {
-        id: 11,
-        name: 'Kelly',
-        role: '咨询师',
-        supervisor: '督导B',
-        rating: 4.3,
-        consultCount: 143,
-        totalTime: '14h',
-        schedule: '周一、周三、周六'
-    },
-    {
-        id: 12,
-        name: 'Liam',
-        role: '咨询师',
-        supervisor: '督导A',
-        rating: 4.6,
-        consultCount: 189,
-        totalTime: '19h',
-        schedule: '周二、周四、周日'
-    },
-    {
-        id: 13,
-        name: 'Mary',
-        role: '咨询师',
-        supervisor: '督导C',
-        rating: 3.8,
-        consultCount: 121,
-        totalTime: '12h',
-        schedule: '周一、周五、周六'
-    },
-    {
-        id: 14,
-        name: 'Noah',
-        role: '咨询师',
-        supervisor: '督导B',
-        rating: 4.2,
-        consultCount: 156,
-        totalTime: '15h',
-        schedule: '周三、周五、周日'
-    },
-    {
-        id: 15,
-        name: 'Olivia',
-        role: '咨询师',
-        supervisor: '督导A',
-        rating: 4.5,
-        consultCount: 178,
-        totalTime: '17h',
-        schedule: '周二、周四、周六'
-    }
-])
+const tableData = ref<any[]>([])
+const total = ref(0)
 
 // 分页相关
 const currentPage = ref(1)
 const pageSize = ref(10)
+
+// 获取数据
+const fetchData = async () => {
+    loading.value = true
+    try {
+        const response = await axios.get(API.COUNSELOR.SEARCH)
+        console.log('获取咨询师列表返回数据：', response)
+        if (response.data.code === 0) {
+            tableData.value = response.data.data
+            total.value = response.data.data.length
+        } else {
+            ElMessage.error(response.data.message || '获取咨询师列表失败')
+        }
+    } catch (error) {
+        ElMessage.error('获取咨询师列表失败')
+        console.error('Error fetching consultants:', error)
+    } finally {
+        loading.value = false
+    }
+}
+
+// 搜索处理
+const handleSearch = debounce(async () => {
+    loading.value = true
+    try {
+        const response = await axios.get(API.COUNSELOR.SEARCH)
+        console.log('搜索咨询师返回数据：', response)
+        if (response.data.code === 0) {
+            tableData.value = response.data.data
+            total.value = response.data.data.length
+        } else {
+            ElMessage.error(response.data.message || '搜索失败')
+        }
+    } catch (error) {
+        ElMessage.error('搜索失败')
+        console.error('Error searching consultants:', error)
+    } finally {
+        loading.value = false
+    }
+}, 300)
 
 // 表格数据计算属性
 const currentTableData = computed(() => {
@@ -226,7 +146,6 @@ const currentTableData = computed(() => {
 
 const handleSizeChange = (val: number) => {
     pageSize.value = val
-    currentPage.value = 1
     fetchData()
 }
 
@@ -235,21 +154,66 @@ const handleCurrentChange = (val: number) => {
     fetchData()
 }
 
-// 获取数据
-const fetchData = async () => {
-    try {
-        // TODO: 调用API获取数据
-        await new Promise(resolve => setTimeout(resolve, 500))
-    } catch (error) {
-        console.error('获取数据失败：', error)
-        ElMessage.error('获取数据失败')
+// 新增相关
+const dialogVisible = ref(false)
+const addFormRef = ref(null)
+const addForm = ref({
+    id: '',
+    dutyArrangement: '',
+    institute: '',
+    jobTitle: '',
+    counselorSameTime: 1,
+    tag: ''
+})
+
+// 表单验证规则
+const addFormRules = {
+    id: [{ required: true, message: '请输入ID', trigger: 'blur' }],
+    dutyArrangement: [{ required: true, message: '请输入值班安排', trigger: 'blur' }],
+    institute: [{ required: true, message: '请输入所属学院', trigger: 'blur' }],
+    jobTitle: [{ required: true, message: '请输入职称', trigger: 'blur' }],
+    counselorSameTime: [{ required: true, message: '请输入同时咨询人数', trigger: 'blur' }],
+    tag: [{ required: true, message: '请输入专长标签', trigger: 'blur' }]
+}
+
+// 打开新增弹窗
+const handleAdd = () => {
+    dialogVisible.value = true
+    // 重置表单
+    addForm.value = {
+        id: '',
+        dutyArrangement: '',
+        institute: '',
+        jobTitle: '',
+        counselorSameTime: 1,
+        tag: ''
     }
 }
 
-// 新增咨询师
-const handleAdd = () => {
-    // TODO: 实现新增功能
-    ElMessage.info('新增功能待实现')
+// 提交新增
+const submitAdd = async () => {
+    if (!addFormRef.value) return
+
+    await addFormRef.value.validate(async (valid) => {
+        if (valid) {
+            try {
+                const response = await axios.post(API.COUNSELOR.INSERT, addForm.value)
+                console.log('新增咨询师返回数据：', response.data)
+
+                if (response.data.code === 0) {
+                    ElMessage.success('添加成功')
+                    dialogVisible.value = false
+                    // 重新获取数据
+                    fetchData()
+                } else {
+                    ElMessage.error('添加失败')
+                }
+            } catch (error) {
+                console.error('添加失败:', error)
+                ElMessage.error('添加失败，请检查网络连接')
+            }
+        }
+    })
 }
 
 // 修改咨询师信息
@@ -425,5 +389,21 @@ onMounted(() => {
 :deep(.el-rate) {
     display: inline-flex;
     align-items: center;
+}
+
+/* 新增弹窗样式 */
+.dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+:deep(.el-dialog__body) {
+    padding: 20px 40px;
+}
+
+:deep(.el-input-number) {
+    width: 100%;
 }
 </style>

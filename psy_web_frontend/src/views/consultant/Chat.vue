@@ -15,7 +15,7 @@
                 <div class="consult-status">
                     <p>正在咨询中</p>
                     <p>已咨询时间</p>
-                    <h3>{{ chatInfo.duration || '00:00:00' }}</h3>
+                    <h3>{{ consultationTime }}</h3>
                 </div>
                 <div class="actions">
                     <button @click="requestSupervisor">请求督导</button>
@@ -92,19 +92,61 @@
 
 <script setup>
 import ConsultantBaseLayout from '@/components/layout/ConsultantBaseLayout.vue'
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, onMounted, nextTick, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { API } from '@/config'
+
+// 硬编码的值
+const SESSION_ID = 'bee364bb-9df6-4d3d-9d89-b362c1353056'
+const TOKEN = 'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiLolq_ppbzlpKfluIgiLCJyb2xlcyI6IlJPTEVfQ09VTlNFTE9SIiwidXNlcklkIjoienlxenhzIiwiaWF0IjoxNzQ1OTQ2MDI0LCJleHAiOjE3NDYwMzI0MjR9.rhNVzvcZLqPdxDJqNyviKfcceBVlfFlqT9mfBttgYR0VO1XPr9yREg672ELABiztKa9aS_H8qjC_agPqcSSLlQ'
 
 const route = useRoute()
-const chatId = route.params.id
-
-// 聊天信息
 const chatInfo = ref(null)
 const messages = ref([])
 const supervisorMessages = ref([])
 const inputMessage = ref('')
 const supervisorInputMessage = ref('')
+
+// WebSocket相关
+const stompClient = ref(null)
+const connected = ref(false)
+
+// 添加计时相关的响应式变量
+const consultationTime = ref('00:00:00')
+const timer = ref(null)
+const startTime = ref(null)
+
+// 保存聊天状态到localStorage
+const saveStateToStorage = () => {
+    const chatState = {
+        messages: messages.value,
+        startTime: startTime.value ? startTime.value.getTime() : null,
+        consultationTime: consultationTime.value
+    }
+    localStorage.setItem('chatState', JSON.stringify(chatState))
+}
+
+// 从localStorage加载聊天状态
+const loadStateFromStorage = () => {
+    const savedState = localStorage.getItem('chatState')
+    if (savedState) {
+        const state = JSON.parse(savedState)
+        messages.value = state.messages
+        if (state.startTime) {
+            startTime.value = new Date(state.startTime)
+            consultationTime.value = state.consultationTime
+        }
+    }
+}
+
+// 清除localStorage中的聊天状态
+const clearChatState = () => {
+    localStorage.removeItem('chatState')
+    messages.value = []
+    consultationTime.value = '00:00:00'
+    startTime.value = null
+}
 
 // 聊天框ref
 const chatBoxRef = ref(null)
@@ -126,39 +168,104 @@ const scrollSupervisorToBottom = () => {
     })
 }
 
-// 初始化聊天
-const initChat = async () => {
-    try {
-        chatInfo.value = {
-            id: chatId,
-            name: '张先生',
-            duration: '00:12:11'
-        }
-        messages.value = [
-            { type: 'user', content: '您好，我是xxx，我想问' },
-            { type: 'consultant', content: '您好，请问您要咨询什么' }
-        ]
-        supervisorMessages.value = [
-            { type: 'supervisor', content: '您好，请问您要咨询什么' },
-            { type: 'consultant', content: '您好，我是xxx，我想问' }
-        ]
-        scrollToBottom()
-        scrollSupervisorToBottom()
-    } catch (error) {
-        console.error('初始化聊天失败:', error)
-        ElMessage.error('初始化聊天失败')
+// 开始计时
+const startTimer = () => {
+    if (timer.value) return
+    if (!startTime.value) {
+        startTime.value = new Date()
     }
+    timer.value = setInterval(() => {
+        const now = new Date()
+        const diff = now - startTime.value
+        const hours = Math.floor(diff / 3600000)
+        const minutes = Math.floor((diff % 3600000) / 60000)
+        const seconds = Math.floor((diff % 60000) / 1000)
+        consultationTime.value = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+        saveStateToStorage() // 每次更新时间时保存状态
+    }, 1000)
+}
+
+// 停止计时
+const stopTimer = () => {
+    if (timer.value) {
+        clearInterval(timer.value)
+        timer.value = null
+    }
+}
+
+// 连接WebSocket
+const connectWebSocket = () => {
+    const socket = new window.SockJS('http://47.117.102.116:8081/ws')
+    stompClient.value = window.Stomp.over(socket)
+
+    // 关闭 STOMP 的调试信息
+    stompClient.value.debug = null
+
+    const headers = {
+        Authorization: 'Bearer ' + TOKEN
+    }
+
+    stompClient.value.connect(headers, frame => {
+        console.log('✅ STOMP连接成功', frame)
+        connected.value = true
+
+        // 订阅个人消息队列
+        stompClient.value.subscribe('/user/queue/messages', message => {
+            console.log('📩 收到推送：', message.body)
+            const receivedMessage = JSON.parse(message.body)
+            // 添加到消息列表
+            messages.value.push({
+                type: 'user',  // 接收到的消息显示在左侧
+                content: receivedMessage.content
+            })
+            scrollToBottom()
+        })
+    }, error => {
+        console.error('❌ STOMP连接失败', error)
+        ElMessage.error('连接失败，请检查网络')
+        connected.value = false
+    })
 }
 
 // 发送消息
 const sendMessage = () => {
     if (!inputMessage.value.trim()) return
-    messages.value.push({
-        type: 'consultant',
-        content: inputMessage.value
+
+    const messagePayload = {
+        content: inputMessage.value,
+        type: "TEXT",
+        fileId: 0
+    }
+
+    // 发送消息到服务器
+    fetch(`${API.MESSAGES.SESSION}/bee364bb-9df6-4d3d-9d89-b362c1353056`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${TOKEN}`
+        },
+        body: JSON.stringify(messagePayload)
     })
-    inputMessage.value = ''
-    scrollToBottom()
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('发送失败')
+            }
+            return response.json()
+        })
+        .then(() => {
+            // 发送成功，添加到消息列表
+            messages.value.push({
+                type: 'consultant',
+                content: inputMessage.value
+            })
+            inputMessage.value = ''
+            scrollToBottom()
+            saveStateToStorage() // 保存新的消息状态
+        })
+        .catch(error => {
+            console.error('发送消息失败:', error)
+            ElMessage.error('发送消息失败')
+        })
 }
 
 // 发送督导消息
@@ -179,7 +286,26 @@ const requestSupervisor = () => {
 
 // 结束咨询
 const endConsultation = () => {
-    ElMessage.warning('确定要结束咨询吗？')
+    ElMessageBox.confirm(
+        '是否结束本次咨询？',
+        '提示',
+        {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning',
+        }
+    )
+        .then(() => {
+            clearChatState() // 清除聊天记录和计时
+            stopTimer()
+            ElMessage({
+                type: 'success',
+                message: '咨询已结束'
+            })
+        })
+        .catch(() => {
+            // 用户点击取消，不做任何操作
+        })
 }
 
 // 工具栏功能
@@ -191,15 +317,44 @@ const handleSupervisorVoice = () => ElMessage.info('督导语音功能开发中'
 const handleSupervisorImage = () => ElMessage.info('督导图片功能开发中')
 const handleSupervisorEmoji = () => ElMessage.info('督导表情功能开发中')
 
+// 初始化聊天
+const initChat = async () => {
+    try {
+        chatInfo.value = {
+            id: 'cxy',
+            name: 'ppplusss',
+            duration: '00:00:00'
+        }
+        loadStateFromStorage() // 加载保存的状态
+        scrollToBottom()
+        scrollSupervisorToBottom()
+        startTimer()
+    } catch (error) {
+        console.error('初始化聊天失败:', error)
+        ElMessage.error('初始化聊天失败')
+    }
+}
+
 onMounted(() => {
     initChat()
+    connectWebSocket()
 })
 
 watch(messages, () => {
     scrollToBottom()
-})
+    saveStateToStorage()
+}, { deep: true })
 watch(supervisorMessages, () => {
     scrollSupervisorToBottom()
+})
+
+// 组件卸载时断开连接
+onUnmounted(() => {
+    if (stompClient.value) {
+        stompClient.value.disconnect()
+    }
+    stopTimer()
+    saveStateToStorage() // 保存最终状态
 })
 </script>
 
@@ -224,6 +379,12 @@ watch(supervisorMessages, () => {
     display: flex;
     align-items: center;
     margin-bottom: 10px;
+    width: 100%;
+    padding-left: 0;
+}
+
+.consult-info .avatar {
+    margin-left: 6px;
 }
 
 .consult-info h2 {
@@ -410,6 +571,7 @@ watch(supervisorMessages, () => {
 
 .info-text {
     margin-left: 10px;
+    flex: 1;
 }
 
 .right-panel {

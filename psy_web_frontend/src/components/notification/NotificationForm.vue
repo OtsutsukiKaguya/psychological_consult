@@ -5,7 +5,7 @@
             <div class="notification-list">
                 <div v-for="notification in paginatedData" :key="notification.notificationId" class="notification-item">
                     <div class="notification-content">
-                        <div class="dot"></div>
+                        <div :class="['dot', { 'read': notification.isRead }]"></div>
                         <div>
                             <h4 class="notification-title">{{ notification.notificationTitle }}</h4>
                             <p>{{ notification.notificationContent }}</p>
@@ -14,6 +14,11 @@
                     <div class="notification-meta">
                         <span class="date">{{ notification.notificationTime }}</span>
                         <span class="sender">发送者：{{ notification.senderId }}</span>
+                        <el-button v-if="!notification.isRead" type="primary" size="small"
+                            @click="handleMarkAsRead(notification)">
+                            已知晓
+                        </el-button>
+                        <span v-else class="read-status">已读</span>
                     </div>
                 </div>
             </div>
@@ -91,6 +96,28 @@ const handleSizeChange = (val) => {
     currentPage.value = 1
 }
 
+// 标记通知为已读
+const handleMarkAsRead = async (notification) => {
+    try {
+        const userId = getCurrentUserId()
+        if (!userId) return
+
+        const response = await axios.post(
+            API.NOTIFICATION.READ(notification.notificationId, userId)
+        )
+        if (response.data.code === 0) {
+            ElMessage.success('已标记为已读')
+            // 更新本地数据状态
+            notification.isRead = true
+        } else {
+            ElMessage.error('操作失败')
+        }
+    } catch (error) {
+        console.error('标记已读失败:', error)
+        ElMessage.error('操作失败')
+    }
+}
+
 // 组件挂载时获取数据
 onMounted(async () => {
     await fetchNotifications()
@@ -107,7 +134,7 @@ onMounted(async () => {
 }
 
 .page-title {
-    font-size: 20px;
+    font-size: 22px;
     font-weight: bold;
     color: #333;
     margin-bottom: 20px;
@@ -206,5 +233,14 @@ onMounted(async () => {
 .notification-list::-webkit-scrollbar-thumb {
     background-color: #ccc;
     border-radius: 3px;
+}
+
+.dot.read {
+    background-color: #d9d9d9;
+}
+
+.read-status {
+    font-size: 14px;
+    color: #999;
 }
 </style>

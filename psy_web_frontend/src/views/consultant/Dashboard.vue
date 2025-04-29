@@ -2,9 +2,12 @@
 import ConsultantBaseLayout from '@/components/layout/ConsultantBaseLayout.vue'
 import { ElCalendar } from 'element-plus'
 import profileImage from '@/assets/组合 5.png'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, h, watch } from 'vue'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
-import { ElConfigProvider } from 'element-plus'
+import { ElConfigProvider, ElMessage } from 'element-plus'
+import axios from 'axios'
+import { API } from '@/config'
+import dayjs from 'dayjs'
 
 // 获取当前用户信息
 const currentUser = computed(() => {
@@ -20,6 +23,14 @@ const introduction = ref('')
 // 请假相关
 const leaveDialogVisible = ref(false)
 const leaveDate = ref('')
+
+// 判断日期是否可选
+const disabledDate = (time) => {
+    const formattedDate = dayjs(time).format('YYYY-MM-DD')
+    const isPastDate = time.getTime() < Date.now() - 8.64e7  // 是否是过去的日期
+    const isNotDutyDate = !dutyDates.value.includes(formattedDate)  // 是否不是值班日期
+    return isPastDate || isNotDutyDate  // 如果是过去的日期或不是值班日期，则禁用
+}
 
 // 标签数据
 const tags = ref(['抑郁'])
@@ -43,6 +54,60 @@ const leaveRecords = [
     }
 ]
 
+// 值班日期列表
+const dutyDates = ref([])
+
+// 当前选中的日期
+const selectedDate = ref(null)
+
+// 监听值班日期列表的变化
+watch(dutyDates, (newDates) => {
+    console.log('值班日期列表已更新:', newDates)
+}, { deep: true })
+
+// 获取值班信息
+const fetchDutyInfo = async () => {
+    if (!currentUser.value?.id) {
+        console.error('未获取到用户ID')
+        return
+    }
+
+    try {
+        const response = await axios.get(API.DUTY.GET_BY_ID(currentUser.value.id))
+
+        if (response.data.code === 0 && response.data.data) {
+            dutyDates.value = response.data.data.map(item => {
+                const formattedDate = dayjs(item.dutyDate).format('YYYY-MM-DD')
+                return formattedDate
+            })
+            console.log('处理后的值班日期列表:', dutyDates.value)
+        }
+    } catch (error) {
+        console.error('获取值班信息失败:', error)
+        ElMessage.error('获取值班信息失败')
+    }
+}
+
+// 检查日期是否是值班日期
+const isDutyDate = (date) => {
+    console.log('==================== 日期匹配检查 ====================')
+    console.log('当前检查的日期:', date)
+    console.log('值班日期列表:', dutyDates.value)
+
+    const formattedDate = dayjs(date).format('YYYY-MM-DD')
+    console.log('格式化后的当前日期:', formattedDate)
+
+    const isMatch = dutyDates.value.includes(formattedDate)
+    console.log('是否匹配:', isMatch)
+    console.log('=================================================')
+    return isMatch
+}
+
+// 格式化日期
+const formatDate = (date) => {
+    return dayjs(date).format('YYYY-MM-DD')
+}
+
 // 处理请假按钮点击
 const handleLeaveClick = () => {
     leaveDialogVisible.value = true
@@ -60,6 +125,21 @@ const handleLeaveSubmit = () => {
         leaveDialogVisible.value = false
         leaveDate.value = ''
     }
+}
+
+// 组件挂载时获取值班信息
+onMounted(async () => {
+    await fetchDutyInfo()
+})
+
+// 判断是否是过去的日期
+const isPastDate = (date) => {
+    return dayjs(date).isBefore(dayjs(), 'day')
+}
+
+// 判断是否是今天
+const isToday = (date) => {
+    return dayjs(date).isSame(dayjs(), 'day')
 }
 </script>
 
@@ -134,13 +214,25 @@ const handleLeaveSubmit = () => {
                     <div class="calendar-header">
                         <div class="duty-info">
                             <span class="duty-days">本月值班天数：</span>
-                            <span class="days-count">15天</span>
+                            <span class="days-count">{{ dutyDates.length }}天</span>
                         </div>
                         <el-button type="primary" size="small" class="leave-btn"
                             @click="handleLeaveClick">请假</el-button>
                     </div>
                     <div class="calendar-container">
-                        <el-calendar />
+                        <el-calendar v-model="selectedDate">
+                            <template #date-cell="{ data }">
+                                <div :class="[
+                                    'calendar-cell',
+                                    { 'duty-cell': isDutyDate(data.day) },
+                                    { 'past-date': isPastDate(data.day) },
+                                    { 'today': isToday(data.day) }
+                                ]">
+                                    <span>{{ data.day.split('-')[2] }}</span>
+                                    <div v-if="isDutyDate(data.day)" class="duty-text">值班</div>
+                                </div>
+                            </template>
+                        </el-calendar>
                     </div>
                     <div class="leave-records">
                         <h3>本月请假记录</h3>
@@ -170,8 +262,8 @@ const handleLeaveSubmit = () => {
             <!-- 请假弹窗 -->
             <el-dialog v-model="leaveDialogVisible" title="选择请假日期" width="30%" :close-on-click-modal="false">
                 <div class="leave-dialog-content">
-                    <el-date-picker v-model="leaveDate" type="date" placeholder="选择日期" format="YYYY-MM-DD"
-                        value-format="YYYY-MM-DD" :disabled-date="(time) => time.getTime() < Date.now() - 8.64e7" />
+                    <el-date-picker v-model="leaveDate" type="date" placeholder="选择值班日期" format="YYYY-MM-DD"
+                        value-format="YYYY-MM-DD" :disabled-date="disabledDate" />
                 </div>
                 <template #footer>
                     <span class="dialog-footer">
@@ -359,28 +451,33 @@ const handleLeaveSubmit = () => {
 }
 
 .calendar-container {
-    height: 405px;
-    display: flex;
-    flex-direction: column;
     background: #fff;
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     margin-right: 20px;
+    padding: 0;
+    overflow: hidden;
+    max-width: 800px;
 }
 
 .calendar-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #eee;
-    height: 45px;
-    margin-right: 20px;
+    padding: 12px 20px;
+    border-bottom: 1px solid #f0f0f0;
+    background-color: #fff;
+    height: 60px;
 }
 
 .duty-info {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    height: 40px;
+    background-color: #f8f9fc;
+    padding: 0 16px;
+    border-radius: 8px;
 }
 
 .duty-days {
@@ -391,170 +488,139 @@ const handleLeaveSubmit = () => {
 .days-count {
     font-size: 16px;
     font-weight: 600;
-    color: #333;
+    color: #557ff7;
 }
 
 .leave-btn {
-    background-color: #557ff7;
+    background: linear-gradient(45deg, #557ff7, #6e93ff);
     border: none;
-    width: 80px;
-    height: 35px;
-    padding: 0;
-    font-size: 16px;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+    color: white;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 6px rgba(85, 127, 247, 0.3);
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-:deep(.el-button--small) {
-    width: 80px;
-    height: 35px;
-    padding: 0;
-    font-size: 16px;
+.leave-btn:hover {
+    background: linear-gradient(45deg, #4066d6, #557ff7);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(85, 127, 247, 0.4);
+}
+
+.leave-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(85, 127, 247, 0.3);
 }
 
 :deep(.el-calendar) {
+    --el-calendar-cell-width: 50px;
+    background: none;
     border: none;
-    height: calc(100% - 45px);
+    height: 420px;
     display: flex;
     flex-direction: column;
-    padding: 0;
 }
 
 :deep(.el-calendar__header) {
-    padding: 8px 20px 0;
+    padding: 12px 20px;
+    border-bottom: 1px solid #f0f0f0;
     flex-shrink: 0;
-    margin-bottom: 0;
-    height: 40px;
-}
-
-:deep(.el-calendar__body) {
-    padding: 4px 20px 12px;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
 }
 
 :deep(.el-calendar__title) {
-    font-size: 16px;
     color: #333;
+    font-size: 16px;
     font-weight: 600;
 }
 
-:deep(.el-button) {
-    padding: 4px 8px;
+:deep(.el-calendar__body) {
+    padding: 8px 20px 16px;
+    flex: 1;
+    overflow: auto;
+    height: calc(420px - 60px);
 }
 
 :deep(.el-calendar-table) {
-    border: none;
-    flex: 1;
+    border-collapse: separate;
+    border-spacing: 4px;
     height: 100%;
-}
-
-:deep(.el-calendar-table tr) {
-    height: 40px;
 }
 
 :deep(.el-calendar-table td) {
     border: none;
     padding: 2px;
-    height: 40px;
+    height: 60px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
 }
 
-:deep(.el-calendar-day) {
-    height: 36px;
-    line-height: 36px;
-    padding: 0;
+:deep(.el-calendar-table th) {
+    text-align: center;
+    padding: 6px 0;
+    color: #666;
+    font-weight: 600;
     font-size: 14px;
+    height: 32px;
+}
+
+.calendar-cell {
+    height: 100%;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    padding: 4px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    cursor: pointer;
 }
 
-:deep(.el-calendar__button-group) {
-    padding-top: 0;
+.past-date {
+    opacity: 0.5;
+    background-color: #f5f5f5;
+    cursor: not-allowed;
 }
 
-:deep(.el-calendar__button-group .el-button-group) {
-    transform: scale(0.8);
-    transform-origin: right top;
+.past-date.duty-cell {
+    background-color: #fef0f0 !important;
+    opacity: 0.7;
 }
 
-:deep(.is-selected) {
-    background-color: #557ff7;
-    color: #fff;
-    border-radius: 4px;
-}
-
-:deep(.current) {
-    color: #557ff7;
+.today {
+    border: 2px solid #409EFF !important;
     font-weight: bold;
 }
 
-.records-table {
-    width: 100%;
+.today span {
+    color: #409EFF;
 }
 
-.table-header {
-    display: flex;
-    border-bottom: none;
-    background: none;
-    margin-bottom: 20px;
+.calendar-cell:not(.past-date):hover {
+    background-color: #f5f7fa;
 }
 
-.header-cell {
-    padding: 0;
-    font-size: 16px;
-    color: #333;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
+.duty-cell {
+    background-color: #fef0f0 !important;
+    border: 1px solid #fde2e2 !important;
 }
 
-.header-cell.date-cell {
-    flex: 1;
-    justify-content: center;
+.duty-cell:hover {
+    background-color: #fde2e2 !important;
 }
 
-.header-cell.status-cell {
-    width: 120px;
-    justify-content: center;
-}
-
-.header-cell.comment-cell {
-    flex: 1;
-    justify-content: center;
-}
-
-.table-body {
-    display: flex;
-    flex-direction: column;
-    min-height: 200px;
-}
-
-.table-row {
-    display: flex;
-    border: none;
-}
-
-.table-cell {
-    padding: 12px 0;
-    color: #666;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-}
-
-.table-cell.date-cell {
-    flex: 1;
-    justify-content: center;
-}
-
-.table-cell.status-cell {
-    width: 120px;
-    justify-content: center;
-}
-
-.table-cell.comment-cell {
-    flex: 1;
-    justify-content: center;
+.duty-text {
+    font-size: 11px;
+    color: #f56c6c;
+    background: #fff;
+    padding: 1px 6px;
+    border-radius: 8px;
+    border: 1px solid #fde2e2;
 }
 
 .status-tag {
@@ -691,5 +757,151 @@ const handleLeaveSubmit = () => {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
+}
+
+/* 当前月份日期样式 */
+:deep(.el-calendar-table td.current) {
+    background-color: #fff;
+    color: #333;
+}
+
+/* 其他月份日期样式 */
+:deep(.el-calendar-table td.prev, .el-calendar-table td.next) {
+    background-color: #fafafa;
+    color: #c0c4cc;
+}
+
+/* 今天日期样式 */
+:deep(.el-calendar-table td.is-today) {
+    color: var(--el-color-primary);
+    font-weight: 600;
+}
+
+/* 选中日期样式 */
+:deep(.el-calendar-table td.is-selected) {
+    background-color: var(--el-color-primary-light-9);
+}
+
+/* 日历按钮组样式 */
+:deep(.el-calendar__button-group) {
+    padding-left: 20px;
+}
+
+:deep(.el-calendar__button-group .el-button-group .el-button) {
+    border-radius: 4px;
+    margin-right: 8px;
+}
+
+/* 请假记录样式 */
+.leave-records {
+    margin-top: 20px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-right: 20px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    padding: 24px;
+}
+
+.leave-records h3 {
+    font-size: 16px;
+    color: #333;
+    margin: 0 0 24px 0;
+    text-align: center;
+    border: none;
+    padding: 0;
+}
+
+.records-table {
+    width: 100%;
+}
+
+.table-header {
+    display: flex;
+    border-bottom: none;
+    background: none;
+    margin-bottom: 20px;
+}
+
+.header-cell {
+    padding: 0;
+    font-size: 16px;
+    color: #333;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+}
+
+.header-cell.date-cell {
+    flex: 1;
+    justify-content: center;
+}
+
+.header-cell.status-cell {
+    width: 120px;
+    justify-content: center;
+}
+
+.header-cell.comment-cell {
+    flex: 1;
+    justify-content: center;
+}
+
+.table-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 200px;
+}
+
+.table-row {
+    display: flex;
+    border: none;
+}
+
+.table-cell {
+    padding: 12px 0;
+    color: #666;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+}
+
+.table-cell.date-cell {
+    flex: 1;
+    justify-content: center;
+}
+
+.table-cell.status-cell {
+    width: 120px;
+    justify-content: center;
+}
+
+.table-cell.comment-cell {
+    flex: 1;
+    justify-content: center;
+}
+
+.status-tag {
+    padding: 2px 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    min-width: 80px;
+    text-align: center;
+}
+
+.status-tag.approved {
+    background-color: #e8f5e9;
+    color: #4caf50;
+}
+
+.status-tag.rejected {
+    background-color: #ffebee;
+    color: #f44336;
+}
+
+.status-tag.pending {
+    background-color: #fff3e0;
+    color: #ff9800;
 }
 </style>

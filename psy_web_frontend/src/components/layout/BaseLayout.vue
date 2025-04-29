@@ -46,7 +46,8 @@ const menuItems = [
   { icon: Setting, label: '督导管理', path: '/admin/supervisor' },
   { icon: UserFilled, label: '用户管理', path: '/admin/users' },
   { icon: Bell, label: '发送通知', path: '/admin/notification' },
-  { icon: Share, label: '树洞', path: '/admin/tree-hole' }
+  { icon: Share, label: '树洞', path: '/admin/tree-hole' },
+  { icon: 'Document', label: '请假审批', path: '/admin/leave-approval' }
 ]
 
 // 获取当前用户信息

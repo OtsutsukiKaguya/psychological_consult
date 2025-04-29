@@ -7,6 +7,30 @@
 <script setup>
 import ConsultantBaseLayout from '@/components/layout/ConsultantBaseLayout.vue'
 import NotificationForm from '@/components/notification/NotificationForm.vue'
+import axios from 'axios'
+import { ElMessage } from 'element-plus'
+import { ref } from 'vue'
+
+const currentUser = ref(null)
+
+// 标记通知为已读
+const handleMarkAsRead = async (notification) => {
+    try {
+        const response = await axios.post(
+            API.NOTIFICATION.READ(notification.id, currentUser.value?.id)
+        )
+        if (response.data.code === 0) {
+            ElMessage.success('已标记为已读')
+            // 更新本地数据状态
+            notification.isRead = true
+        } else {
+            ElMessage.error('操作失败')
+        }
+    } catch (error) {
+        console.error('标记已读失败:', error)
+        ElMessage.error('操作失败')
+    }
+}
 </script>
 
 <style scoped>
@@ -90,6 +114,7 @@ import NotificationForm from '@/components/notification/NotificationForm.vue'
     display: flex;
     align-items: center;
     gap: 20px;
+
 }
 
 .date {
@@ -134,5 +159,21 @@ import NotificationForm from '@/components/notification/NotificationForm.vue'
 .notification-list::-webkit-scrollbar-thumb {
     background-color: #ccc;
     border-radius: 3px;
+}
+
+:deep(.el-table .unread-row) {
+    position: relative;
+}
+
+:deep(.el-table .unread-row::before) {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background-color: #f56c6c;
+    border-radius: 50%;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
 }
 </style>
