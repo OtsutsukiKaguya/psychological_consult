@@ -58,5 +58,13 @@ public interface BackstageArrangementMapper {
     @Select("SELECT p.name, p.gender, p.id, p.phone, u.urgent_name, u.urgent_phone, p.role, p.last_login_time FROM person p join user u on p.id=u.id where p.role='USER' ORDER BY u.id")
     public List<SearchUserDTO> searchUser();
 
+    @Select("SELECT * from person p join counselor c ON p.id=c.id where p.name=#{name}")
+    public List<SearchCounselorByNameDTO> searchCounselorByName(String name);
 
+    @Select("SELECT * FROM person p JOIN counselor c ON p.id = c.id WHERE c.tag LIKE CONCAT('%', #{tag}, '%')")
+    public List<SearchCounselorByNameDTO> searchCounselorByTag(String tag);
+
+    @Select("SELECT s2.user_id FROM session_participants s1 join session_participants s2 on s1.session_id=s2.session_id where s2.role='COUNSELOR' and s1.user_id=#{id} and s1.role='USER'")
+    public List<SearchCounselorByIdDTO> searchCounselorById(String id);
 }
+

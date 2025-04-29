@@ -319,4 +319,19 @@ public class InformationController {
             return Result.error("An error occurred while retrieving counselors");
         }
     }
+
+    @PostMapping("/quit")
+    public Result quit(@RequestParam String id) {
+        try {
+            // 调用 Mapper 层更新状态为 OFFLINE
+            int updateResult = informationMapper.quit(id);
+            if (updateResult > 0) {
+                return Result.success("退出成功");
+            } else {
+                return Result.error("退出失败，用户ID不存在");
+            }
+        } catch (Exception e) {
+            return Result.error("服务器错误: " + e.getMessage());
+        }
+    }
 }

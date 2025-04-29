@@ -304,4 +304,46 @@ public class BackstageArrangementController {
             return Result.error("An error occurred while retrieving users");
         }
     }
+
+    @GetMapping("/searchCounselorByName")
+    public Result searchCounselorByName(@RequestParam String name) {
+        try {
+            List<SearchCounselorByNameDTO> counselorList = backstageArrangementMapper.searchCounselorByName(name);
+            if (!counselorList.isEmpty()) {
+                return Result.success(counselorList);
+            } else {
+                return Result.error("未找到匹配的咨询师信息");
+            }
+        } catch (Exception e) {
+            return Result.error("服务器错误: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/searchCounselorByTag")
+    public Result searchCounselorByTag(@RequestParam String tag) {
+        try {
+            List<SearchCounselorByNameDTO> counselorList = backstageArrangementMapper.searchCounselorByTag(tag);
+            if (!counselorList.isEmpty()) {
+                return Result.success(counselorList);
+            } else {
+                return Result.error("未找到匹配的咨询师信息");
+            }
+        } catch (Exception e) {
+            return Result.error("服务器错误: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/searchCounselorById")
+    public Result searchCounselorById(@RequestParam String id) {
+        try {
+            List<SearchCounselorByIdDTO> counselorList = backstageArrangementMapper.searchCounselorById(id);
+            if (!counselorList.isEmpty()) {
+                return Result.success(counselorList);
+            } else {
+                return Result.error("未找到匹配的咨询师信息");
+            }
+        } catch (Exception e) {
+            return Result.error("服务器错误: " + e.getMessage());
+        }
+    }
 }

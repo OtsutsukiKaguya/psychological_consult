@@ -48,7 +48,7 @@ public interface  InformationMapper {
     @Select("SELECT last_login_time FROM person WHERE id=#{id}")
     public List<Person> getLastLoginTime(String id);
 
-    @Update("UPDATE person SET last_login_time=#{lastLoginTime} WHERE id=#{id} AND password=#{password}")
+    @Update("UPDATE person SET last_login_time=#{lastLoginTime}, state='ONLINE' WHERE id=#{id} AND password=#{password}")
     public int login(String id, String lastLoginTime, String password);
 
     @Select("SELECT id, name, self_description, id_picture_link, state, role FROM person WHERE id=#{id} AND password=#{password}")
@@ -56,4 +56,7 @@ public interface  InformationMapper {
 
     @Select("SELECT p.id, p.name, p.id_picture_link, p.state, c.average_rating, c.tag FROM person as p join duty_calendar as dc join counselor as c ON p.id=dc.staff_id AND p.id=c.id where dc.duty_date=#{dutyDate}")
     public List<InformationDTO> getCounselorByDutyDate(String dutyDate);
+
+    @Update("UPDATE person SET state='OFFLINE' WHERE id=#{id}")
+    public int quit(String id);
 }
