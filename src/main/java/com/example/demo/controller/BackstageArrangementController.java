@@ -149,15 +149,16 @@ public class BackstageArrangementController {
     @GetMapping("/leave/showleave")
     public Result searchLeave() {
         try {
-            List<Ask_leave> list = backstageArrangementMapper.searchLeave();
-            if (list == null || list.isEmpty()) {
+            List<LeaveDTO> leaves = backstageArrangementMapper.searchLeave();
+            if (leaves == null || leaves.isEmpty()) {
+                logger.warn("No leave records found");
                 return Result.error("No leave records found");
             }
-            logger.info("Queried all leave records");
-            return Result.success(list);
+            logger.info("Successfully retrieved {} leave records", leaves.size());
+            return Result.success(leaves);
         } catch (Exception e) {
-            logger.error("Error querying leave records", e);
-            return Result.error("An error occurred while querying leave records");
+            logger.error("Error retrieving leave records", e);
+            return Result.error("An error occurred while retrieving leave records");
         }
     }
 

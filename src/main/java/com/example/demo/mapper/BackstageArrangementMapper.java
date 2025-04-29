@@ -31,8 +31,8 @@ public interface BackstageArrangementMapper {
     @Insert("INSERT INTO ask_leave(staff_id, duty_date, leave_reason) VALUES (#{staffId}, #{dutyDate}, #{leaveReason})")
     public int insertLeave(Ask_leave ask_leave);
 
-    @Select("SELECT * FROM ask_leave")
-    public List<Ask_leave> searchLeave();
+    @Select("SELECT p.role, al.staff_id, al.duty_date, al.leave_reason, al.is_agree, al.leave_comment FROM ask_leave al JOIN person p on p.id=al.staff_id")
+    public List<LeaveDTO> searchLeave();
 
     @Select("SELECT * FROM ask_leave WHERE staff_id=#{staffId}")
     public List<Ask_leave> searchLeaveById(String staffId);

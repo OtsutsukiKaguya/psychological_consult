@@ -8,7 +8,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +21,41 @@ public class ReservationController {
 
     @Autowired
     private ReservationMapper reservationMapper;
+
+
+    // 查询后面三天排班情况
+    @GetMapping("/duty/check")
+    public Result checkNextThreeDaysDuty(
+            @RequestParam("staffId") String staffId,
+            @RequestParam("today") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate today) {
+
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        for (int i = 0; i < 3; i++) {
+            LocalDate date = today.plusDays(i);
+            boolean hasDuty = reservationMapper.countDutyByStaffAndDate(staffId, date) > 0;
+
+            Map<String, Object> item = new HashMap<>();
+            item.put("date", date);
+            item.put("hasDuty", hasDuty);
+
+            result.add(item);
+        }
+
+        return Result.success(result);
+    }
+
+    // 查询某天咨询师的所有预约
+    @GetMapping("/counselor/appointments")
+    public Result getCounselorAppointmentsByDate(
+            @RequestParam("counselorId") String counselorId,
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+
+        List<Reservation> reservations = reservationMapper.getCounselorReservationsByDate(counselorId, date);
+
+        return Result.success(reservations);
+    }
+
 
     // 创建预约（带整点校验 + 冲突检查）
     @PostMapping

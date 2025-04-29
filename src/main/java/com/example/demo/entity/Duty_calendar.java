@@ -1,16 +1,16 @@
 package com.example.demo.entity;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 public class Duty_calendar {
     private String staffId;
-    private LocalDateTime dutyDate;
+    private LocalDate dutyDate;
 
-    public LocalDateTime getDutyDate() {
+    public LocalDate getDutyDate() {
         return dutyDate;
     }
 
-    public void setDutyDate(LocalDateTime dutyDate) {
+    public void setDutyDate(LocalDate dutyDate) {
         this.dutyDate = dutyDate;
     }
 

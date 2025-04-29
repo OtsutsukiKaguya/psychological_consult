@@ -3,12 +3,26 @@ package com.example.demo.mapper;
 import com.example.demo.entity.Reservation;
 import org.apache.ibatis.annotations.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
 @Mapper
 public interface ReservationMapper {
+
+    // 查询咨询师某天是否有排班（从 duty_calendar 表）
+    @Select("SELECT COUNT(*) FROM duty_calendar WHERE staff_id = #{staffId} AND duty_date = #{dutyDate}")
+    int countDutyByStaffAndDate(@Param("staffId") String staffId, @Param("dutyDate") LocalDate dutyDate);
+
+    // 查询咨询师某天的所有预约
+    @Select("SELECT * FROM reservation " +
+            "WHERE counselor_id = #{counselorId} " +
+            "AND DATE(reservation_time) = #{date} " +
+            "ORDER BY reservation_time ASC")
+    List<Reservation> getCounselorReservationsByDate(@Param("counselorId") String counselorId,
+                                                     @Param("date") LocalDate date);
+
 
     @Insert("INSERT INTO reservation(user_id, reservation_time, counselor_id, reservation_description) " +
             "VALUES(#{userId}, #{reservationTime}, #{counselorId}, #{reservationDescription})")
