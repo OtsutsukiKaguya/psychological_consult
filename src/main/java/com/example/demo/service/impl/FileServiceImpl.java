@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -103,7 +104,7 @@ public class FileServiceImpl implements FileService {
 
     //基于ossUrl下载文件
     @Override
-    public byte[] downloadFile(String ossUrl) {
+    public InputStream downloadFile(String ossUrl) {
         return ossService.downloadFile(ossUrl);
     }
 }
