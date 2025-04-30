@@ -17,7 +17,7 @@ import java.util.List;
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, Integer> {  // 修改主键类型为 Integer
 
     // 根据会话ID查找消息
-    List<ChatMessage> findBySessionIdOrderBySentAtDesc(String sessionId);  // 修改会话ID为 String 类型
+    List<ChatMessage> findBySessionIdOrderBySentAtAsc(String sessionId);  // 修改会话ID为 String 类型
 
     // 根据会话ID分页查询消息
     List<ChatMessage> findBySessionIdOrderBySentAtDesc(String sessionId, Pageable pageable);  // 修改会话ID为 String 类型
@@ -76,4 +76,10 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Intege
     // 获取会话最后一条消息
     @Query("SELECT cm FROM ChatMessage cm WHERE cm.session.id = :sessionId ORDER BY cm.sentAt DESC")
     List<ChatMessage> findLastMessageBySessionId(@Param("sessionId") String sessionId, Pageable pageable);  // 修改会话ID为 String 类型
+
+    // 根据会话 ID 及时间范围查询消息（按时间倒序）
+    List<ChatMessage> findBySessionIdAndSentAtBetweenOrderBySentAtDesc(
+            String sessionId,
+            LocalDateTime start,
+            LocalDateTime end);
 }

@@ -3,6 +3,7 @@ package com.example.demo.service;
 import com.example.demo.models.File;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.util.List;
 
 /**
@@ -34,6 +35,6 @@ public interface FileService {
     void deleteFile(Integer id);  // 修改为 Integer 类型
 
     //基于ossUrl下载文件
-    byte[] downloadFile(String ossUrl);
+    InputStream downloadFile(String ossUrl);
 
 }

@@ -7,6 +7,7 @@ import com.example.demo.service.OssService;
 import com.example.demo.service.UserService;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -19,6 +20,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 
 @RestController
@@ -60,32 +63,57 @@ public class FileController {
         }
     }
 
-    // 下载文件
     @GetMapping("/{fileId}/download")
-    public ResponseEntity<?> downloadFile(@PathVariable Integer fileId) {
+    public void downloadFile(@PathVariable Integer fileId, HttpServletResponse response) {
         try {
-            // 根据 fileId 获取文件记录
+            // 1. 根据 fileId 获取文件记录
             File file = fileService.getFile(fileId);
             if (file == null) {
-                return ResponseEntity.notFound().build();  // 文件未找到
+                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                response.getWriter().write("File not found.");
+                return;
             }
 
-            // 调用 OssService 获取文件内容（文件存储在 OSS 上）
+            // 2. 获取文件 URL
             String fileUrl = file.getOssUrl();
             if (fileUrl == null) {
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("File URL not found.");
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                response.getWriter().write("File URL not found.");
+                return;
             }
 
-            // 设置下载文件的响应头，浏览器会自动弹出保存文件的对话框
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(file.getFileType()))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getOriginalName() + "\"")
-                    .body(ossService.downloadFile(fileUrl));  // 使用 OssService 来返回文件内容
+            // 3. 通过 ossService 下载文件内容（InputStream）
+            InputStream inputStream = ossService.downloadFile(fileUrl);
+            if (inputStream == null) {
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                response.getWriter().write("Failed to download file from OSS.");
+                return;
+            }
 
+            // 4. 设置响应头
+            response.setContentType(file.getFileType() != null ? file.getFileType() : "application/octet-stream");
+            response.setHeader("Content-Disposition", "attachment; filename=\"" + file.getOriginalName() + "\"");
+
+            // 5. 将文件内容写入到 response 的输出流（流式处理）
+            OutputStream outputStream = response.getOutputStream();
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+
+            outputStream.flush();
+            inputStream.close();
         } catch (Exception e) {
             log.error("Failed to download file", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to download file: " + e.getMessage());
+            try {
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                response.getWriter().write("Failed to download file: " + e.getMessage());
+            } catch (IOException ioException) {
+                log.error("Failed to write error response", ioException);
+            }
         }
     }
+
 
 }

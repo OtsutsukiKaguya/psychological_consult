@@ -47,6 +47,18 @@ public class ChatSession {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "rating")
+    private Integer rating;
+
+    @Column(name = "user_comment", length = 255)
+    private String userComment;
+
+    @Column(name = "counselor_comment", columnDefinition = "TEXT")
+    private String counselorComment;
+
+    @Column(name = "tutor_comment", length = 255)
+    private String tutorComment;
+
     // 会话参与者
     @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<SessionParticipant> participants = new HashSet<>();

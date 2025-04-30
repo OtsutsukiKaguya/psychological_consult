@@ -15,6 +15,7 @@ import java.util.Optional;
 @Repository
 public interface ChatSessionRepository extends JpaRepository<ChatSession, String> {  // 修改主键类型为 String
 
+    List<ChatSession> findAllByOrderByUpdatedAtDesc();
     // 根据参与者ID查找会话
     @Query("SELECT DISTINCT cs FROM ChatSession cs JOIN SessionParticipant sp ON cs.id = sp.session.id WHERE sp.user.id = :userId ORDER BY cs.updatedAt DESC")
     List<ChatSession> findByParticipantsUserId(@Param("userId") String userId);  // 修改参与者和用户ID为 String 类型

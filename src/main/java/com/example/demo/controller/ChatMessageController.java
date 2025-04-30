@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.validation.Valid;
+import java.io.InputStream;
 import java.security.Principal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -255,7 +256,7 @@ public class ChatMessageController {
                 return ResponseEntity.notFound().build();
             }
 
-            byte[] fileData = fileService.downloadFile(file.getOssUrl());
+            InputStream fileData = fileService.downloadFile(file.getOssUrl());
             if (fileData == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("File data not found");
             }

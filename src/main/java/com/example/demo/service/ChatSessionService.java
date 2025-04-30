@@ -40,6 +40,9 @@ public interface ChatSessionService {
      */
     List<ChatSession> findByUserId(String userId);
 
+    //按时间顺序获取会话
+    List<ChatSession> findAllByOrderByUpdatedAtDesc();
+
     /**
      * 获取两个用户之间的一对一会话
      */

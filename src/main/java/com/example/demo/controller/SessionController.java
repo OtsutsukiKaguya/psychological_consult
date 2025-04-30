@@ -8,18 +8,32 @@ package com.example.demo.controller;
 //import com.counseling.platform.services.ChatSessionService;
 //import com.counseling.platform.services.UserService;
 
-import java.util.UUID;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URLEncoder;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.*;
 
+import com.example.demo.DTO.ChatRecordDTO;
 import com.example.demo.DTO.ChatSessionWithParticipantsDTO;
+import com.example.demo.models.ChatMessage;
 import com.example.demo.models.ChatSession;
 import com.example.demo.models.SessionParticipant;
 import com.example.demo.models.User;
+import com.example.demo.repositories.ChatMessageRepository;
+import com.example.demo.service.ChatExportService;
 import com.example.demo.service.ChatMessageService;
 import com.example.demo.service.ChatSessionService;
 import com.example.demo.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,10 +46,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -59,6 +69,176 @@ public class SessionController {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
+    @Autowired
+    private ChatMessageRepository chatMessageRepository;
+
+    @Autowired
+    private ChatExportService chatExportService;
+
+    /**
+     * 查看会话详情
+     */
+    @GetMapping("/{sessionId}/records")
+    public ResponseEntity<?> viewChatSessionDetails(@PathVariable String sessionId) {
+        try {
+            // 1. 校验
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            User currentUser = userService.findById(auth.getName());
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("用户未认证");
+            }
+            ChatSession session = chatSessionService.findById(sessionId);
+            if (session == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("会话不存在");
+            }
+            if (!chatSessionService.isSessionParticipant(sessionId, currentUser.getId())
+                    && currentUser.getRole() != User.UserRole.ADMIN) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("无权查看该会话记录");
+            }
+
+            // 2. 查聊天记录（注意顺序是 sentAt 降序）
+            List<ChatMessage> messages = chatMessageRepository.findBySessionIdOrderBySentAtAsc(sessionId);
+
+            // 3. 转成简化版DTO
+            List<ChatRecordDTO> messageList = messages.stream().map(msg -> new ChatRecordDTO(
+                    msg.getSender() != null ? msg.getSender().getId() : "Unknown",
+                    msg.getSentAt() != null ? msg.getSentAt().toString() : "",
+                    msg.getType() != null ? msg.getType().name() : "",
+                    msg.getContent() != null ? msg.getContent() : ""
+            )).toList();
+
+            // 4. 返回 session 的评分+评论+聊天记录
+            Map<String, Object> result = new HashMap<>();
+            result.put("sessionId", session.getId());
+            result.put("rating", session.getRating());
+            result.put("userComment", session.getUserComment());
+            result.put("counselorComment", session.getCounselorComment());
+            result.put("tutorComment", session.getTutorComment());
+            result.put("messages", messageList);
+
+            return ResponseEntity.ok(result);
+
+        } catch (Exception e) {
+            log.error("Failed to view session details: {}", sessionId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("查看失败：" + e.getMessage());
+        }
+    }
+
+
+
+
+    /**
+     * 导出会话聊天记录
+     */
+    @GetMapping("/{sessionId}/export")
+    public void exportChatMessages(
+            @PathVariable String sessionId,
+            @RequestParam("format") String format,
+            @RequestParam(value = "start_date", required = false) String startDateStr,
+            @RequestParam(value = "end_date", required = false) String endDateStr,
+            HttpServletResponse response) {
+
+        try {
+            // 1. 校验导出格式
+            List<String> allowedFormats = Arrays.asList("pdf", "excel", "csv", "txt");
+            if (!allowedFormats.contains(format.toLowerCase())) {
+                response.setStatus(422);
+                response.getWriter().write("format 不在允许范围内（pdf / excel / csv / txt）");
+                return;
+            }
+
+            // 2. 验证用户身份及权限
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            User currentUser = userService.findById(auth.getName());
+            if (currentUser == null) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("用户未认证");
+                return;
+            }
+            ChatSession session = chatSessionService.findById(sessionId);
+            if (session == null) {
+                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                response.getWriter().write("会话不存在");
+                return;
+            }
+            if (!chatSessionService.isSessionParticipant(sessionId, currentUser.getId())
+                    && currentUser.getRole() != User.UserRole.ADMIN) {
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                response.getWriter().write("无权导出该会话记录");
+                return;
+            }
+
+            // 3. 解析日期并查询消息
+            List<ChatMessage> messages;
+            if (startDateStr != null && endDateStr != null) {
+                LocalDateTime start, end;
+                try {
+                    LocalDate sd = LocalDate.parse(startDateStr);
+                    LocalDate ed = LocalDate.parse(endDateStr);
+                    start = sd.atStartOfDay();
+                    end = ed.atTime(23, 59, 59);
+                } catch (DateTimeParseException e) {
+                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                    response.getWriter().write("日期格式应为 yyyy-MM-dd");
+                    return;
+                }
+                messages = chatMessageRepository
+                        .findBySessionIdAndSentAtBetweenOrderBySentAtDesc(sessionId, start, end);
+            } else {
+                messages = chatMessageRepository.findBySessionIdOrderBySentAtAsc(sessionId);
+            }
+            if (messages.isEmpty()) {
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                response.getWriter().write("导出失败：没有找到符合条件的聊天记录");
+                return;
+            }
+
+            // 🔥 改这里！！
+            byte[] fileBytes = chatExportService.generateFileContent(session, messages, format);  // 调用新版
+
+            // 设置响应头
+            response.setContentType(getContentType(format));
+            String filename = "chat_messages_" + UUID.randomUUID().toString().substring(0, 6) + "." + format;
+            String encodedFilename = URLEncoder.encode(filename, "UTF-8").replaceAll("\\+", "%20");
+            response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encodedFilename);
+            response.setContentLength(fileBytes.length);
+
+            // 写入输出流
+            OutputStream outputStream = response.getOutputStream();
+            outputStream.write(fileBytes);
+            outputStream.flush();
+
+        } catch (Exception e) {
+            log.error("Failed to export chat messages", e);
+            try {
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                response.getWriter().write("导出失败：" + e.getMessage());
+            } catch (IOException ioException) {
+                log.error("Failed to write error response", ioException);
+            }
+        }
+    }
+
+    /**
+     * 根据导出格式返回 MIME 类型
+     */
+    private String getContentType(String format) {
+        switch (format.toLowerCase()) {
+            case "csv":
+                return "text/csv";
+            case "txt":
+                return "text/plain";
+            case "pdf":
+                return "application/pdf";
+            case "excel":
+                return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            default:
+                return "application/octet-stream";
+        }
+    }
+
+
     /**
      * 获取所有会话
      * 仅管理员可访问
@@ -67,7 +247,7 @@ public class SessionController {
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<?> getAllSessions() {
         try {
-            List<ChatSession> sessions = chatSessionService.findAll();
+            List<ChatSession> sessions = chatSessionService.findAllByOrderByUpdatedAtDesc();;
             return ResponseEntity.ok(sessions);
         } catch (Exception e) {
             log.error("Failed to get all sessions", e);

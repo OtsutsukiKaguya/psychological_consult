@@ -309,4 +309,11 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         session.setUpdatedAt(LocalDateTime.now());
         chatSessionRepository.save(session);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ChatSession> findAllByOrderByUpdatedAtDesc() {
+        return chatSessionRepository.findAllByOrderByUpdatedAtDesc();
+    }
+
 }

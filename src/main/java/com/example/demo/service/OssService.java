@@ -49,6 +49,7 @@ public class OssService {
     }
 
     // 下载文件
+    /*
     public File downloadFile(String filename, String localFilePath) {
         try {
             // 获取 OSS 对象
@@ -79,6 +80,8 @@ public class OssService {
         }
     }
 
+     */
+
     // 将 MultipartFile 转换为 File
     private File convertMultipartFileToFile(MultipartFile file) throws IOException {
         File convFile = new File(file.getOriginalFilename());
@@ -94,27 +97,15 @@ public class OssService {
         ossClient.deleteObject(bucketName, fileName);
     }
 
-    //基于ossUrl下载文件
-    public byte[] downloadFile(String ossUrl) {
+    // 基于 ossUrl 下载文件，返回 InputStream
+    public InputStream downloadFile(String ossUrl) {
         try {
-            // 从完整 URL 中提取 OSS 内部的文件名（key）
+            // 从 URL 中提取 OSS 文件名
             String fileName = ossUrl.substring(ossUrl.lastIndexOf("/") + 1);
 
-            // 获取 OSS 对象（文件内容）
+            // 直接返回 OSS Object 的流
             OSSObject ossObject = ossClient.getObject(bucketName, fileName);
-            InputStream inputStream = ossObject.getObjectContent();
-
-            // 读取文件内容为字节数组（Java 8 兼容写法）
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            byte[] buffer = new byte[4096];
-            int length;
-            while ((length = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, length);
-            }
-            inputStream.close();
-
-            return outputStream.toByteArray();
-
+            return ossObject.getObjectContent();  // 直接返回 InputStream
         } catch (Exception e) {
             e.printStackTrace();
             return null;
