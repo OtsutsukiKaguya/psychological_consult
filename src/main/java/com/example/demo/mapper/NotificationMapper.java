@@ -42,4 +42,48 @@ public interface NotificationMapper {
     int markNotificationAsRead(@Param("notificationId") String notificationId,
                                @Param("receiverId") String receiverId);
 
+    // —— 1. GET /sender/{senderId} ——
+    @Select("SELECT n.notification_id, n.notification_time, n.notification_title, n.sender_id, " +
+            "n.notification_content, n.notification_isdeleted, n.picture_link, " +
+            "r.receiver_id, r.is_read " +
+            "FROM notification n " +
+            "JOIN notification_receiver r ON n.notification_id = r.notification_id " +
+            "WHERE n.sender_id = #{senderId} AND n.notification_isdeleted = false " +
+            "ORDER BY n.notification_time DESC")
+    @Results({
+            @Result(column="notification_id",    property="notificationId"),
+            @Result(column="notification_time",  property="notificationTime"),
+            @Result(column="notification_title", property="notificationTitle"),
+            @Result(column="sender_id",          property="senderId"),
+            @Result(column="notification_content", property="notificationContent"),
+            @Result(column="notification_isdeleted", property="notificationIsDeleted"),
+            @Result(column="picture_link",       property="pictureLink"),
+            @Result(column="receiver_id",        property="receiverId"),
+            // 强制把 boolean 转成 0/1
+            @Result(column="is_read",            property="isRead", javaType=Integer.class)
+    })
+    List<com.example.demo.dto.NotificationDTO> getSentWithReceivers(@Param("senderId") String senderId);
+
+    // —— 2. GET /receiver/{receiverId} ——
+    @Select("SELECT n.notification_id, n.notification_time, n.notification_title, n.sender_id, " +
+            "n.notification_content, n.notification_isdeleted, n.picture_link, " +
+            "r.receiver_id, r.is_read " +
+            "FROM notification n " +
+            "JOIN notification_receiver r ON n.notification_id = r.notification_id " +
+            "WHERE r.receiver_id = #{receiverId} AND n.notification_isdeleted = false " +
+            "ORDER BY n.notification_time DESC")
+    @Results({
+            @Result(column="notification_id",    property="notificationId"),
+            @Result(column="notification_time",  property="notificationTime"),
+            @Result(column="notification_title", property="notificationTitle"),
+            @Result(column="sender_id",          property="senderId"),
+            @Result(column="notification_content", property="notificationContent"),
+            @Result(column="notification_isdeleted", property="notificationIsDeleted"),
+            @Result(column="picture_link",       property="pictureLink"),
+            @Result(column="receiver_id",        property="receiverId"),
+            @Result(column="is_read",            property="isRead", javaType=Integer.class)
+    })
+    List<com.example.demo.dto.NotificationDTO> getReceivedWithStatus(@Param("receiverId") String receiverId);
+
+
 }

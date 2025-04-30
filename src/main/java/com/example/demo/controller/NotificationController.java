@@ -2,12 +2,14 @@ package com.example.demo.controller;
 
 import com.example.demo.common.Result;
 import com.example.demo.dto.CreateNotificationRequestDTO;
+import com.example.demo.dto.NotificationDTO;
 import com.example.demo.entity.Notification;
 import com.example.demo.mapper.NotificationMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/notification")
@@ -40,16 +42,18 @@ public class NotificationController {
         return Result.success(notification);
     }
 
-    // 2. 获取我接收的通知
+    // 2. 获取我接收的通知（带 isRead）
     @GetMapping("/receiver/{receiverId}")
     public Result getReceived(@PathVariable String receiverId) {
-        return Result.success(notificationMapper.getNotificationsByReceiverId(receiverId));
+        List<NotificationDTO> list = notificationMapper.getReceivedWithStatus(receiverId);
+        return Result.success(list);
     }
 
-    // 3. 获取我发送的通知
+    // 3. 获取我发送的通知（带 receiverId）
     @GetMapping("/sender/{senderId}")
     public Result getSent(@PathVariable String senderId) {
-        return Result.success(notificationMapper.getNotificationsBySenderId(senderId));
+        List<NotificationDTO> list = notificationMapper.getSentWithReceivers(senderId);
+        return Result.success(list);
     }
 
     // 4. 获取通知详情
