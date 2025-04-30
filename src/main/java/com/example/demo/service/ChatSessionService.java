@@ -52,6 +52,7 @@ public interface ChatSessionService {
      * 更新会话信息
      */
     ChatSession updateSession(String id, ChatSession session);
+    ChatSession updateSession(ChatSession session);
 
     /**
      * 删除会话

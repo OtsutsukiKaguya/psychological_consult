@@ -24,6 +24,7 @@ public class ChatMessage {
         IMAGE,  // 图片消息
         VOICE,  // 语音消息
         VIDEO,  // 视频消息
+        SYSTEM, // 系统信息
         FILE    // 文件消息
     }
 

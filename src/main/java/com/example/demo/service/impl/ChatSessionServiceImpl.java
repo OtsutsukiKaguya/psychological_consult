@@ -29,10 +29,10 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
     @Autowired
     private ChatSessionRepository chatSessionRepository;
-    
+
     @Autowired
     private SessionParticipantRepository sessionParticipantRepository;
-    
+
     @Autowired
     private ChatMessageRepository chatMessageRepository;
 
@@ -119,11 +119,18 @@ public class ChatSessionServiceImpl implements ChatSessionService {
             existingSession.setDescription(session.getDescription());
         }
         */
-        
+
 //        existingSession.setLastActivityAt(LocalDateTime.now());
         existingSession.setUpdatedAt(LocalDateTime.now());
-        
+
         return chatSessionRepository.save(existingSession);
+    }
+
+    @Override
+    @Transactional
+    public ChatSession updateSession(ChatSession session) {
+        // 直接保存传入的 session（适用于 Controller 手动设置好字段）
+        return chatSessionRepository.save(session);
     }
 
     @Override
@@ -134,7 +141,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
             log.error("Session not found: {}", id);
             throw new IllegalArgumentException("Session not found");
         }
-        
+
         // 删除会话（这将级联删除会话参与者和消息）
         chatSessionRepository.deleteById(id);
     }
@@ -155,14 +162,14 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                     log.error("User not found: {}", userId);
                     return new IllegalArgumentException("User not found");
                 });
-        
+
         // 3.检查用户是否已经是会话参与者
         Optional<SessionParticipant> existingParticipant = sessionParticipantRepository.findBySessionIdAndUserId(sessionId, userId);
         if (existingParticipant.isPresent()) {
             log.debug("User {} is already a participant of session {}", userId, sessionId);
             return existingParticipant.get();
         }
-        
+
         // 创建新参与者
 //        SessionParticipant participant = SessionParticipant.builder()
 ////                .sessionId(sessionId)
@@ -178,12 +185,12 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                 .role(role)
                 .joinedAt(LocalDateTime.now())
                 .build();
-        
+
         // 更新会话最后活动时间
 //        session.setLastActivityAt(LocalDateTime.now());
         session.setUpdatedAt(LocalDateTime.now());
         chatSessionRepository.save(session);
-        
+
         return sessionParticipantRepository.save(participant);
     }
 
@@ -196,17 +203,17 @@ public class ChatSessionServiceImpl implements ChatSessionService {
             log.error("Session not found: {}", sessionId);
             throw new IllegalArgumentException("Session not found");
         }
-        
+
         // 检查参与者是否存在
         Optional<SessionParticipant> participant = sessionParticipantRepository.findBySessionIdAndUserId(sessionId, userId);
         if (!participant.isPresent()) {
             log.error("Participant not found: session={}, user={}", sessionId, userId);
             throw new IllegalArgumentException("Participant not found");
         }
-        
+
         // 删除参与者
         sessionParticipantRepository.delete(participant.get());
-        
+
         // 更新会话最后活动时间
 //        session.setLastActivityAt(LocalDateTime.now());
         session.setUpdatedAt(LocalDateTime.now());
@@ -221,7 +228,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
             log.error("Session not found: {}", sessionId);
             throw new IllegalArgumentException("Session not found");
         }
-        
+
         // 获取会话参与者用户
         return sessionParticipantRepository.findUsersBySessionId(sessionId);
     }
@@ -234,7 +241,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
             log.error("Session not found: {}", sessionId);
             throw new IllegalArgumentException("Session not found");
         }
-        
+
         // 获取会话参与者
         return sessionParticipantRepository.findBySessionId(sessionId);
     }
@@ -260,7 +267,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
             log.error("User {} is not a participant of session {}", userId, sessionId);
             throw new IllegalArgumentException("User is not a participant of this session");
         }
-        
+
         // 标记会话消息为已读
         chatMessageRepository.markMessagesAsRead(sessionId, userId);
     }
@@ -274,11 +281,11 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 //                .map(SessionParticipant::getSessionId)
                 .map(p -> p.getSession().getId())//我修改了getSessionId的方法
                 .collect(Collectors.toList());
-        
+
         if (sessionIds.isEmpty()) {
             return new ArrayList<>();
         }
-        
+
         // 按最后活动时间排序获取会话
         return chatSessionRepository.findRecentSessionsByIds(sessionIds);
     }
@@ -291,7 +298,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
             log.error("User {} is not a participant of session {}", userId, sessionId);
             throw new IllegalArgumentException("User is not a participant of this session");
         }
-        
+
         // 获取未读消息数
         return chatMessageRepository.countUnreadMessages(sessionId, userId);
     }
@@ -304,7 +311,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
             log.error("Session not found: {}", sessionId);
             throw new IllegalArgumentException("Session not found");
         }
-        
+
 //        session.setLastActivityAt(LocalDateTime.now());
         session.setUpdatedAt(LocalDateTime.now());
         chatSessionRepository.save(session);

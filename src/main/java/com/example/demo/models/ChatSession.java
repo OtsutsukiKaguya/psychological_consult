@@ -59,6 +59,12 @@ public class ChatSession {
     @Column(name = "tutor_comment", length = 255)
     private String tutorComment;
 
+    @Column(name = "ended", nullable = false)
+    private Boolean ended = false;
+
+    @Column(name = "ended_at")
+    private LocalDateTime endedAt;
+
     // 会话参与者
     @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<SessionParticipant> participants = new HashSet<>();

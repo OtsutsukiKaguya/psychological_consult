@@ -34,6 +34,8 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,6 +76,133 @@ public class SessionController {
 
     @Autowired
     private ChatExportService chatExportService;
+
+    @Data
+    public static class EndSessionRequest {
+        /** 评论内容，所有人必填 */
+        @NotBlank(message = "comment 不能为空")
+        private String comment;
+
+        /** 用户评分，仅 USER 填写 */
+        private Integer rating;
+    }
+
+    /**
+     * 任意参与者都可结束会话。
+     * - USER: 提交 comment + rating
+     * - COUNSELOR / TUTOR: 仅提交 comment
+     */
+    @PostMapping("/{sessionId}/end")
+    public ResponseEntity<?> endSession(
+            @PathVariable String sessionId,
+            @Valid @RequestBody EndSessionRequest req) {
+
+        // 1. 验证身份
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        User currentUser = userService.findById(auth.getName());
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("用户未认证");
+        }
+
+        // 2. 加载会话并验证参与权限
+        ChatSession session = chatSessionService.findById(sessionId);
+        if (session == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("会话不存在");
+        }
+        if (!chatSessionService.isSessionParticipant(sessionId, currentUser.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("无权操作该会话");
+        }
+
+        // 3. 更新会话结束标记和评论内容
+        switch (currentUser.getRole()) {
+            case USER -> {
+                session.setUserComment(req.getComment());
+                if (req.getRating() == null) {
+                    return ResponseEntity.unprocessableEntity().body("USER 必须提交 rating");
+                }
+                session.setRating(req.getRating());
+            }
+            case COUNSELOR -> session.setCounselorComment(req.getComment());
+            case TUTOR -> session.setTutorComment(req.getComment());
+        }
+
+        // 如果第一次调用结束，则标记为结束
+        if (!Boolean.TRUE.equals(session.getEnded())) {
+            session.setEnded(true);
+            session.setEndedAt(LocalDateTime.now());
+        }
+
+        chatSessionService.updateSession(session);
+
+        // ====== 广播“xxx 已退出会话”系统消息 ======
+        ChatMessage systemMessage = ChatMessage.builder()
+                .session(session)
+                .sender(currentUser)
+                .content(currentUser.getName() + " 已退出会话")
+                .type(ChatMessage.MessageType.SYSTEM)  // 请确保你枚举中有 SYSTEM 类型
+                .sentAt(LocalDateTime.now())
+                .read(false)
+                .build();
+
+        chatMessageService.createMessage(systemMessage);
+        chatSessionService.updateLastActivity(sessionId);  // 更新会话活跃时间
+        broadcastMessage(systemMessage);
+
+        return ResponseEntity.ok(Map.of("message", "已成功结束会话并提交评价"));
+    }
+
+    /**
+     * 广播消息给会话参与者
+     */
+    private void broadcastMessage(ChatMessage message) {
+        try {
+            User sender = userService.findById(message.getSender().getId());
+            if (sender == null) {
+                log.error("Message sender not found: {}", message.getSender());
+                return;
+            }
+
+            ChatSession session = chatSessionService.findById(message.getSession().getId());
+            if (session == null) {
+                log.error("Chat session not found: {}", message.getSession());
+                return;
+            }
+
+            List<User> participants = chatSessionService.getSessionParticipants(message.getSession().getId());
+
+            Map<String, Object> messageData = new HashMap<>();
+            messageData.put("id", message.getId());
+            messageData.put("sessionId", message.getSession().getId());
+            messageData.put("senderId", message.getSender().getId());
+            messageData.put("senderName", sender.getName());
+            messageData.put("content", message.getContent());
+            messageData.put("type", message.getType().name());
+            messageData.put("sentAt", message.getSentAt().toString());
+
+            if (message.getFile() != null) {
+                messageData.put("fileId", message.getFile().getId());
+            }
+
+            for (User participant : participants) {
+                if (!participant.getId().equals(message.getSender().getId())) {
+                    try {
+                        messagingTemplate.convertAndSendToUser(
+//                                participant.getName(),
+                                participant.getId(),
+                                "/queue/messages",
+                                messageData
+                        );
+                        log.info("📤 已推送消息给用户: {}", participant.getId()); //getName改成getId
+                    } catch (Exception e) {
+                        log.error("❌ 推送消息给用户{}失败", participant.getId(), e); //getName改成getId
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to broadcast message", e);
+        }
+    }
+
 
     /**
      * 查看会话详情
