@@ -24,53 +24,103 @@ public class PostController {
 //        return Result.success(list);
 //    }
 
+//    @GetMapping("/api/posts") // 获取所有帖子列表
+//    public Result findAll() {
+//        List<PostWithUserDTO> list = postMapper.findAllWithUser();
+//        return Result.success(list);
+//    }
+
     @GetMapping("/api/posts") // 获取所有帖子列表
     public Result findAll() {
-        List<PostWithUserDTO> list = postMapper.findAllWithUser();
-        return Result.success(list);
+        try {
+            List<PostWithUserDTO> list = postMapper.findAllWithUser();
+
+            // 数据为空的情况（但不是异常）
+            if (list == null || list.isEmpty()) {
+                return Result.error(-1, "暂无帖子");
+            }
+
+            return Result.success(list);
+        } catch (Exception e) {
+            // 捕获运行时异常，避免接口报500
+            e.printStackTrace(); // 或使用日志框架 log.error("查询帖子失败", e);
+            return Result.error(-99, "系统异常，获取帖子失败");
+        }
     }
 
-    @GetMapping("/api/posts/{post_id}") //根据ID查询/获取帖子详情
-    public Result findByID(@PathVariable("post_id") String postId) {
+//    @GetMapping("/api/posts/{post_id}") //根据ID查询/获取帖子详情
+//    public Result findByID(@PathVariable("post_id") String postId) {
+//
+//        if (postId == null || postId.trim().isEmpty()) {
+//            return Result.error(-3, "post_id 不能为空");
+//        }
+//
+//        if (!postId.matches("^[a-zA-Z0-9_-]+$")) {
+//            return Result.error(-2, "post_id 参数非法");
+//        }
+//
+//        List<Post> list = postMapper.findById(postId);
+//
+//        if (list == null || list.isEmpty()) {
+//            return Result.error(-1, "帖子不存在");
+//        }
+//
+//        return new Result(0, "ok", list);
+//    }
 
+    @GetMapping("/api/posts/{post_id}")  //根据ID查询/获取帖子详情
+    public Result findByID(@PathVariable("post_id") String postId) {
         if (postId == null || postId.trim().isEmpty()) {
             return Result.error(-3, "post_id 不能为空");
         }
-
         if (!postId.matches("^[a-zA-Z0-9_-]+$")) {
             return Result.error(-2, "post_id 参数非法");
         }
 
-        List<Post> list = postMapper.findById(postId);
-
+        List<PostWithUserDTO> list = postMapper.findDTOById(postId);
         if (list == null || list.isEmpty()) {
             return Result.error(-1, "帖子不存在");
         }
-
-        return new Result(0, "ok", list);
+        return Result.success(list.get(0));
     }
 
-    @GetMapping("/api/posts/search")  // 搜索帖子
-    public Result search(@RequestParam String query) {
+//    @GetMapping("/api/posts/search")  // 搜索帖子
+//    public Result search(@RequestParam String query) {
+//
+//        // TC03: query 为空
+//        if (query == null || query.trim().isEmpty()) {
+//            return Result.error(-1, "query 参数不能为空");
+//        }
+//
+//        // TC05: query 长度超出限制
+//        if (query.length() > 1000) {
+//            return Result.error(-2, "query 参数长度超出限制");
+//        }
+//
+//        // TC04: query 含非法字符（只允许中英文、数字、空格）
+//        if (!query.matches("^[\\u4e00-\\u9fa5a-zA-Z0-9\\s]+$")) {
+//            return Result.error(-3, "query 参数包含非法字符");
+//        }
+//
+//        // TC01 & TC02：执行搜索
+//        List<Post> list = postMapper.search(query);
+//        return new Result(0, "ok", list);
+//    }
 
-        // TC03: query 为空
+    @GetMapping("/api/posts/search") //搜索帖子
+    public Result search(@RequestParam String query) {
         if (query == null || query.trim().isEmpty()) {
             return Result.error(-1, "query 参数不能为空");
         }
-
-        // TC05: query 长度超出限制
         if (query.length() > 1000) {
             return Result.error(-2, "query 参数长度超出限制");
         }
-
-        // TC04: query 含非法字符（只允许中英文、数字、空格）
         if (!query.matches("^[\\u4e00-\\u9fa5a-zA-Z0-9\\s]+$")) {
             return Result.error(-3, "query 参数包含非法字符");
         }
 
-        // TC01 & TC02：执行搜索
-        List<Post> list = postMapper.search(query);
-        return new Result(0, "ok", list);
+        List<PostWithUserDTO> list = postMapper.search(query);
+        return Result.success(list);
     }
 
     @DeleteMapping("/api/posts/{post_id}") // 删除帖子
@@ -173,7 +223,7 @@ public class PostController {
                              @RequestBody UpdatePostRequest request) {
 
         // TC07: post_id 非法字符
-        if (!postId.matches("^[a-zA-Z0-9]+$")) {
+        if (!postId.matches("^[a-zA-Z0-9_-]+$")) {
             return Result.error(-3, "post_id 参数非法");
         }
 

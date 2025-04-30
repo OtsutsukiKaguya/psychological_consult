@@ -3,7 +3,7 @@ package com.example.demo.dto;
 import java.time.LocalDateTime;
 
 public class UpdatePostRequest {
-    private LocalDateTime postTime; //修改
+    private String postTime; //修改
     private String postTitle;
     private String postContent;
     private String pictureLink;
@@ -17,11 +17,11 @@ public class UpdatePostRequest {
         this.personId = personId;
     }
 
-    public LocalDateTime getPostTime() {
+    public String getPostTime() {
         return postTime;
     }
 
-    public void setPostTime(LocalDateTime postTime) {
+    public void setPostTime(String postTime) {
         this.postTime = postTime;
     }
 

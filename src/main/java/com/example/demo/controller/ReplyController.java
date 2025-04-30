@@ -23,47 +23,94 @@ public class ReplyController {
     @Autowired
     private PostMapper postMapper;
 
-//    @GetMapping("/api/posts/{post_id}/replys")  //获取回复列表
-//    public Result findAllReply(@PathVariable("post_id")  String postId){
-//        List<Reply> list = replyMapper.find(postId);
+//    @GetMapping("/api/posts/{post_id}/replys")
+//    public Result findAllReply(@PathVariable("post_id") String postId) {
+//        List<ReplyWithUserDTO> list = replyMapper.findAll(postId);
 //        return Result.success(list);
 //    }
 
     @GetMapping("/api/posts/{post_id}/replys")
     public Result findAllReply(@PathVariable("post_id") String postId) {
-        List<ReplyWithUserDTO> list = replyMapper.findAll(postId);
-        return Result.success(list);
+        // 参数为空检查
+        if (postId == null || postId.trim().isEmpty()) {
+            return Result.error(-3, "post_id 不能为空");
+        }
+
+        // 参数合法性检查
+        if (!postId.matches("^[a-zA-Z0-9_-]+$")) {
+            return Result.error(-2, "post_id 参数非法");
+        }
+
+        try {
+            List<ReplyWithUserDTO> list = replyMapper.findAll(postId);
+
+            if (list == null || list.isEmpty()) {
+                return Result.error(-1, "暂无回复");
+            }
+
+            return Result.success(list);
+        } catch (Exception e) {
+            e.printStackTrace(); // 或 log.error("查询回复失败", e);
+            return Result.error(-99, "系统异常，获取回复失败");
+        }
     }
+
+
+//    @GetMapping("/api/posts/{post_id}/replys/{reply_id}")  // 根据 ID 查看回复详情
+//    public Result findByID(@PathVariable("post_id") String postId,
+//                           @PathVariable("reply_id") String replyId) {
+//
+//        // TC05: post_id 或 reply_id 为空
+//        if (postId == null || postId.trim().isEmpty() ||
+//                replyId == null || replyId.trim().isEmpty()) {
+//            return Result.error(-4, "post_id 和 reply_id 不能为空");
+//        }
+//
+//        // TC04: post_id 或 reply_id 非法字符（只允许字母和数字）
+//        if (!postId.matches("^[a-zA-Z0-9_-]+$") || !replyId.matches("^[a-zA-Z0-9_-]+$")) {
+//            return Result.error(-3, "post_id 或 reply_id 参数非法");
+//        }
+//
+//        // TC03: 帖子不存在
+//        List<Post> postList = postMapper.findById(postId);
+//        if (postList == null || postList.isEmpty()) {
+//            return Result.error(-2, "帖子不存在");
+//        }
+//
+//        // TC02: 帖子存在但回复不存在
+//        List<Reply> replyList = replyMapper.findById(postId, replyId);
+//        if (replyList == null || replyList.isEmpty()) {
+//            return Result.error(-1, "回复不存在");
+//        }
+//
+//        // TC01: 查询成功
+//        return Result.success(replyList);
+//    }
 
     @GetMapping("/api/posts/{post_id}/replys/{reply_id}")  // 根据 ID 查看回复详情
     public Result findByID(@PathVariable("post_id") String postId,
                            @PathVariable("reply_id") String replyId) {
 
-        // TC05: post_id 或 reply_id 为空
         if (postId == null || postId.trim().isEmpty() ||
                 replyId == null || replyId.trim().isEmpty()) {
             return Result.error(-4, "post_id 和 reply_id 不能为空");
         }
 
-        // TC04: post_id 或 reply_id 非法字符（只允许字母和数字）
-        if (!postId.matches("^[a-zA-Z0-9]+$") || !replyId.matches("^[a-zA-Z0-9]+$")) {
+        if (!postId.matches("^[a-zA-Z0-9_-]+$") || !replyId.matches("^[a-zA-Z0-9_-]+$")) {
             return Result.error(-3, "post_id 或 reply_id 参数非法");
         }
 
-        // TC03: 帖子不存在
         List<Post> postList = postMapper.findById(postId);
         if (postList == null || postList.isEmpty()) {
             return Result.error(-2, "帖子不存在");
         }
 
-        // TC02: 帖子存在但回复不存在
-        List<Reply> replyList = replyMapper.findById(postId, replyId);
+        List<ReplyWithUserDTO> replyList = replyMapper.findDTOById(postId, replyId);
         if (replyList == null || replyList.isEmpty()) {
             return Result.error(-1, "回复不存在");
         }
 
-        // TC01: 查询成功
-        return Result.success(replyList);
+        return Result.success(replyList.get(0));
     }
 
     @DeleteMapping("/api/posts/{post_id}/replys/{reply_id}")   // 删除回复

@@ -21,6 +21,7 @@ public interface PostMapper {
             "u.id AS user_id, u.name AS user_name, u.id_picture_link AS avatar_url " +
             "FROM post p " +
             "LEFT JOIN person u ON p.person_id = u.id "+
+            "WHERE p.post_isdeleted = 0 " +
             "ORDER BY p.post_time DESC")
     @Results({
             @Result(property = "postId", column = "post_id"),
@@ -39,9 +40,45 @@ public interface PostMapper {
     @Select("SELECT * FROM post WHERE post_id=#{postId} AND post_isdeleted = 0 ORDER BY post_time DESC")
     public List<Post> findById(String postId);
 
+    @Select("SELECT p.post_id, p.post_title, p.post_content, p.post_time, p.picture_link, " +
+            "u.id AS user_id, u.name AS user_name, u.id_picture_link AS avatar_url " +
+            "FROM post p " +
+            "LEFT JOIN person u ON p.person_id = u.id " +
+            "WHERE p.post_id = #{postId} AND p.post_isdeleted = 0")
+    @Results({
+            @Result(property = "postId", column = "post_id"),
+            @Result(property = "postTitle", column = "post_title"),
+            @Result(property = "postContent", column = "post_content"),
+            @Result(property = "pictureLink", column = "picture_link"),
+            @Result(property = "postTime", column = "post_time"),
+            @Result(property = "userInfo.id", column = "user_id"),
+            @Result(property = "userInfo.name", column = "user_name"),
+            @Result(property = "userInfo.avatarUrl", column = "avatar_url")
+    })
+    List<PostWithUserDTO> findDTOById(String postId);
+
     //根据关键词查询
-    @Select("SELECT * FROM post WHERE post_isdeleted = 0 AND (post_title LIKE CONCAT('%', #{query}, '%') OR post_content LIKE CONCAT('%', #{query}, '%')) ORDER BY post_time DESC")
-    public List<Post> search(String query);
+//    @Select("SELECT * FROM post WHERE post_isdeleted = 0 AND (post_title LIKE CONCAT('%', #{query}, '%') OR post_content LIKE CONCAT('%', #{query}, '%')) ORDER BY post_time DESC")
+//    public List<Post> search(String query);
+    @Select("SELECT p.post_id, p.post_title, p.post_content, p.post_time, p.picture_link, " +
+            "u.id AS user_id, u.name AS user_name, u.id_picture_link AS avatar_url " +
+            "FROM post p " +
+            "LEFT JOIN person u ON p.person_id = u.id " +
+            "WHERE p.post_isdeleted = 0 AND " +
+            "(p.post_title LIKE CONCAT('%', #{query}, '%') OR p.post_content LIKE CONCAT('%', #{query}, '%')) " +
+            "ORDER BY p.post_time DESC")
+    @Results({
+            @Result(property = "postId", column = "post_id"),
+            @Result(property = "postTitle", column = "post_title"),
+            @Result(property = "postContent", column = "post_content"),
+            @Result(property = "pictureLink", column = "picture_link"),
+            @Result(property = "postTime", column = "post_time"),
+            @Result(property = "userInfo.id", column = "user_id"),
+            @Result(property = "userInfo.name", column = "user_name"),
+            @Result(property = "userInfo.avatarUrl", column = "avatar_url")
+    })
+    List<PostWithUserDTO> search(String query);
+
 
     //删除帖子
     @Update("UPDATE post SET delete_reason = #{deleteReason}, post_isdeleted = 1 WHERE post_id = #{postId} AND post_isdeleted = 0")
@@ -58,7 +95,7 @@ public interface PostMapper {
     @UpdateProvider(type = PostSqlProvider.class, method = "buildUpdatePostSql")
     int updatePost(@Param("postId") String postId,
                    @Param("personId") String personId,
-                   @Param("postTime") LocalDateTime postTime,
+                   @Param("postTime") String postTime,
                    @Param("postTitle") String postTitle,
                    @Param("postContent") String postContent,
                    @Param("pictureLink") String pictureLink);
