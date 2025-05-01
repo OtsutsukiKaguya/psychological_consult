@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import com.example.demo.models.SessionParticipant;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -70,4 +71,25 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, String
     @Query("SELECT cs FROM ChatSession cs JOIN SessionParticipant sp ON cs.id = sp.session.id " +
             "WHERE sp.user.id = :userId ORDER BY cs.updatedAt DESC")
     List<ChatSession> findRecentActiveSessionsByUserId(@Param("userId") String userId);  // 修改用户ID为 String 类型
+
+    // 在 ChatSessionRepository.java 中添加查询方法（使用枚举参数）
+    @Query("""
+    SELECT COUNT(sp)
+    FROM SessionParticipant sp
+    JOIN ChatSession cs ON sp.session.id = cs.id
+    WHERE sp.user.id = :userId
+      AND sp.role = 'USER'
+      AND cs.rating IS NULL
+    """)
+    int countActiveSessionsForUser(@Param("userId") String userId);
+
+    @Query("""
+    SELECT COUNT(sp)
+    FROM SessionParticipant sp
+    JOIN ChatSession cs ON sp.session.id = cs.id
+    WHERE sp.user.id = :userId
+      AND sp.role IN :roles
+      AND cs.rating IS NULL
+    """)
+    int countActiveSessionsForRoles(@Param("userId") String userId, @Param("roles") List<SessionParticipant.ParticipantRole> roles);
 }

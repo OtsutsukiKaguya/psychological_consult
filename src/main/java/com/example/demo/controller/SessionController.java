@@ -467,6 +467,19 @@ public class SessionController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
 
+            // 👇 在这里插入限制逻辑（已上限就不创建）
+            if (currentUser.getRole() == User.UserRole.USER &&
+                    chatSessionService.hasActiveSessionForUser(currentUser.getId())) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body("❗您已有一个正在进行的会话，无法同时开启多个会话");
+            }
+
+            if ((currentUser.getRole() == User.UserRole.COUNSELOR || currentUser.getRole() == User.UserRole.TUTOR) &&
+                    chatSessionService.countActiveSessionsForCounselor(currentUser.getId()) >= 3) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body("❗您当前同时进行的会话已达上限（3个）");
+            }
+
             // 如果是一对一会话，检查已存在的会话
             if (request.getType().equals("ONE_TO_ONE") && request.getParticipantIds().size() == 1) {
                 String otherUserId = request.getParticipantIds().get(0);

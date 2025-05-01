@@ -108,4 +108,14 @@ public interface ChatSessionService {
      * 更新会话最后活动时间
      */
     void updateLastActivity(String sessionId);
+
+
+    // 在 ChatSessionService.java 中添加接口方法
+    default boolean hasActiveSessionForUser(String userId) {
+        return false;
+    }
+
+    default int countActiveSessionsForCounselor(String userId) {
+        return 0;
+    }
 }

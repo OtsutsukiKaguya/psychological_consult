@@ -190,6 +190,24 @@ public class ChatMessageController {
                 return;
             }
 
+            // ✅ 会话已结束，发送系统提示消息给当前用户
+            if (Boolean.TRUE.equals(session.getEnded())) {
+                log.warn("会话 {} 已结束，用户 {} 无法发送消息", sessionId, currentUser.getId());
+
+                Map<String, Object> systemNotice = new HashMap<>();
+                systemNotice.put("type", "SYSTEM");
+                systemNotice.put("content", "⚠️ 会话已结束，无法发送消息");
+                systemNotice.put("sessionId", sessionId);
+
+                messagingTemplate.convertAndSendToUser(
+                        currentUser.getId(),
+                        "/queue/messages",
+                        systemNotice
+                );
+
+                return;
+            }
+
             File file = null;
             if (payload.getFileId() != null) {
                 file = fileService.getFile(payload.getFileId());
@@ -413,6 +431,12 @@ public class ChatMessageController {
             ChatSession session = chatSessionService.findById(sessionId);
             if (session == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("会话未找到");
+            }
+
+            // ✅ 会话已结束，拒绝上传并提示
+            if (Boolean.TRUE.equals(session.getEnded())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body("❌ 无法在已结束的会话中发送文件消息");
             }
 
             // 5. 上传文件（保存到OSS或本地）

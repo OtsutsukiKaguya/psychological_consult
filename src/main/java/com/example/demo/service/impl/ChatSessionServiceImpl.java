@@ -323,4 +323,22 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         return chatSessionRepository.findAllByOrderByUpdatedAtDesc();
     }
 
+    // 在 ChatSessionServiceImpl.java 中实现方法
+    @Override
+    @Transactional(readOnly = true)
+    public boolean hasActiveSessionForUser(String userId) {
+        return chatSessionRepository.countActiveSessionsForUser(userId) > 0;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public int countActiveSessionsForCounselor(String userId) {
+        List<SessionParticipant.ParticipantRole> roles = List.of(
+                SessionParticipant.ParticipantRole.COUNSELOR,
+                SessionParticipant.ParticipantRole.TUTOR
+        );
+        return chatSessionRepository.countActiveSessionsForRoles(userId, roles);
+    }
+
+
 }
