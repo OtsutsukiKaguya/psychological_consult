@@ -59,4 +59,19 @@ public interface  InformationMapper {
 
     @Update("UPDATE person SET state='OFFLINE' WHERE id=#{id}")
     public int quit(String id);
+
+    @Select("SELECT average_rating FROM counselor WHERE id=#{id}")
+    public Double counselorHomePage1(String id);
+
+    @Select("SELECT COUNT(*) FROM chat_sessions cs join session_participants sp on cs.id=sp.session_id WHERE sp.user_id=#{id} and sp.role='COUNSELOR'")
+    public int counselorHomePage2(String id);
+
+    @Select("SELECT COUNT(*) FROM chat_sessions cs join session_participants sp on cs.id=sp.session_id WHERE sp.user_id=#{id} and sp.role='COUNSELOR' and sp.joined_at LIKE CONCAT('%', #{date}, '%')")
+    public int counselorHomePage3(String id, String date);
+
+    @Select("SELECT SUM(cs.ended_at-cs.created_at) FROM chat_sessions cs join session_participants sp on cs.id=sp.session_id WHERE sp.user_id=#{id} and sp.role='COUNSELOR' and sp.joined_at LIKE CONCAT('%', #{date}, '%')")
+    public Long counselorHomePage4(String id, String date);
+
+    @Select("SELECT COUNT(*) FROM chat_sessions cs join session_participants sp on cs.id=sp.session_id WHERE sp.user_id=#{id} and sp.role='COUNSELOR' and cs.ended=0")
+    public int counselorHomePage5(String id);
 }

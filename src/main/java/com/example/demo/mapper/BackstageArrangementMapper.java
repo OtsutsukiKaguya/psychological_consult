@@ -3,6 +3,7 @@ package com.example.demo.mapper;
 import com.example.demo.dto.*;
 import com.example.demo.entity.Ask_leave;
 import com.example.demo.entity.Bind;
+import com.example.demo.entity.Counselor;
 import com.example.demo.entity.Duty_calendar;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
@@ -66,5 +67,13 @@ public interface BackstageArrangementMapper {
 
     @Select("SELECT s2.user_id FROM session_participants s1 join session_participants s2 on s1.session_id=s2.session_id where s2.role='COUNSELOR' and s1.user_id=#{id} and s1.role='USER'")
     public List<SearchCounselorByIdDTO> searchCounselorById(String id);
-}
 
+    @Select("SELECT counselor_sametime FROM counselor WHERE id=#{id}")
+    public Integer counselorState1(String id);
+
+    @Select("SELECT COUNT(*) FROM chat_sessions cs join session_participants sp on cs.id=sp.session_id WHERE sp.user_id=#{id} and sp.role='COUNSELOR' and cs.ended=0")
+    public int counselorState2(String id);
+
+    @Update("UPDATE person SET state='BUSY' WHERE id=#{id}")
+    public int updateState(String id);
+}

@@ -346,4 +346,45 @@ public class BackstageArrangementController {
             return Result.error("服务器错误: " + e.getMessage());
         }
     }
+
+    @PostMapping("/counselor/check-state")
+    public Result checkCounselorState(@RequestParam("id") String id) {
+        try {
+            // 参数校验
+            if (id == null || id.trim().isEmpty()) {
+                return Result.error("咨询师 ID 不能为空");
+            }
+
+            // 查询最大同时会话数
+            Integer maxSessions = backstageArrangementMapper.counselorState1(id);
+            if (maxSessions == null) {
+                logger.warn("No counselor found with ID: {}", id);
+                return Result.error("未找到咨询师信息，ID: " + id);
+            }
+
+            // 查询当前正在进行的会话数
+            int currentSessions = backstageArrangementMapper.counselorState2(id);
+
+            // 检查是否达到最大会话数
+            if (currentSessions >= maxSessions) {
+                // 更新状态为 BUSY
+                int updateResult = backstageArrangementMapper.updateState(id);
+                if (updateResult <= 0) {
+                    logger.warn("Failed to update state to BUSY for ID: {}", id);
+                    return Result.error("更新状态失败，ID: " + id);
+                }
+                logger.info("Updated counselor state to BUSY for ID: {}, currentSessions: {}, maxSessions: {}",
+                        id, currentSessions, maxSessions);
+                return Result.success("咨询师状态已更新为 BUSY");
+            } else {
+                logger.info("Counselor state not updated for ID: {}, currentSessions: {}, maxSessions: {}",
+                        id, currentSessions, maxSessions);
+                return Result.success("咨询师未达到最大会话数，状态未更新");
+            }
+
+        } catch (Exception e) {
+            logger.error("Error checking counselor state for ID: {}", id, e);
+            return Result.error("检查咨询师状态时发生错误: " + e.getMessage());
+        }
+    }
 }

@@ -1,6 +1,7 @@
 package com.example.demo.controller;
 
 import com.example.demo.common.Result;
+import com.example.demo.dto.CounselorHomePageDTO;
 import com.example.demo.dto.InformationDTO;
 import com.example.demo.entity.*;
 import com.example.demo.mapper.InformationMapper;
@@ -332,6 +333,60 @@ public class InformationController {
             }
         } catch (Exception e) {
             return Result.error("服务器错误: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/counselor/homepage")
+    public Result getCounselorHomePage(
+            @RequestParam("id") String id,
+            @RequestParam(value = "date", required = false) String date) {
+        try {
+            // 参数校验
+            if (id == null || id.trim().isEmpty()) {
+                return Result.error("Counselor ID cannot be empty");
+            }
+            if (date != null && date.trim().isEmpty()) {
+                return Result.error("Date cannot be empty");
+            }
+
+            // 创建 DTO
+            CounselorHomePageDTO dto = new CounselorHomePageDTO();
+
+            // 调用 MyBatis 方法
+            // 1. 平均评分
+            Double averageRating = informationMapper.counselorHomePage1(id);
+            dto.setAverageRating(averageRating != null ? averageRating : 0.0);
+
+            // 2. 总会话数
+            int totalSessions = informationMapper.counselorHomePage2(id);
+            dto.setTotalSessions(totalSessions);
+
+            // 3. 某天会话数（如果提供了 date）
+            if (date != null) {
+                int dailySessions = informationMapper.counselorHomePage3(id, date);
+                dto.setDailySessions(dailySessions);
+            } else {
+                dto.setDailySessions(0);
+            }
+
+            // 4. 某天总时长（如果提供了 date）
+            if (date != null) {
+                dto.setDailyTotalDuration(informationMapper.counselorHomePage4(id, date));
+            } else {
+                dto.setDailyTotalDuration(0L);
+            }
+
+            // 5. 未结束会话数
+            int ongoingSessions = informationMapper.counselorHomePage5(id);
+            dto.setOngoingSessions(ongoingSessions);
+
+            // 日志记录
+            logger.info("Retrieved counselor homepage data for id: {}, date: {}, data: {}", id, date, dto);
+
+            return Result.success(dto);
+        } catch (Exception e) {
+            logger.error("Error retrieving counselor homepage data for id: {}, date: {}", id, date, e);
+            return Result.error("An error occurred while retrieving counselor homepage data");
         }
     }
 }
