@@ -9,6 +9,7 @@ import com.example.demo.mapper.BackstageArrangementMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -130,18 +131,44 @@ public class BackstageArrangementController {
     @PostMapping("/leave/addleave")
     public Result insertLeave(@RequestBody Ask_leave askLeave) {
         try {
+            // 验证输入
             if (askLeave == null || askLeave.getStaffId() == null || askLeave.getStaffId().trim().isEmpty()) {
-                return Result.error("Staff ID cannot be empty");
+                return Result.error("员工ID不能为空");
             }
-            int i = backstageArrangementMapper.insertLeave(askLeave);
-            if (i <= 0) {
-                return Result.error("Failed to insert leave record for staff ID: " + askLeave.getStaffId());
+            if (askLeave.getdutyDate() == null) {
+                return Result.error("请假日期不能为空");
             }
-            logger.info("Inserted leave record for staff ID: {}", askLeave.getStaffId());
-            return Result.success("Insert successful");
+            if (askLeave.getLeaveReason() == null || askLeave.getLeaveReason().trim().isEmpty()) {
+                return Result.error("请假原因不能为空");
+            }
+
+            // 调用 insertLeave1 插入请假记录
+            int leaveInsertResult = backstageArrangementMapper.insertLeave1(
+                    askLeave.getStaffId(),
+                    askLeave.getdutyDate(),
+                    askLeave.getLeaveReason()
+            );
+            if (leaveInsertResult <= 0) {
+                logger.error("插入请假记录失败，员工ID: {}", askLeave.getStaffId());
+                return Result.error("插入请假记录失败，员工ID: " + askLeave.getStaffId());
+            }
+
+            // 调用 insertleave2 更新 duty_calendar 表
+            int dutyUpdateResult = backstageArrangementMapper.insertleave2(
+                    askLeave.getStaffId(),
+                    askLeave.getdutyDate()
+            );
+            if (dutyUpdateResult <= 0) {
+                logger.error("更新出勤日历失败，员工ID: {}, 日期: {}", askLeave.getStaffId(), askLeave.getdutyDate());
+                throw new RuntimeException("更新出勤日历失败");
+            }
+
+            logger.info("成功插入请假记录并更新出勤日历，员工ID: {}", askLeave.getStaffId());
+            return Result.success("请假记录插入成功");
+
         } catch (Exception e) {
-            logger.error("Error inserting leave record for staff ID: {}", askLeave != null ? askLeave.getStaffId() : "null", e);
-            return Result.error("An error occurred while inserting leave record");
+            logger.error("插入请假记录或更新出勤日历时发生错误，员工ID: {}", askLeave != null ? askLeave.getStaffId() : "null", e);
+            throw new RuntimeException("插入请假记录或更新出勤日历时发生错误", e);
         }
     }
 
@@ -385,6 +412,16 @@ public class BackstageArrangementController {
         } catch (Exception e) {
             logger.error("Error checking counselor state for ID: {}", id, e);
             return Result.error("检查咨询师状态时发生错误: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/conversationNow")
+    public Result conversationNow() {
+        try {
+            int count = backstageArrangementMapper.conversationNow();
+            return Result.success(count);
+        } catch (Exception e) {
+            return Result.error("服务器错误: " + e.getMessage());
         }
     }
 }

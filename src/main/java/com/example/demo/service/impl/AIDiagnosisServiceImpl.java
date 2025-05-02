@@ -176,6 +176,8 @@ public class AIDiagnosisServiceImpl implements AIDiagnosisService {
         dto.setSummary(diagnosisSummary);
         dto.setKeywords(cleanedKeywords);
         dto.setRecommendations(new ArrayList<>(results));
+        //新增：清空该用户的历史上下文
+        userConversations.remove(userId);
         return dto;
     }
 

@@ -1,6 +1,14 @@
 package com.example.demo.entity;
+import java.time.LocalDate;
 
 public class Ask_leave {
+
+    private String staffId;
+    private LocalDate dutyDate; //修改
+    private String leaveReason;
+    private Boolean isAgree;
+    private String leaveComment;
+
     public String getStaffId() {
         return staffId;
     }
@@ -9,12 +17,12 @@ public class Ask_leave {
         this.staffId = staffId;
     }
 
-    public String getDutyTime() {
-        return dutyTime;
+    public LocalDate getdutyDate() {
+        return dutyDate;
     }
 
-    public void setDutyTime(String dutyTime) {
-        this.dutyTime = dutyTime;
+    public void setdutyDate(LocalDate dutyDate) {
+        this.dutyDate = dutyDate;
     }
 
     public String getLeaveReason() {
@@ -25,12 +33,12 @@ public class Ask_leave {
         this.leaveReason = leaveReason;
     }
 
-    public Boolean getAgree() {
+    public Boolean getisAgree() {
         return isAgree;
     }
 
-    public void setAgree(Boolean agree) {
-        isAgree = agree;
+    public void setisAgree(Boolean isAgree) {
+        this.isAgree = isAgree;
     }
 
     public String getLeaveComment() {
@@ -41,17 +49,13 @@ public class Ask_leave {
         this.leaveComment = leaveComment;
     }
 
-    private String staffId;
-    private String dutyTime; //修改
-    private String leaveReason;
-    private Boolean isAgree;
-    private String leaveComment;
+
 
     @Override
     public String toString() {
         return "Ask_leave{" +
                 "staffId='" + staffId + '\'' +
-                ", dutyTime='" + dutyTime + '\'' +
+                ", dutyDate='" + dutyDate + '\'' +
                 ", leaveReason='" + leaveReason + '\'' +
                 ", isAgree=" + isAgree +
                 ", leaveComment='" + leaveComment + '\'' +

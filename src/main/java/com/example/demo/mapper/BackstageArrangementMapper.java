@@ -10,6 +10,7 @@ import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface BackstageArrangementMapper {
@@ -17,20 +18,23 @@ public interface BackstageArrangementMapper {
     @Select("SELECT * FROM duty_calendar where staff_id=#{id}")
     public List<Duty_calendar> searchWorkDays(String id);
 
-    @Select("SELECT p.id, p.name, p.gender,p.age, p.id_picture_link, p.self_description, c.tag FROM person p JOIN duty_calendar dc JOIN counselor c ON  p.id = dc.staff_id AND p.id = c.id WHERE p.role = #{role} AND dc.duty_date=#{dutyDate}")
+    @Select("SELECT p.id, p.name, p.gender,p.age, p.id_picture_link, p.self_description, c.tag FROM person p JOIN duty_calendar dc JOIN counselor c ON  p.id = dc.staff_id AND p.id = c.id WHERE p.role = #{role} AND dc.duty_date=#{dutyDate} and dc.is_leave=0")
     public List<BackstageArrangementDTO> searchCounselorWorkDays(String role, String dutyDate);
 
-    @Select("SELECT p.id, p.name, p.role FROM person p JOIN duty_calendar dc ON p.id = dc.staff_id WHERE dc.duty_date=#{dutyDate} AND (p.role='COUNSELOR' OR p.role='TUTOR')")
+    @Select("SELECT p.id, p.name, p.role FROM person p JOIN duty_calendar dc ON p.id = dc.staff_id WHERE dc.is_leave=0 and dc.duty_date=#{dutyDate} AND (p.role='COUNSELOR' OR p.role='TUTOR')")
     public List<BackstageArrangement1DTO> getDutyByDate(String dutyDate);
 
     @Insert("INSERT INTO duty_calendar(staff_id, duty_date) VALUES (#{staffId}, #{dutyDate})")
     public int insertDuty(Duty_calendar duty_calendar);
 
-    @Delete("DELETE FROM duty_calendar WHERE staff_id=#{id} and duty_date=#{dutyTime}")
-    public int deleteDuty(String id, String dutyTime);
+    @Delete("DELETE FROM duty_calendar WHERE staff_id=#{id} and duty_date=#{dutyDate}")
+    public int deleteDuty(String id, String dutyDate);
 
     @Insert("INSERT INTO ask_leave(staff_id, duty_date, leave_reason) VALUES (#{staffId}, #{dutyDate}, #{leaveReason})")
-    public int insertLeave(Ask_leave ask_leave);
+    public int insertLeave1(String staffId, LocalDate dutyDate, String leaveReason);
+
+    @Update("UPDATE duty_calendar SET is_leave=1 WHERE staff_id=#{staffId} and duty_date=#{dutyDate}")
+    public int insertleave2(String staffId, LocalDate dutyDate);
 
     @Select("SELECT p.role, al.staff_id, al.duty_date, al.leave_reason, al.is_agree, al.leave_comment FROM ask_leave al JOIN person p on p.id=al.staff_id")
     public List<LeaveDTO> searchLeave();
@@ -76,4 +80,7 @@ public interface BackstageArrangementMapper {
 
     @Update("UPDATE person SET state='BUSY' WHERE id=#{id}")
     public int updateState(String id);
+
+    @Select("SELECT COUNT(*) FROM chat_sessions cs join session_participants sp on cs.id=sp.session_id WHERE sp.role='COUNSELOR' and cs.ended=0")
+    public int conversationNow();
 }

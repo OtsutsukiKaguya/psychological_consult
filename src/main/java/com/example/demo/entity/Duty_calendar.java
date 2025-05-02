@@ -5,6 +5,15 @@ import java.time.LocalDate;
 public class Duty_calendar {
     private String staffId;
     private LocalDate dutyDate;
+    private int isLeave;
+
+    public int getIsLeave() {
+        return isLeave;
+    }
+
+    public void setIsLeave(int isLeave) {
+        this.isLeave = isLeave;
+    }
 
     public LocalDate getDutyDate() {
         return dutyDate;
@@ -24,10 +33,10 @@ public class Duty_calendar {
 
     @Override
     public String toString() {
-        return "dutyCalendar{" +
+        return "Duty_calendar{" +
                 "staffId='" + staffId + '\'' +
                 ", dutyDate=" + dutyDate +
+                ", isLeave=" + isLeave +
                 '}';
     }
-
 }
