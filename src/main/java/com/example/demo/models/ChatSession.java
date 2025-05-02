@@ -65,6 +65,9 @@ public class ChatSession {
     @Column(name = "ended_at")
     private LocalDateTime endedAt;
 
+    @Column(name = "consult_id", length = 50)
+    private String consultId;
+
     // 会话参与者
     @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<SessionParticipant> participants = new HashSet<>();

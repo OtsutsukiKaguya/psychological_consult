@@ -340,5 +340,9 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         return chatSessionRepository.countActiveSessionsForRoles(userId, roles);
     }
 
+    @Override
+    public List<ChatSession> findByConsultId(String consultId) {
+        return chatSessionRepository.findByConsultIdOrderByCreatedAtAsc(consultId);
+    }
 
 }

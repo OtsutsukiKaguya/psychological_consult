@@ -92,4 +92,6 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, String
       AND cs.rating IS NULL
     """)
     int countActiveSessionsForRoles(@Param("userId") String userId, @Param("roles") List<SessionParticipant.ParticipantRole> roles);
+
+    List<ChatSession> findByConsultIdOrderByCreatedAtAsc(String consultId);
 }

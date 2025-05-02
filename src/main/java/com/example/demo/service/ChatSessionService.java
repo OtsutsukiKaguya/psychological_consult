@@ -118,4 +118,6 @@ public interface ChatSessionService {
     default int countActiveSessionsForCounselor(String userId) {
         return 0;
     }
+
+    List<ChatSession> findByConsultId(String consultId);
 }

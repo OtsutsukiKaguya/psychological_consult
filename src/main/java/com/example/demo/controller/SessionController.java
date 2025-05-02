@@ -20,6 +20,7 @@ import java.util.*;
 
 import com.example.demo.DTO.ChatRecordDTO;
 import com.example.demo.DTO.ChatSessionWithParticipantsDTO;
+import com.example.demo.common.Result;
 import com.example.demo.models.ChatMessage;
 import com.example.demo.models.ChatSession;
 import com.example.demo.models.SessionParticipant;
@@ -254,11 +255,8 @@ public class SessionController {
         }
     }
 
-
-
-
     /**
-     * 导出会话聊天记录
+     * 用户导出会话聊天记录
      */
     @GetMapping("/{sessionId}/export")
     public void exportChatMessages(
@@ -369,6 +367,94 @@ public class SessionController {
 
 
     /**
+     * 咨询师/督导导出会话聊天记录
+     */
+    @GetMapping("/export-by-consult")
+    public ResponseEntity<?> exportChatMessagesByConsultId(
+            @RequestParam("consultId") String consultId,
+            @RequestParam("format") String format,
+            @RequestParam(value = "start_date", required = false) String startDateStr,
+            @RequestParam(value = "end_date", required = false) String endDateStr,
+            HttpServletResponse response) {
+
+        try {
+            // 1. 校验导出格式
+            List<String> allowedFormats = Arrays.asList("pdf", "excel", "csv", "txt");
+            if (!allowedFormats.contains(format.toLowerCase())) {
+                return ResponseEntity.badRequest().body(Result.error("导出失败：format 参数非法"));
+            }
+
+            // 2. 身份验证
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            User currentUser = userService.findById(auth.getName());
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Result.error("用户未认证"));
+            }
+
+            // 3. 查询会话
+            List<ChatSession> sessions = chatSessionService.findByConsultId(consultId);
+            if (sessions.isEmpty()) {
+                return ResponseEntity.badRequest().body(Result.error("导出失败：该咨询下无会话"));
+            }
+
+            // 4. 权限校验
+            boolean hasPermission = sessions.stream().anyMatch(
+                    s -> chatSessionService.isSessionParticipant(s.getId(), currentUser.getId())
+                            || currentUser.getRole() == User.UserRole.ADMIN);
+            if (!hasPermission) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Result.error("无权导出该咨询记录"));
+            }
+
+            // 5. 查询所有消息
+            List<ChatMessage> allMessages = new ArrayList<>();
+            for (ChatSession session : sessions) {
+                List<ChatMessage> sessionMessages;
+                if (startDateStr != null && endDateStr != null) {
+                    try {
+                        LocalDate sd = LocalDate.parse(startDateStr);
+                        LocalDate ed = LocalDate.parse(endDateStr);
+                        sessionMessages = chatMessageRepository.findBySessionIdAndSentAtBetweenOrderBySentAtDesc(
+                                session.getId(), sd.atStartOfDay(), ed.atTime(23, 59, 59));
+                    } catch (DateTimeParseException e) {
+                        return ResponseEntity.badRequest().body(Result.error("日期格式应为 yyyy-MM-dd"));
+                    }
+                } else {
+                    sessionMessages = chatMessageRepository.findBySessionIdOrderBySentAtAsc(session.getId());
+                }
+                allMessages.addAll(sessionMessages);
+            }
+
+            if (allMessages.isEmpty()) {
+                return ResponseEntity.badRequest().body(Result.error("导出失败：该咨询下无聊天记录"));
+            }
+
+            // 6. 文件生成 + 返回文件流
+//            byte[] fileBytes = chatExportService.generateFileContent(null, allMessages, format);
+            byte[] fileBytes = chatExportService.generateFileContentForMultipleSessions(sessions, allMessages, format);
+
+            String filename = "consult_" + consultId.substring(0, 8) + "_messages." + format;
+            String encodedFilename = URLEncoder.encode(filename, "UTF-8").replaceAll("\\+", "%20");
+
+            response.setContentType(getContentType(format));
+            response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encodedFilename);
+            response.setContentLength(fileBytes.length);
+
+            OutputStream outputStream = response.getOutputStream();
+            outputStream.write(fileBytes);
+            outputStream.flush();
+
+            return null; // ✅ 文件已通过 response 写出，返回 null 表示不走 JSON 响应
+
+        } catch (Exception e) {
+            log.error("导出咨询记录失败", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Result.error("服务器内部错误：" + e.getMessage()));
+        }
+    }
+
+
+
+    /**
      * 获取所有会话
      * 仅管理员可访问
      */
@@ -455,19 +541,93 @@ public class SessionController {
     /**
      * 创建新会话
      */
+//    @PostMapping
+//    public ResponseEntity<?> createSession(@Valid @RequestBody CreateSessionRequest request) {
+//        try {
+//            log.debug("Creating session: {}", request);
+//
+//            // 获取当前用户
+//            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+//            User currentUser = userService.findById(authentication.getName());
+//            if (currentUser == null) {
+//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
+//            }
+//
+//            // 👇 在这里插入限制逻辑（已上限就不创建）
+//            if (currentUser.getRole() == User.UserRole.USER &&
+//                    chatSessionService.hasActiveSessionForUser(currentUser.getId())) {
+//                return ResponseEntity.status(HttpStatus.CONFLICT)
+//                        .body("❗您已有一个正在进行的会话，无法同时开启多个会话");
+//            }
+//
+//            if ((currentUser.getRole() == User.UserRole.COUNSELOR || currentUser.getRole() == User.UserRole.TUTOR) &&
+//                    chatSessionService.countActiveSessionsForCounselor(currentUser.getId()) >= 3) {
+//                return ResponseEntity.status(HttpStatus.CONFLICT)
+//                        .body("❗您当前同时进行的会话已达上限（3个）");
+//            }
+//
+//            // 如果是一对一会话，检查已存在的会话
+//            if (request.getType().equals("ONE_TO_ONE") && request.getParticipantIds().size() == 1) {
+//                String otherUserId = request.getParticipantIds().get(0);
+//                ChatSession existingSession = chatSessionService.getOneToOneSession(currentUser.getId(), otherUserId);
+//
+//                if (existingSession != null) {
+//                    log.debug("Found existing one-to-one session: {}", existingSession.getId());
+//                    return ResponseEntity.ok(existingSession);
+//                }
+//            }
+//
+//            // ✅ 手动生成 UUID 作为主键
+//            String generatedSessionId = UUID.randomUUID().toString();
+//
+//            // 创建新会话（显式设置 ID）
+//            ChatSession session = ChatSession.builder()
+//                    .id(generatedSessionId)  // ✅ 显式设置 ID，避免 Hibernate 报错
+//                    .type(ChatSession.SessionType.valueOf(request.getType()))
+//                    .build();
+//
+////            // 创建新会话
+////            ChatSession session = ChatSession.builder()
+////                    //.name(request.getName())
+////                    //.description(request.getDescription())
+////                    .type(ChatSession.SessionType.valueOf(request.getType()))
+////                    .build();
+//
+//            ChatSession savedSession = chatSessionService.createSession(session);
+//
+//            // 添加当前用户作为参与者
+//            chatSessionService.addParticipant(savedSession.getId(), currentUser.getId(),
+//                    determineRole(currentUser));
+//
+//            // 添加其他参与者
+//            for (String userId : request.getParticipantIds()) {
+//                User participant = userService.findById(userId);
+//                if (participant != null) {
+//                    chatSessionService.addParticipant(savedSession.getId(), userId,
+//                            determineRole(participant));
+//
+//                    // 通知被邀请的用户
+//                    sendSessionInvitation(participant, savedSession, currentUser);
+//                }
+//            }
+//
+//            return ResponseEntity.ok(savedSession);
+//        } catch (Exception e) {
+//            log.error("Failed to create session", e);
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to create session: " + e.getMessage());
+//        }
+//    }
+
+    //通过consultId再创建一个咨询师求助督导的会话
     @PostMapping
     public ResponseEntity<?> createSession(@Valid @RequestBody CreateSessionRequest request) {
         try {
-            log.debug("Creating session: {}", request);
-
-            // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             User currentUser = userService.findById(authentication.getName());
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
 
-            // 👇 在这里插入限制逻辑（已上限就不创建）
             if (currentUser.getRole() == User.UserRole.USER &&
                     chatSessionService.hasActiveSessionForUser(currentUser.getId())) {
                 return ResponseEntity.status(HttpStatus.CONFLICT)
@@ -480,47 +640,24 @@ public class SessionController {
                         .body("❗您当前同时进行的会话已达上限（3个）");
             }
 
-            // 如果是一对一会话，检查已存在的会话
-            if (request.getType().equals("ONE_TO_ONE") && request.getParticipantIds().size() == 1) {
-                String otherUserId = request.getParticipantIds().get(0);
-                ChatSession existingSession = chatSessionService.getOneToOneSession(currentUser.getId(), otherUserId);
+            // ✅ 生成 consultId 和 sessionId
+            String consultId = UUID.randomUUID().toString();
+            String sessionId = UUID.randomUUID().toString();
 
-                if (existingSession != null) {
-                    log.debug("Found existing one-to-one session: {}", existingSession.getId());
-                    return ResponseEntity.ok(existingSession);
-                }
-            }
-
-            // ✅ 手动生成 UUID 作为主键
-            String generatedSessionId = UUID.randomUUID().toString();
-
-            // 创建新会话（显式设置 ID）
             ChatSession session = ChatSession.builder()
-                    .id(generatedSessionId)  // ✅ 显式设置 ID，避免 Hibernate 报错
-                    .type(ChatSession.SessionType.valueOf(request.getType()))
-                    .build();
-
-//            // 创建新会话
-//            ChatSession session = ChatSession.builder()
-//                    //.name(request.getName())
-//                    //.description(request.getDescription())
+                    .id(sessionId)
 //                    .type(ChatSession.SessionType.valueOf(request.getType()))
-//                    .build();
+                    .type(ChatSession.SessionType.GROUP)
+                    .consultId(consultId)
+                    .build();
 
             ChatSession savedSession = chatSessionService.createSession(session);
 
-            // 添加当前用户作为参与者
-            chatSessionService.addParticipant(savedSession.getId(), currentUser.getId(),
-                    determineRole(currentUser));
-
-            // 添加其他参与者
+            chatSessionService.addParticipant(savedSession.getId(), currentUser.getId(), determineRole(currentUser));
             for (String userId : request.getParticipantIds()) {
                 User participant = userService.findById(userId);
                 if (participant != null) {
-                    chatSessionService.addParticipant(savedSession.getId(), userId,
-                            determineRole(participant));
-
-                    // 通知被邀请的用户
+                    chatSessionService.addParticipant(savedSession.getId(), userId, determineRole(participant));
                     sendSessionInvitation(participant, savedSession, currentUser);
                 }
             }
@@ -532,48 +669,45 @@ public class SessionController {
         }
     }
 
-//    /**
-//     * 更新会话信息
-//     */
-//    @PutMapping("/{id}")
-//    public ResponseEntity<?> updateSession(@PathVariable String id, @Valid @RequestBody UpdateSessionRequest request) {
-//        try {
-//            // 获取当前用户
-//            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-//            User currentUser = userService.findById(authentication.getName());
-//            if (currentUser == null) {
-//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
-//            }
-//
-//            // 获取会话
-//            ChatSession session = chatSessionService.findById(id);
-//            if (session == null) {
-//                return ResponseEntity.notFound().build();
-//            }
-//
-//            // 检查用户是否是会话的参与者，或者是管理员
-//            if (!chatSessionService.isSessionParticipant(id, currentUser.getId()) &&
-//                    currentUser.getRole() != User.UserRole.ADMIN) {
-//                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized to update this session");
-//            }
-//
-//            // 更新会话信息
-//            ChatSession updatedSession = ChatSession.builder()
-//                    //.name(request.getName())
-//                    //.description(request.getDescription())
-//                    .build();
-//
-//            ChatSession result = chatSessionService.updateSession(id, updatedSession);
-//
-//            // 通知会话参与者
-//            notifySessionUpdated(result);
-//
-//            return ResponseEntity.ok(result);
-//        } catch (Exception e) {
-//            log.error("Failed to update session: {}", id, e);
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to update session: " + e.getMessage());
-//        }
-//    }
+    @PostMapping("/supervisor")
+    public ResponseEntity<?> createSupervisorSession(@Valid @RequestBody CreateSupervisorSessionRequest request) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            User currentUser = userService.findById(authentication.getName());
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
+            }
+
+            if (currentUser.getRole() != User.UserRole.COUNSELOR) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("只有咨询师可以发起督导会话");
+            }
+
+            String sessionId = UUID.randomUUID().toString();
+
+            ChatSession session = ChatSession.builder()
+                    .id(sessionId)
+                    .type(ChatSession.SessionType.ONE_TO_ONE)
+                    .consultId(request.getConsultId()) // ✅ 使用已有 consultId
+                    .build();
+
+            ChatSession savedSession = chatSessionService.createSession(session);
+            chatSessionService.addParticipant(savedSession.getId(), currentUser.getId(), determineRole(currentUser));
+
+            for (String userId : request.getParticipantIds()) {
+                User participant = userService.findById(userId);
+                if (participant != null) {
+                    chatSessionService.addParticipant(savedSession.getId(), userId, determineRole(participant));
+                    sendSessionInvitation(participant, savedSession, currentUser);
+                }
+            }
+
+            return ResponseEntity.ok(savedSession);
+        } catch (Exception e) {
+            log.error("Failed to create supervisor session", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("创建失败：" + e.getMessage());
+        }
+    }
+
 
     /**
      * 获取会话参与者
@@ -941,9 +1075,9 @@ public class SessionController {
      */
     @Data
     public static class CreateSessionRequest {
-        private String name;
-        private String description;
-        private String type;
+//        private String name;
+//        private String description;
+//        private String type;
         private List<String> participantIds;
     }
 
@@ -962,5 +1096,17 @@ public class SessionController {
     @Data
     public static class AddParticipantRequest {
         private List<String> userIds;
+    }
+
+    /**
+     * 创建咨询师求助督导的会话的请求
+     */
+    @Data
+    public static class CreateSupervisorSessionRequest {
+        @NotNull
+        private String consultId;
+
+        @NotNull
+        private List<String> participantIds;
     }
 }
