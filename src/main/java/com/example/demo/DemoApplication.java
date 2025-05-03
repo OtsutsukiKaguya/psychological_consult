@@ -5,10 +5,12 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Info;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @OpenAPIDefinition(info = @Info(title = "心理咨询系统接口文档", version = "1.0", description = "模块接口"))
 
 @SpringBootApplication
+@EnableScheduling   // ← 新增
 @MapperScan("com.example.demo.mapper")
 public class DemoApplication {
 

@@ -5,10 +5,7 @@ import com.example.demo.entity.Ask_leave;
 import com.example.demo.entity.Bind;
 import com.example.demo.entity.Counselor;
 import com.example.demo.entity.Duty_calendar;
-import org.apache.ibatis.annotations.Delete;
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
+import org.apache.ibatis.annotations.*;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -63,7 +60,7 @@ public interface BackstageArrangementMapper {
     @Select("SELECT p.name, p.gender, p.id, p.phone, u.urgent_name, u.urgent_phone, p.role, p.last_login_time FROM person p join user u on p.id=u.id where p.role='USER' ORDER BY u.id")
     public List<SearchUserDTO> searchUser();
 
-    @Select("SELECT * from person p join counselor c ON p.id=c.id where p.name=#{name}")
+    @Select("SELECT * from person p join counselor c ON p.id=c.id where p.name LIKE CONCAT('%', #{name}, '%')")
     public List<SearchCounselorByNameDTO> searchCounselorByName(String name);
 
     @Select("SELECT * FROM person p JOIN counselor c ON p.id = c.id WHERE c.tag LIKE CONCAT('%', #{tag}, '%')")
@@ -83,4 +80,34 @@ public interface BackstageArrangementMapper {
 
     @Select("SELECT COUNT(*) FROM chat_sessions cs join session_participants sp on cs.id=sp.session_id WHERE sp.role='COUNSELOR' and cs.ended=0")
     public int conversationNow();
+
+    /** 获取所有可调度的咨询师 ID 列表 */
+    @Select("SELECT id FROM counselor")  // 假设有 counselor 表
+    List<String> findAllCounselorIds();
+
+    /** 获取指定咨询师的请假日期 */
+    @Select("SELECT duty_date FROM duty_calendar " +
+            "WHERE staff_id = #{counselorId} AND is_leave = TRUE " +
+            "  AND duty_date BETWEEN #{start} AND #{end}")
+    List<LocalDate> findLeaveDatesByCounselor(@Param("counselorId") String counselorId,
+                                              @Param("start") LocalDate start,
+                                              @Param("end") LocalDate end);
+
+    /** 获取指定日期范围内已存在的排班日期（非请假） */
+    @Select("SELECT duty_date FROM duty_calendar " +
+            "WHERE is_leave = FALSE AND duty_date BETWEEN #{start} AND #{end}")
+    List<LocalDate> findExistingDutyDates(@Param("start") LocalDate start,
+                                          @Param("end") LocalDate end);
+
+    /** 批量插入排班记录 */
+    @Insert({
+            "<script>",
+            "INSERT INTO duty_calendar (staff_id, duty_date, is_leave, shift_type)",
+            "VALUES",
+            "<foreach collection='records' item='item' separator=','>",
+            "(#{item.staffId}, #{item.dutyDate}, #{item.isLeave}, #{item.shiftType})",
+            "</foreach>",
+            "</script>"
+    })
+    int batchInsertDuties(@Param("records") List<Duty_calendar> records);
 }

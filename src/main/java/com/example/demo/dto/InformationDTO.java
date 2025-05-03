@@ -3,9 +3,9 @@ package com.example.demo.dto;
 public class InformationDTO {
     private String id;
     private String name;
-    private String id_picture_link;
+    private String idPictureLink;
     private String state;
-    private Double average_rating;
+    private Double averageRating;
     private String tag;
 
     @Override
@@ -13,9 +13,9 @@ public class InformationDTO {
         return "InformationDto{" +
                 "id='" + id + '\'' +
                 ", name='" + name + '\'' +
-                ", id_picture_link='" + id_picture_link + '\'' +
+                ", idPictureLink='" + idPictureLink + '\'' +
                 ", state='" + state + '\'' +
-                ", average_rating=" + average_rating +
+                ", averageRating=" + averageRating +
                 ", tag='" + tag + '\'' +
                 '}';
     }
@@ -36,12 +36,12 @@ public class InformationDTO {
         this.name = name;
     }
 
-    public String getId_picture_link() {
-        return id_picture_link;
+    public String getIdPictureLink() {
+        return idPictureLink;
     }
 
-    public void setId_picture_link(String id_picture_link) {
-        this.id_picture_link = id_picture_link;
+    public void setIdPictureLink(String idPictureLink) {
+        this.idPictureLink = idPictureLink;
     }
 
     public String getState() {
@@ -52,12 +52,12 @@ public class InformationDTO {
         this.state = state;
     }
 
-    public Double getAverage_rating() {
-        return average_rating;
+    public Double getAverageRating() {
+        return averageRating;
     }
 
-    public void setAverage_rating(Double average_rating) {
-        this.average_rating = average_rating;
+    public void setAverageRating(Double averageRating) {
+        this.averageRating = averageRating;
     }
 
     public String getTag() {
