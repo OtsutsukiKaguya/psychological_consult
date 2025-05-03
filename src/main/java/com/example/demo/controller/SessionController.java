@@ -634,10 +634,17 @@ public class SessionController {
                         .body("❗您已有一个正在进行的会话，无法同时开启多个会话");
             }
 
-            if ((currentUser.getRole() == User.UserRole.COUNSELOR || currentUser.getRole() == User.UserRole.TUTOR) &&
-                    chatSessionService.countActiveSessionsForCounselor(currentUser.getId()) >= 3) {
+//            if ((currentUser.getRole() == User.UserRole.COUNSELOR || currentUser.getRole() == User.UserRole.TUTOR) &&
+//                    chatSessionService.countActiveSessionsForCounselor(currentUser.getId()) >= 3) {
+//                return ResponseEntity.status(HttpStatus.CONFLICT)
+//                        .body("❗您当前同时进行的会话已达上限（3个）");
+//            }
+
+            // ✅ 新增逻辑：如果是咨询师且处于 BUSY 状态，禁止创建会话
+            if (currentUser.getRole() == User.UserRole.COUNSELOR &&
+                    currentUser.getState() == User.UserStatus.BUSY) {
                 return ResponseEntity.status(HttpStatus.CONFLICT)
-                        .body("❗您当前同时进行的会话已达上限（3个）");
+                        .body("❗当前咨询师状态为 BUSY，无法创建新的会话");
             }
 
             // ✅ 生成 consultId 和 sessionId
