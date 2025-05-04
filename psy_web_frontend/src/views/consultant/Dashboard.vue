@@ -35,27 +35,64 @@ const disabledDate = (time) => {
 // 标签数据
 const tags = ref(['抑郁'])
 
-// 模拟请假记录数据
-const leaveRecords = [
-    {
-        date: '2024-03-15',
-        status: '已批准',
-        comment: '同意请假'
-    },
-    {
-        date: '2024-03-20',
-        status: '待审批',
-        comment: null
-    },
-    {
-        date: '2024-03-25',
-        status: '已拒绝',
-        comment: '当日值班人员已安排'
+// 本月请假记录
+const leaveRecords = ref([])
+
+// 获取请假记录
+const fetchLeaveRecords = async () => {
+    if (!currentUser.value?.id) return
+    try {
+        console.log('正在获取请假记录，用户ID:', currentUser.value.id)
+        const response = await axios.get(API.LEAVE.SHOW_LEAVE_BY_ID(currentUser.value.id))
+        console.log('请假记录API返回数据:', response.data)
+        
+        if (response.data.code === 0 && Array.isArray(response.data.data)) {
+            // 只显示本月的请假记录
+            const currentMonth = dayjs().format('YYYY-MM')
+            console.log('当前月份:', currentMonth)
+            
+            leaveRecords.value = response.data.data.filter(item => item.dutyDate.startsWith(currentMonth)).map(item => {
+                console.log('处理请假记录项:', item)
+                let status = ''
+                let comment = ''
+                
+                if (item.isAgree) {
+                    status = '同意请假'
+                    comment = '同意请假'
+                } else if (!item.isAgree && item.leaveComment == null) {
+                    status = '待审批'
+                    comment = ''
+                } else if (!item.isAgree && item.leaveComment) {
+                    status = '已拒绝'
+                    comment = item.leaveComment
+                }
+                
+                console.log('处理后的状态:', status, '处理后的意见:', comment)
+                return {
+                    date: item.dutyDate,
+                    status,
+                    comment
+                }
+            })
+            console.log('最终处理后的请假记录:', leaveRecords.value)
+        } else {
+            console.log('API返回数据格式不正确:', response.data)
+            leaveRecords.value = []
+        }
+    } catch (e) {
+        console.error('获取请假记录失败:', e)
+        leaveRecords.value = []
     }
-]
+}
 
 // 值班日期列表
 const dutyDates = ref([])
+
+// 计算当前月值班天数
+const currentMonthDutyDays = computed(() => {
+    const currentMonth = dayjs().format('YYYY-MM')
+    return dutyDates.value.filter(date => date.startsWith(currentMonth)).length
+})
 
 // 当前选中的日期
 const selectedDate = ref(null)
@@ -114,22 +151,19 @@ const handleLeaveClick = () => {
 }
 
 // 处理请假提交
-const handleLeaveSubmit = () => {
+const handleLeaveSubmit = async () => {
     if (leaveDate.value) {
         // 这里添加请假提交逻辑
-        leaveRecords.push({
-            date: leaveDate.value,
-            status: '待审批',
-            comment: null
-        })
         leaveDialogVisible.value = false
         leaveDate.value = ''
+        await fetchLeaveRecords()
     }
 }
 
-// 组件挂载时获取值班信息
+// 组件挂载时获取值班信息和请假记录
 onMounted(async () => {
     await fetchDutyInfo()
+    await fetchLeaveRecords()
 })
 
 // 判断是否是过去的日期
@@ -214,7 +248,7 @@ const isToday = (date) => {
                     <div class="calendar-header">
                         <div class="duty-info">
                             <span class="duty-days">本月值班天数：</span>
-                            <span class="days-count">{{ dutyDates.length }}天</span>
+                            <span class="days-count">{{ currentMonthDutyDays }}天</span>
                         </div>
                         <el-button type="primary" size="small" class="leave-btn"
                             @click="handleLeaveClick">请假</el-button>

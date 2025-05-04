@@ -1,42 +1,34 @@
 <script setup>
 import { ref, computed } from 'vue'
 
-// 模拟数据
+const props = defineProps({
+    consultants: {
+        type: Array,
+        default: () => []
+    },
+    supervisors: {
+        type: Array,
+        default: () => []
+    },
+    activeConversations: {
+        type: Number,
+        default: 0
+    },
+    activeGuidance: {
+        type: Number,
+        default: 0
+    }
+})
+
 const currentPage = ref(1)
 const pageSize = ref(6)
-const consultants = ref([
-    { id: 1, name: '咨询师A', status: '空闲' },
-    { id: 2, name: '咨询师B', status: '忙碌' },
-    { id: 3, name: '咨询师A', status: '忙碌' },
-    { id: 4, name: '咨询师A', status: '空闲' },
-    { id: 5, name: '咨询师A', status: '忙碌' },
-    { id: 6, name: '咨询师A', status: '空闲' },
-    { id: 7, name: '咨询师B', status: '空闲' },
-    { id: 8, name: '咨询师C', status: '忙碌' },
-    { id: 9, name: '咨询师D', status: '空闲' },
-    { id: 10, name: '咨询师E', status: '忙碌' },
-    { id: 11, name: '咨询师F', status: '空闲' },
-    { id: 12, name: '咨询师G', status: '忙碌' }
-])
 
 // 计算当前页的咨询师列表
 const currentConsultants = computed(() => {
     const start = (currentPage.value - 1) * pageSize.value
     const end = start + pageSize.value
-    return consultants.value.slice(start, end)
+    return props.consultants.slice(start, end)
 })
-
-// 督导列表数据
-const supervisors = ref([
-    { id: 1, name: '督导A', status: '忙碌' },
-    { id: 2, name: '督导B', status: '空闲' },
-    { id: 3, name: '督导C', status: '忙碌' },
-    { id: 4, name: '督导d', status: '空闲' },
-    { id: 5, name: '督导e', status: '忙碌' }
-])
-
-const activeConversations = ref(2)
-const activeGuidance = ref(2)
 </script>
 
 <template>

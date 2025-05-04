@@ -66,7 +66,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch, computed, defineExpose } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { House, Document, Calendar, Bell, SwitchButton } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -77,8 +77,9 @@ const route = useRoute()
 
 // 处理退出登录
 const handleLogout = () => {
-    // 清空本地存储的用户信息
+    // 清空本地存储的用户信息和token
     localStorage.removeItem('userInfo')
+    localStorage.removeItem('token')
     // 跳转到登录页面
     router.push('/login')
     // 显示提示消息
@@ -102,17 +103,25 @@ const userInfo = {
 }
 
 // 会话列表
-const conversations = [
-    { id: 1, name: '张先生', avatar: '', unread: 0 },
-    { id: 2, name: '周小姐', avatar: '', unread: 6 }
-]
+const conversations = ref(JSON.parse(localStorage.getItem('conversations') || '[{"id":"1","name":"ppplusss","avatar":"","unread":0},{"id":"2","name":"周小姐","avatar":"","unread":6}]'))
 
 // 当前激活的会话ID
 const activeConversationId = ref(null)
 
-// 处理会话点击
-const handleConversationClick = (conversation) => {
+function addConversation(conversation) {
+    if (!conversations.value.find(c => c.id === conversation.id)) {
+        conversations.value.push(conversation)
+        localStorage.setItem('conversations', JSON.stringify(conversations.value))
+    }
     activeConversationId.value = conversation.id
+    localStorage.setItem('activeConversationId', conversation.id)
+}
+
+defineExpose({ addConversation })
+
+function handleConversationClick(conversation) {
+    activeConversationId.value = conversation.id
+    localStorage.setItem('activeConversationId', conversation.id)
     router.push(`/consultant/chat/${conversation.id}`)
 }
 
@@ -120,12 +129,17 @@ const handleConversationClick = (conversation) => {
 const updateActiveConversation = () => {
     const chatId = route.params.id
     if (route.path.includes('/consultant/chat/') && chatId) {
-        activeConversationId.value = Number(chatId)
+        activeConversationId.value = chatId
+    } else {
+        activeConversationId.value = null
     }
 }
 
 // 监听路由变化
 onMounted(() => {
+    // 每次挂载都同步一次
+    conversations.value = JSON.parse(localStorage.getItem('conversations') || '[{"id":"1","name":"ppplusss","avatar":"","unread":0},{"id":"2","name":"周小姐","avatar":"","unread":6}]')
+    activeConversationId.value = localStorage.getItem('activeConversationId') || null
     updateActiveConversation()
 })
 

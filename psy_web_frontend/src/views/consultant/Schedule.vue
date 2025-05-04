@@ -29,6 +29,8 @@ const currentUser = computed(() => {
     return userInfo ? JSON.parse(userInfo) : null
 })
 
+const layoutRef = ref()
+
 // 获取预约记录
 const fetchReservations = async () => {
     if (!currentUser.value?.id) {
@@ -41,10 +43,26 @@ const fetchReservations = async () => {
         const response = await axios.get(`${API.RESERVATION.GET_COUNSELOR_RESERVATIONS}/${currentUser.value.id}`)
         console.log(response.data)
         if (response.data.code === 0) {
+            // 并发查询所有预约人的昵称
+            const userIdList = response.data.data.map(item => item.userId)
+            const nameMap = {}
+            await Promise.all(userIdList.map(async (userId) => {
+                try {
+                    const res = await axios.get(API.USER.SEARCH_PERSON(userId))
+                    if (res.data.code === 0 && Array.isArray(res.data.data) && res.data.data.length > 0) {
+                        nameMap[userId] = res.data.data[0].name
+                    } else {
+                        nameMap[userId] = userId
+                    }
+                } catch {
+                    nameMap[userId] = userId
+                }
+            }))
             // 处理返回的数据
             tableData.value = response.data.data.map(item => ({
                 id: item.id || '',
                 visitor: item.userId,
+                nickname: nameMap[item.userId] || item.userId,
                 appointmentDate: item.reservationTime.split(' ')[0],
                 appointmentTime: item.reservationTime.split(' ')[1],
                 description: item.reservationDescription,
@@ -71,10 +89,27 @@ const currentPageData = computed(() => {
 const totalItems = computed(() => tableData.value.length)
 
 // 查看详情处理函数
-const handleViewDetails = (row) => {
-    console.log('查看预约详情:', row)
-    // TODO: 实现跳转或显示详情逻辑
-    // router.push(...) 或 显示弹窗
+const handleViewDetails = async (row) => {
+    try {
+        const res = await axios.post(API.SESSIONS.CREATE, {
+            participantIds: [currentUser.value.id, row.visitor]
+        })
+        console.log('会话创建返回：', res.data)
+        const sessionId = res.data.id
+        const consultId = res.data.consultId
+        localStorage.setItem(`sessionId-${row.visitor}`, sessionId)
+        localStorage.setItem(`consultId-${row.visitor}`, consultId)
+        layoutRef.value.addConversation({
+            id: String(row.visitor),
+            name: row.nickname,
+            avatar: '',
+            unread: 0
+        })
+        router.push(`/consultant/chat/${row.visitor}`)
+    } catch (e) {
+        ElMessage.error('创建会话失败')
+        console.error(e)
+    }
 }
 
 // 搜索处理
@@ -91,7 +126,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <ConsultantBaseLayout>
+    <ConsultantBaseLayout ref="layoutRef">
         <div class="schedule-container">
             <!-- 搜索区域 -->
             <div class="search-area">
@@ -109,14 +144,15 @@ onMounted(() => {
             <!-- 表格区域 -->
             <div class="table-area">
                 <el-table :data="currentPageData" style="width: 100%" height="600" v-loading="loading">
-                    <el-table-column prop="visitor" label="咨询人" width="150" />
+                    <el-table-column prop="visitor" label="咨询人ID" width="150" />
+                    <el-table-column prop="nickname" label="昵称" width="150" />
                     <el-table-column prop="appointmentDate" label="预约日期" width="180" />
                     <el-table-column prop="appointmentTime" label="预约时间" width="180" />
                     <el-table-column prop="description" label="情况描述" min-width="250" />
-                    <el-table-column label="咨询者情况" width="150" align="center">
+                    <el-table-column label="操作" width="150" align="center">
                         <template #default="{ row }">
                             <el-button type="success" size="small" class="detail-button"
-                                @click="handleViewDetails(row)">查看详情</el-button>
+                                @click="handleViewDetails(row)">开始咨询</el-button>
                         </template>
                     </el-table-column>
                 </el-table>

@@ -21,6 +21,7 @@ import SupervisorNotification from '@/views/supervisor/Notification.vue'
 import SupervisorRecords from '@/views/supervisor/Records.vue'
 import ConsultantTreeHole from '@/views/consultant/TreeHole.vue'
 import ConsultantTreeHoleDetail from '@/views/consultant/TreeHoleDetail.vue'
+import SupervisorChat from '@/views/supervisor/Chat.vue'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -169,6 +170,23 @@ const router = createRouter({
             }
         },
         {
+            path: '/supervisor/tree-hole',
+            name: 'supervisorTreeHole',
+            component: () => import('@/views/supervisor/TreeHole.vue'),
+            meta: {
+                role: 'supervisor'
+            }
+        },
+        {
+            path: '/supervisor/tree-hole/:id',
+            name: 'supervisorTreeHoleDetail',
+            component: () => import('@/views/supervisor/TreeHoleDetail.vue'),
+            props: true,
+            meta: {
+                role: 'supervisor'
+            }
+        },
+        {
             path: '/consultant/tree-hole',
             name: 'consultantTreeHole',
             component: ConsultantTreeHole,
@@ -183,6 +201,15 @@ const router = createRouter({
             props: true,
             meta: {
                 role: 'consultant'
+            }
+        },
+        {
+            path: '/supervisor/chat/:id',
+            name: 'supervisorChat',
+            component: SupervisorChat,
+            props: true,
+            meta: {
+                role: 'supervisor'
             }
         }
     ]
@@ -212,10 +239,10 @@ router.beforeEach((to, from, next) => {
             case 'ADMIN':
                 next('/admin/dashboard')
                 break
-            case 'COUNSELOR':
+            case 'consultant':
                 next('/consultant/dashboard')
                 break
-            case 'TUTOR':
+            case 'supervisor':
                 next('/supervisor/dashboard')
                 break
             default:

@@ -54,7 +54,7 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits(['dateChange'])
+const emit = defineEmits(['dateChange', 'monthChange'])
 
 // 当前显示的年月
 const currentYear = ref(new Date().getFullYear())
@@ -109,6 +109,7 @@ const previousMonth = () => {
     } else {
         currentMonth.value--
     }
+    emit('monthChange', new Date(currentYear.value, currentMonth.value, 1))
 }
 
 const nextMonth = () => {
@@ -118,6 +119,7 @@ const nextMonth = () => {
     } else {
         currentMonth.value++
     }
+    emit('monthChange', new Date(currentYear.value, currentMonth.value, 1))
 }
 
 // 日期选择

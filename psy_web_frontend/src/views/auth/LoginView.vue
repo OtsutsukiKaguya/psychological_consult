@@ -93,6 +93,28 @@ const handleLogin = async (formEl) => {
             idPictureLink: userData.idPictureLink
           }))
 
+          // 新增：调用setCurrentUser获取token
+          let token = ''
+          try {
+            const setUserRes = await axios.post(API.CHAT.SET_CURRENT_USER, userData.id, {
+              headers: { 'Content-Type': 'text/plain' }
+            })
+            const msg = setUserRes.data
+            const tokenMatch = typeof msg === 'string' ? msg.match(/Token: (.+)$/) : null
+            if (tokenMatch) {
+              token = tokenMatch[1]
+              localStorage.setItem('token', token)
+            } else {
+              ElMessage.error('未获取到token')
+            }
+          } catch (e) {
+            ElMessage.error('设置当前用户失败')
+          }
+
+          // 控制台输出个人信息和token
+          console.log('登录用户信息:', userData)
+          console.log('登录token:', token)
+
           // 根据角色跳转到不同页面
           switch (userData.role) {
             case 'ADMIN':

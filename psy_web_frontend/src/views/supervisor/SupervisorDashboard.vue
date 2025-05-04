@@ -1,10 +1,13 @@
 <script setup>
 import { ElCalendar } from 'element-plus'
 import profileImage from '@/assets/组合 5.png'
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import { ElConfigProvider } from 'element-plus'
 import SupervisorBaseLayout from '@/components/layout/SupervisorBaseLayout.vue'
+import axios from 'axios'
+import { API } from '@/config'
+import dayjs from 'dayjs'
 
 const rating = ref(3.5)
 const locale = zhCn
@@ -18,24 +21,101 @@ const leaveDate = ref('')
 // 标签数据
 const tags = ref(['抑郁'])
 
-// 模拟请假记录数据
-const leaveRecords = [
-    {
-        date: '2024-03-15',
-        status: '已批准',
-        comment: '同意请假'
-    },
-    {
-        date: '2024-03-20',
-        status: '待审批',
-        comment: null
-    },
-    {
-        date: '2024-03-25',
-        status: '已拒绝',
-        comment: '当日值班人员已安排'
+// 本月请假记录
+const leaveRecords = ref([])
+
+// 获取当前用户信息
+const currentUser = computed(() => {
+    const userInfo = localStorage.getItem('userInfo')
+    return userInfo ? JSON.parse(userInfo) : null
+})
+
+// 值班日期列表
+const dutyDates = ref([])
+
+// 计算当前月值班天数
+const currentMonthDutyDays = computed(() => {
+    const currentMonth = dayjs().format('YYYY-MM')
+    return dutyDates.value.filter(date => date.startsWith(currentMonth)).length
+})
+
+// 当前选中的日期
+const selectedDate = ref(null)
+
+// 获取值班信息
+const fetchDutyInfo = async () => {
+    if (!currentUser.value?.id) {
+        console.error('未获取到用户ID')
+        return
     }
-]
+    try {
+        const response = await axios.get(API.DUTY.GET_BY_ID(currentUser.value.id))
+        if (response.data.code === 0 && response.data.data) {
+            dutyDates.value = response.data.data.map(item => {
+                const formattedDate = dayjs(item.dutyDate).format('YYYY-MM-DD')
+                return formattedDate
+            })
+        }
+    } catch (error) {
+        console.error('获取值班信息失败:', error)
+    }
+}
+
+// 检查日期是否是值班日期
+const isDutyDate = (date) => {
+    const formattedDate = dayjs(date).format('YYYY-MM-DD')
+    return dutyDates.value.includes(formattedDate)
+}
+
+// 判断是否是过去的日期
+const isPastDate = (date) => {
+    return dayjs(date).isBefore(dayjs(), 'day')
+}
+
+// 判断是否是今天
+const isToday = (date) => {
+    return dayjs(date).isSame(dayjs(), 'day')
+}
+
+// 获取请假记录
+const fetchLeaveRecords = async () => {
+    if (!currentUser.value?.id) return
+    try {
+        const response = await axios.get(API.LEAVE.SHOW_LEAVE_BY_ID(currentUser.value.id))
+        if (response.data.code === 0 && Array.isArray(response.data.data)) {
+            // 只显示本月的请假记录
+            const currentMonth = dayjs().format('YYYY-MM')
+            leaveRecords.value = response.data.data.filter(item => item.dutyDate.startsWith(currentMonth)).map(item => {
+                let status = ''
+                let comment = ''
+                if (item.isAgree) {
+                    status = '同意请假'
+                    comment = '同意请假'
+                } else if (!item.isAgree && item.leaveComment == null) {
+                    status = '待审批'
+                    comment = ''
+                } else if (!item.isAgree && item.leaveComment) {
+                    status = '已拒绝'
+                    comment = item.leaveComment
+                }
+                return {
+                    date: item.dutyDate,
+                    status,
+                    comment
+                }
+            })
+        } else {
+            leaveRecords.value = []
+        }
+    } catch (e) {
+        leaveRecords.value = []
+    }
+}
+
+onMounted(async () => {
+    await fetchDutyInfo()
+    await fetchLeaveRecords()
+})
 
 // 处理请假按钮点击
 const handleLeaveClick = () => {
@@ -46,7 +126,7 @@ const handleLeaveClick = () => {
 const handleLeaveSubmit = () => {
     if (leaveDate.value) {
         // 这里添加请假提交逻辑
-        leaveRecords.push({
+        leaveRecords.value.push({
             date: leaveDate.value,
             status: '待审批',
             comment: null
@@ -128,13 +208,25 @@ const handleLeaveSubmit = () => {
                     <div class="calendar-header">
                         <div class="duty-info">
                             <span class="duty-days">本月值班天数：</span>
-                            <span class="days-count">15天</span>
+                            <span class="days-count">{{ currentMonthDutyDays }}天</span>
                         </div>
                         <el-button type="primary" size="small" class="leave-btn"
                             @click="handleLeaveClick">请假</el-button>
                     </div>
                     <div class="calendar-container">
-                        <el-calendar />
+                        <el-calendar v-model="selectedDate">
+                            <template #date-cell="{ data }">
+                                <div :class="[
+                                    'calendar-cell',
+                                    { 'duty-cell': isDutyDate(data.day) },
+                                    { 'past-date': isPastDate(data.day) },
+                                    { 'today': isToday(data.day) }
+                                ]">
+                                    <span>{{ data.day.split('-')[2] }}</span>
+                                    <div v-if="isDutyDate(data.day)" class="duty-text">值班</div>
+                                </div>
+                            </template>
+                        </el-calendar>
                     </div>
                     <div class="leave-records">
                         <h3>本月请假记录</h3>
@@ -149,7 +241,7 @@ const handleLeaveSubmit = () => {
                                     <div class="table-cell date-cell">{{ record.date }}</div>
                                     <div class="table-cell status-cell">
                                         <div
-                                            :class="['status-tag', record.status === '已批准' ? 'approved' : record.status === '已拒绝' ? 'rejected' : 'pending']">
+                                            :class="['status-tag', record.status === '同意请假' ? 'approved' : record.status === '已拒绝' ? 'rejected' : 'pending']">
                                             {{ record.status }}
                                         </div>
                                     </div>
@@ -404,82 +496,145 @@ const handleLeaveSubmit = () => {
     font-size: 16px;
 }
 
+/* 日历样式与咨询师端完全一致 */
 :deep(.el-calendar) {
+    --el-calendar-cell-width: 50px;
+    background: none;
     border: none;
-    height: calc(100% - 45px);
+    height: 420px;
     display: flex;
     flex-direction: column;
-    padding: 0;
 }
 
 :deep(.el-calendar__header) {
-    padding: 8px 20px 0;
+    padding: 12px 20px;
+    border-bottom: 1px solid #f0f0f0;
     flex-shrink: 0;
-    margin-bottom: 0;
-    height: 40px;
-}
-
-:deep(.el-calendar__body) {
-    padding: 4px 20px 12px;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
 }
 
 :deep(.el-calendar__title) {
-    font-size: 16px;
     color: #333;
+    font-size: 16px;
     font-weight: 600;
 }
 
-:deep(.el-button) {
-    padding: 4px 8px;
+:deep(.el-calendar__body) {
+    padding: 8px 20px 16px;
+    flex: 1;
+    overflow: hidden;
+    height: calc(420px - 60px);
+    max-height: 344px;
+    box-sizing: border-box;
 }
 
 :deep(.el-calendar-table) {
-    border: none;
-    flex: 1;
+    border-collapse: separate;
+    border-spacing: 4px;
     height: 100%;
-}
-
-:deep(.el-calendar-table tr) {
-    height: 40px;
 }
 
 :deep(.el-calendar-table td) {
     border: none;
     padding: 2px;
-    height: 40px;
+    height: 60px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
 }
 
-:deep(.el-calendar-day) {
-    height: 36px;
-    line-height: 36px;
-    padding: 0;
+:deep(.el-calendar-table th) {
+    text-align: center;
+    padding: 6px 0;
+    color: #666;
+    font-weight: 600;
     font-size: 14px;
+    height: 32px;
+}
+
+.calendar-cell {
+    height: 100%;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    padding: 4px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    cursor: pointer;
 }
 
-:deep(.el-calendar__button-group) {
-    padding-top: 0;
+.past-date {
+    opacity: 0.5;
+    background-color: #f5f5f5;
+    cursor: not-allowed;
 }
 
-:deep(.el-calendar__button-group .el-button-group) {
-    transform: scale(0.8);
-    transform-origin: right top;
+.past-date.duty-cell {
+    background-color: #fef0f0 !important;
+    opacity: 0.7;
 }
 
-:deep(.is-selected) {
-    background-color: #557ff7;
-    color: #fff;
-    border-radius: 4px;
-}
-
-:deep(.current) {
-    color: #557ff7;
+.today {
+    border: 2px solid #409EFF !important;
     font-weight: bold;
+}
+
+.today span {
+    color: #409EFF;
+}
+
+.calendar-cell:not(.past-date):hover {
+    background-color: #f5f7fa;
+}
+
+.duty-cell {
+    background-color: #fef0f0 !important;
+    border: 1px solid #fde2e2 !important;
+}
+
+.duty-cell:hover {
+    background-color: #fde2e2 !important;
+}
+
+.duty-text {
+    font-size: 11px;
+    color: #f56c6c;
+    background: #fff;
+    padding: 1px 6px;
+    border-radius: 8px;
+    border: 1px solid #fde2e2;
+}
+
+/* 当前月份日期样式 */
+:deep(.el-calendar-table td.current) {
+    background-color: #fff;
+    color: #333;
+}
+
+/* 其他月份日期样式 */
+:deep(.el-calendar-table td.prev, .el-calendar-table td.next) {
+    background-color: #fafafa;
+    color: #c0c4cc;
+}
+
+/* 今天日期样式 */
+:deep(.el-calendar-table td.is-today) {
+    color: var(--el-color-primary);
+    font-weight: 600;
+}
+
+/* 选中日期样式 */
+:deep(.el-calendar-table td.is-selected) {
+    background-color: var(--el-color-primary-light-9);
+}
+
+/* 日历按钮组样式 */
+:deep(.el-calendar__button-group) {
+    padding-left: 20px;
+}
+
+:deep(.el-calendar__button-group .el-button-group .el-button) {
+    border-radius: 4px;
+    margin-right: 8px;
 }
 
 .records-table {

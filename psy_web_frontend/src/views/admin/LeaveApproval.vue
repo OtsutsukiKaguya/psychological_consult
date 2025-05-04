@@ -24,11 +24,11 @@
                     </el-table-column>
                     <el-table-column label="操作" width="200">
                         <template #default="scope">
-                            <el-button v-if="scope.row.status === 'PENDING'" type="primary" size="small"
+                            <el-button v-if="!scope.row.isAgree" type="primary" size="small"
                                 @click="handleApprove(scope.row)">
                                 批准
                             </el-button>
-                            <el-button v-if="scope.row.status === 'PENDING'" type="danger" size="small"
+                            <el-button v-if="!scope.row.isAgree" type="danger" size="small"
                                 @click="handleReject(scope.row)">
                                 拒绝
                             </el-button>
@@ -69,9 +69,10 @@ const fetchLeaveList = async () => {
                 applicant: item.staffId,
                 role: item.role,
                 startDate: item.dutyDate,
-                endDate: item.dutyDate, // 由于接口只返回单个日期，这里暂时用相同日期
+                endDate: item.dutyDate,
                 reason: item.leaveReason,
-                status: item.isAgree ? 'APPROVED' : 'PENDING'
+                status: item.isAgree ? 'APPROVED' : 'PENDING',
+                isAgree: item.isAgree
             }))
             console.log('处理后的数据:', leaveList.value)
         }

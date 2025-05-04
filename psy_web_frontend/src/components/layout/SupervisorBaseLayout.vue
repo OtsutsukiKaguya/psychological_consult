@@ -89,8 +89,8 @@ const handleLogout = () => {
 // 菜单配置
 const menuItems = [
     { icon: 'House', label: '首页', path: '/supervisor/dashboard' },
-    { icon: 'Document', label: '会话记录', path: '/supervisor/Records' },
-    { icon: 'Share', label: '树洞', path: '/consultant/tree-hole' },
+    { icon: 'Document', label: '会话记录', path: '/supervisor/records' },
+    { icon: 'Share', label: '树洞', path: '/supervisor/tree-hole' },
     { icon: Bell, label: '通知', path: '/supervisor/notification' }
 ]
 
@@ -102,10 +102,9 @@ const userInfo = {
 }
 
 // 会话列表
-const conversations = [
-    { id: 1, name: '张先生', avatar: '', unread: 0 },
-    { id: 2, name: '周小姐', avatar: '', unread: 6 }
-]
+const conversations = ref([
+    { id: 1, name: '张先生', avatar: '', unread: 0 }
+])
 
 // 当前激活的会话ID
 const activeConversationId = ref(null)
@@ -113,25 +112,46 @@ const activeConversationId = ref(null)
 // 处理会话点击
 const handleConversationClick = (conversation) => {
     activeConversationId.value = conversation.id
-    router.push(`/consultant/chat/${conversation.id}`)
+    localStorage.setItem('activeConversationId', conversation.id)
+    router.push(`/supervisor/chat/${conversation.id}`)
 }
 
 // 在 setup 中添加监听路由变化
 const updateActiveConversation = () => {
     const chatId = route.params.id
-    if (route.path.includes('/consultant/chat/') && chatId) {
+    if (route.path.includes('/supervisor/chat/') && chatId) {
         activeConversationId.value = Number(chatId)
+    } else {
+        activeConversationId.value = null
     }
 }
 
 // 监听路由变化
 onMounted(() => {
+    // 从localStorage加载会话列表
+    const savedConversations = localStorage.getItem('supervisor_conversations')
+    if (savedConversations) {
+        conversations.value = JSON.parse(savedConversations)
+    }
     updateActiveConversation()
 })
 
 watch(() => route.params.id, () => {
     updateActiveConversation()
 })
+
+// 添加会话的方法
+function addConversation(conversation) {
+    if (!conversations.value.find(c => c.id === conversation.id)) {
+        conversations.value.push(conversation)
+        localStorage.setItem('supervisor_conversations', JSON.stringify(conversations.value))
+    }
+    activeConversationId.value = conversation.id
+    localStorage.setItem('activeConversationId', conversation.id)
+}
+
+// 暴露方法给父组件
+defineExpose({ addConversation })
 
 // 菜单点击处理
 const handleMenuClick = (path) => {

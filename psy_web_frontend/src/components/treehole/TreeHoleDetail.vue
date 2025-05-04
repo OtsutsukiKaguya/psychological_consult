@@ -207,12 +207,13 @@ const handleSendReply = async () => {
 const fetchPostDetails = async () => {
     try {
         const response = await axios.get(API.TREE_HOLE.GET_POST_DETAIL(postId))
-        if (response.data.code === 0 && Array.isArray(response.data.data)) {
-            const post = response.data.data[0] // 从数组中提取第一个元素
+        console.log('帖子详情接口返回数据:', response.data)
+        if (response.data.code === 0 && response.data.data) {
+            const post = response.data.data
             postTitle.value = post.postTitle
             postContent.value = post.postContent
             postTime.value = post.postTime
-            personId.value = post.personId
+            personId.value = post.userInfo?.id || ''
         } else {
             ElMessage.error('获取帖子详情失败')
         }
@@ -229,6 +230,9 @@ const fetchReplies = async () => {
         const response = await axios.get(API.TREE_HOLE.GET_POST_REPLIES(postId))
         if (response.data.code === 0) {
             replies.value = response.data.data
+        } else if (response.data.code === -1 && response.data.message === '暂无回复') {
+            replies.value = []
+            // 不弹出错误提示
         } else {
             ElMessage.error('获取回复列表失败')
         }

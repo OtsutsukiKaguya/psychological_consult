@@ -1,6 +1,5 @@
-# 创建聊天页面
 <template>
-    <ConsultantBaseLayout>
+    <SupervisorBaseLayout>
         <div class="chat-layout" v-if="chatInfo">
             <!-- 左侧栏：咨询信息 -->
             <div class="left-panel">
@@ -18,108 +17,78 @@
                     <h3>{{ consultationTime }}</h3>
                 </div>
                 <div class="actions">
-                    <button @click="requestSupervisor">请求督导</button>
                     <button @click="endConsultation">结束咨询</button>
                 </div>
             </div>
 
-            <!-- 中间栏：咨询师与用户聊天 -->
+            <!-- 中间栏：用户与咨询师聊天记录（只读） -->
             <div class="center-panel">
-                <div class="chat-box" ref="chatBoxRef">
-                    <div v-for="(message, index) in messages" :key="index" :class="['message', message.type]">
-                        <template v-if="message.type === 'user'">
-                            <img src="@/assets/avatar.png" :alt="`${message.type}头像`" class="avatar" />
-                            <div class="bubble user-bubble">
-                                {{ message.content }}
-                            </div>
+                <div class="chat-box" ref="userConsultantChatBoxRef">
+                    <div v-for="(message, index) in userConsultantMessages" :key="index"
+                        :class="['message', message.senderId === 'nbnb' ? 'user' : 'consultant']">
+                        <template v-if="message.senderId === 'nbnb'">
+                            <img src="@/assets/avatar.png" alt="用户头像" class="avatar" />
+                            <div class="bubble user-bubble">{{ message.content }}</div>
                         </template>
-                        <template v-else>
-                            <div class="bubble consultant-bubble">
-                                {{ message.content }}
-                            </div>
-                            <img src="@/assets/avatar.png" :alt="`${message.type}头像`" class="avatar" />
+                        <template v-else-if="message.senderId === 'zyqzxs'">
+                            <div class="bubble consultant-bubble">{{ message.content }}</div>
+                            <img src="@/assets/avatar.png" alt="咨询师头像" class="avatar" />
                         </template>
                     </div>
                 </div>
-                <div class="input-area">
-                    <div class="toolbar toolbar-align" style="position:relative;">
-                        <img src="@/assets/chat/icon_microphone.png" alt="Mic" @click="handleVoice" />
-                        <img src="@/assets/chat/icon-photo.png" alt="Image" @click="handleImage" />
-                        <div style="display:inline-block;position:relative;">
-                            <img src="@/assets/chat/icon-emoji.png" alt="Emoji" @click="handleEmoji" class="emoji-icon"
-                                ref="emojiIconRef" />
-                        </div>
-                        <img src="@/assets/chat/Phone.png" alt="Phone" @click="handleCall" />
-                    </div>
-                    <textarea v-model="inputMessage" placeholder="输入消息..." @keyup.enter="sendMessage"></textarea>
-                    <button class="send-button" @click="sendMessage">发送</button>
-                </div>
-                <!-- fixed全局表情面板 -->
-                <transition name="fade">
-                    <div v-if="showEmojiPanel" class="emoji-panel-fixed" :style="emojiPanelStyle" ref="emojiPanelRef">
-                        <div class="emoji-arrow-fixed"></div>
-                        <div class="emoji-list">
-                            <span v-for="emoji in emojiList" :key="emoji" class="emoji-item"
-                                @click="insertEmoji(emoji)">{{ emoji
-                                }}</span>
-                        </div>
-                    </div>
-                </transition>
             </div>
 
-            <!-- 右侧栏：咨询师与督导聊天 -->
+            <!-- 右侧栏：督导与咨询师聊天 -->
             <div class="right-panel">
                 <div class="supervisor-header">
-                    <img src="@/assets/avatar.png" alt="督导头像" class="avatar" />
-                    <h3>督导</h3>
+                    <img src="@/assets/avatar.png" alt="咨询师头像" class="avatar" />
+                    <h3>咨询师</h3>
                 </div>
-                <div class="chat-box supervisor-chat-box" ref="supervisorChatBoxRef">
-                    <div v-for="(message, index) in tutorMessages" :key="index" :class="['message', message.type]">
-                        <template v-if="message.type === 'supervisor'">
+                <div class="chat-box supervisor-chat-box" ref="supervisorConsultantChatBoxRef">
+                    <div v-for="(message, index) in supervisorConsultantMessages" :key="index"
+                        :class="['message', message.isSelf ? 'supervisor' : 'consultant']">
+                        <template v-if="message.isSelf">
+                            <div class="bubble supervisor-bubble">{{ message.content }}</div>
                             <img src="@/assets/avatar.png" alt="督导头像" class="avatar" />
-                            <div class="bubble supervisor-bubble">
-                                {{ message.content }}
-                            </div>
                         </template>
                         <template v-else>
-                            <div class="bubble consultant-bubble">
-                                {{ message.content }}
-                            </div>
                             <img src="@/assets/avatar.png" alt="咨询师头像" class="avatar" />
+                            <div class="bubble consultant-bubble">{{ message.content }}</div>
                         </template>
                     </div>
                 </div>
                 <div class="input-area supervisor-input-area">
                     <div class="toolbar toolbar-align" style="position:relative;">
-                        <img src="@/assets/chat/icon_microphone.png" alt="Mic" @click="handleSupervisorVoice" />
-                        <img src="@/assets/chat/icon-photo.png" alt="Image" @click="handleSupervisorImage" />
+                        <img src="@/assets/chat/icon_microphone.png" alt="Mic" @click="handleUserVoice" />
+                        <img src="@/assets/chat/icon-photo.png" alt="Image" @click="handleUserImage" />
                         <div style="display:inline-block;position:relative;">
-                            <img src="@/assets/chat/icon-emoji.png" alt="Emoji" @click="handleSupervisorEmoji"
-                                class="emoji-icon" ref="supervisorEmojiIconRef" />
+                            <img src="@/assets/chat/icon-emoji.png" alt="Emoji" @click="handleUserEmoji"
+                                class="emoji-icon" ref="userEmojiIconRef" />
                         </div>
                     </div>
-                    <textarea v-model="supervisorInputMessage" placeholder="输入消息..."
-                        @keyup.enter="sendSupervisorMessage"></textarea>
-                    <button class="send-button" @click="sendSupervisorMessage">发送</button>
+                    <textarea v-model="userInputMessage" placeholder="输入消息..."
+                        @keyup.enter="sendUserMessage"></textarea>
+                    <button class="send-button" @click="sendUserMessage">发送</button>
                     <!-- fixed全局表情面板 for 右侧 -->
                     <transition name="fade">
-                        <div v-if="showSupervisorEmojiPanel" class="emoji-panel-fixed"
-                            :style="supervisorEmojiPanelStyle" ref="supervisorEmojiPanelRef">
+                        <div v-if="showUserEmojiPanel" class="emoji-panel-fixed" :style="userEmojiPanelStyle"
+                            ref="userEmojiPanelRef">
                             <div class="emoji-arrow-fixed"></div>
                             <div class="emoji-list">
                                 <span v-for="emoji in emojiList" :key="emoji" class="emoji-item"
-                                    @click="insertSupervisorEmoji(emoji)">{{ emoji }}</span>
+                                    @click="insertUserEmoji(emoji)">{{
+                                        emoji }}</span>
                             </div>
                         </div>
                     </transition>
                 </div>
             </div>
         </div>
-    </ConsultantBaseLayout>
+    </SupervisorBaseLayout>
 </template>
 
 <script setup>
-import ConsultantBaseLayout from '@/components/layout/ConsultantBaseLayout.vue'
+import SupervisorBaseLayout from '@/components/layout/SupervisorBaseLayout.vue'
 import { ref, onMounted, nextTick, watch, onUnmounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -127,18 +96,13 @@ import { API } from '@/config'
 
 const route = useRoute()
 const chatInfo = ref(null)
-const messages = ref([])
-const tutorMessages = ref([])
+const userConsultantMessages = ref([])
+const supervisorConsultantMessages = ref([])
 const inputMessage = ref('')
-const supervisorInputMessage = ref('')
+const userInputMessage = ref('')
 
 // 获取当前用户token
 const TOKEN = localStorage.getItem('token') || ''
-// 动态获取SESSION_ID
-const SESSION_ID = computed(() => {
-    const chatId = route.params.id
-    return localStorage.getItem(`sessionId-${chatId}`) || ''
-})
 
 // WebSocket相关
 const stompClient = ref(null)
@@ -188,7 +152,8 @@ const handleEmoji = (event) => {
 const saveStateToStorage = () => {
     if (!chatInfo.value) return
     const chatState = {
-        messages: messages.value,
+        userConsultantMessages: userConsultantMessages.value,
+        supervisorConsultantMessages: supervisorConsultantMessages.value,
         startTime: startTime.value ? startTime.value.getTime() : null,
         consultationTime: consultationTime.value
     }
@@ -201,13 +166,15 @@ const loadStateFromStorage = () => {
     const savedState = localStorage.getItem(`chat-timer-${chatInfo.value.id}`)
     if (savedState) {
         const state = JSON.parse(savedState)
-        messages.value = state.messages
+        userConsultantMessages.value = state.userConsultantMessages
+        supervisorConsultantMessages.value = state.supervisorConsultantMessages
         if (state.startTime) {
             startTime.value = new Date(state.startTime)
             consultationTime.value = state.consultationTime
         }
     } else {
-        messages.value = []
+        userConsultantMessages.value = []
+        supervisorConsultantMessages.value = []
         consultationTime.value = '00:00:00'
         startTime.value = null
     }
@@ -216,27 +183,28 @@ const loadStateFromStorage = () => {
 // 清除localStorage中的聊天状态
 const clearChatState = () => {
     localStorage.removeItem('chatState')
-    messages.value = []
+    userConsultantMessages.value = []
+    supervisorConsultantMessages.value = []
     consultationTime.value = '00:00:00'
     startTime.value = null
 }
 
 // 聊天框ref
-const chatBoxRef = ref(null)
-const supervisorChatBoxRef = ref(null)
+const userConsultantChatBoxRef = ref(null)
+const supervisorConsultantChatBoxRef = ref(null)
 
 // 滚动到底部
 const scrollToBottom = () => {
     nextTick(() => {
-        if (chatBoxRef.value) {
-            chatBoxRef.value.scrollTop = chatBoxRef.value.scrollHeight
+        if (userConsultantChatBoxRef.value) {
+            userConsultantChatBoxRef.value.scrollTop = userConsultantChatBoxRef.value.scrollHeight
         }
     })
 }
 const scrollSupervisorToBottom = () => {
     nextTick(() => {
-        if (supervisorChatBoxRef.value) {
-            supervisorChatBoxRef.value.scrollTop = supervisorChatBoxRef.value.scrollHeight
+        if (supervisorConsultantChatBoxRef.value) {
+            supervisorConsultantChatBoxRef.value.scrollTop = supervisorConsultantChatBoxRef.value.scrollHeight
         }
     })
 }
@@ -266,6 +234,10 @@ const stopTimer = () => {
     }
 }
 
+// 硬编码sessionId
+const USER_CONSULTANT_SESSION_ID = 'a48c7023-f115-49fd-a551-8756ef2cfea6'
+const SUPERVISOR_CONSULTANT_SESSION_ID = '96e57a6e-b15a-4227-8530-61994f7c4e63'
+
 // 连接WebSocket
 const connectWebSocket = () => {
     const socket = new window.SockJS('http://47.117.102.116:8081/ws')
@@ -278,20 +250,17 @@ const connectWebSocket = () => {
         console.log('✅ STOMP连接成功', frame)
         connected.value = true
         stompClient.value.subscribe('/user/queue/messages', message => {
-            console.log('📩 收到推送：', message.body)
             const receivedMessage = JSON.parse(message.body)
-            // 判断sessionId归属
-            if (receivedMessage.sessionId === SESSION_ID.value) {
-                messages.value.push({
-                    type: 'user',
-                    content: receivedMessage.content
-                })
+            console.log('收到消息:', receivedMessage)
+            // 中间栏：用户与咨询师
+            if (receivedMessage.sessionId === USER_CONSULTANT_SESSION_ID) {
+                userConsultantMessages.value.push(receivedMessage)
                 scrollToBottom()
-            } else {
-                tutorMessages.value.push({
-                    type: 'supervisor',
-                    content: receivedMessage.content
-                })
+            }
+            // 右侧栏：督导与咨询师
+            if (receivedMessage.sessionId === SUPERVISOR_CONSULTANT_SESSION_ID) {
+                // 判断是否自己发的（假设本地没有id，所有本地发的isSelf: true）
+                supervisorConsultantMessages.value.push({ ...receivedMessage, isSelf: false })
                 scrollSupervisorToBottom()
             }
         })
@@ -302,17 +271,15 @@ const connectWebSocket = () => {
     })
 }
 
-// 发送消息
-const sendMessage = () => {
-    if (!inputMessage.value.trim()) return
-
+// 发送右侧栏消息（督导与咨询师）
+const sendUserMessage = () => {
+    if (!userInputMessage.value.trim()) return
     const messagePayload = {
-        content: inputMessage.value,
-        type: "TEXT",
+        content: userInputMessage.value,
+        type: 'TEXT',
         fileId: 0
     }
-
-    fetch(`${API.MESSAGES.SESSION}/${SESSION_ID.value}`, {
+    fetch(`${API.MESSAGES.SESSION}/${SUPERVISOR_CONSULTANT_SESSION_ID}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -327,35 +294,19 @@ const sendMessage = () => {
             return response.json()
         })
         .then(() => {
-            // 发送成功，添加到消息列表
-            messages.value.push({
-                type: 'consultant',
-                content: inputMessage.value
+            supervisorConsultantMessages.value.push({
+                content: userInputMessage.value,
+                type: 'supervisor',
+                isSelf: true
             })
-            inputMessage.value = ''
-            scrollToBottom()
-            saveStateToStorage() // 保存新的消息状态
+            userInputMessage.value = ''
+            scrollSupervisorToBottom()
+            saveStateToStorage()
         })
         .catch(error => {
             console.error('发送消息失败:', error)
             ElMessage.error('发送消息失败')
         })
-}
-
-// 发送督导消息
-const sendSupervisorMessage = () => {
-    if (!supervisorInputMessage.value.trim()) return
-    tutorMessages.value.push({
-        type: 'supervisor',
-        content: supervisorInputMessage.value
-    })
-    supervisorInputMessage.value = ''
-    scrollSupervisorToBottom()
-}
-
-// 请求督导
-const requestSupervisor = () => {
-    ElMessage.success('已发送督导请求')
 }
 
 // 结束咨询
@@ -389,32 +340,31 @@ const endConsultation = () => {
 // 工具栏功能
 const handleVoice = () => ElMessage.info('语音功能开发中')
 const handleImage = () => ElMessage.info('图片功能开发中')
-const handleCall = () => ElMessage.info('通话功能开发中')
-const handleSupervisorVoice = () => ElMessage.info('督导语音功能开发中')
-const handleSupervisorImage = () => ElMessage.info('督导图片功能开发中')
+const handleUserVoice = () => ElMessage.info('用户语音功能开发中')
+const handleUserImage = () => ElMessage.info('用户图片功能开发中')
 
 // 右侧emoji面板相关
-const showSupervisorEmojiPanel = ref(false)
-const supervisorEmojiPanelRef = ref(null)
-const supervisorEmojiIconRef = ref(null)
-const supervisorEmojiPanelStyle = ref({ left: '0px', top: '0px' })
+const showUserEmojiPanel = ref(false)
+const userEmojiPanelRef = ref(null)
+const userEmojiIconRef = ref(null)
+const userEmojiPanelStyle = ref({ left: '0px', top: '0px' })
 
-const handleSupervisorEmoji = () => {
-    showSupervisorEmojiPanel.value = !showSupervisorEmojiPanel.value
+const handleUserEmoji = () => {
+    showUserEmojiPanel.value = !showUserEmojiPanel.value
     nextTick(() => {
         // 让输入框保持焦点
         const textarea = document.querySelector('.supervisor-input-area textarea')
         if (textarea) textarea.focus()
         // 定位emoji面板
-        if (showSupervisorEmojiPanel.value) {
-            const icon = supervisorEmojiIconRef.value
-            const panel = supervisorEmojiPanelRef.value
+        if (showUserEmojiPanel.value) {
+            const icon = userEmojiIconRef.value
+            const panel = userEmojiPanelRef.value
             if (icon && panel) {
                 const rect = icon.getBoundingClientRect()
                 const panelRect = panel.getBoundingClientRect()
                 const left = rect.left + rect.width / 2 - panelRect.width / 2
                 const top = rect.top - panelRect.height - 12
-                supervisorEmojiPanelStyle.value = {
+                userEmojiPanelStyle.value = {
                     left: `${Math.max(left, 8)}px`,
                     top: `${Math.max(top, 8)}px`
                 }
@@ -423,17 +373,17 @@ const handleSupervisorEmoji = () => {
     })
 }
 
-const insertSupervisorEmoji = (emoji) => {
+const insertUserEmoji = (emoji) => {
     const textarea = document.querySelector('.supervisor-input-area textarea')
     if (!textarea) return
     const start = textarea.selectionStart
     const end = textarea.selectionEnd
-    const value = supervisorInputMessage.value
-    supervisorInputMessage.value = value.slice(0, start) + emoji + value.slice(end)
+    const value = userInputMessage.value
+    userInputMessage.value = value.slice(0, start) + emoji + value.slice(end)
     nextTick(() => {
         textarea.focus()
         textarea.selectionStart = textarea.selectionEnd = start + emoji.length
-        showSupervisorEmojiPanel.value = false
+        showUserEmojiPanel.value = false
     })
 }
 
@@ -454,18 +404,18 @@ const handleClickOutsideEmoji = (e) => {
 }
 
 // 监听空白关闭右侧emoji面板
-watch(showSupervisorEmojiPanel, (val) => {
+watch(showUserEmojiPanel, (val) => {
     if (val) {
-        document.addEventListener('mousedown', handleClickOutsideSupervisorEmoji)
+        document.addEventListener('mousedown', handleClickOutsideUserEmoji)
     } else {
-        document.removeEventListener('mousedown', handleClickOutsideSupervisorEmoji)
+        document.removeEventListener('mousedown', handleClickOutsideUserEmoji)
     }
 })
-const handleClickOutsideSupervisorEmoji = (e) => {
-    const panel = supervisorEmojiPanelRef.value
-    const icon = supervisorEmojiIconRef.value
+const handleClickOutsideUserEmoji = (e) => {
+    const panel = userEmojiPanelRef.value
+    const icon = userEmojiIconRef.value
     if (panel && !panel.contains(e.target) && icon && !icon.contains(e.target)) {
-        showSupervisorEmojiPanel.value = false
+        showUserEmojiPanel.value = false
     }
 }
 
@@ -497,24 +447,21 @@ const initChat = async () => {
 
 onMounted(() => {
     initChat()
-    if (SESSION_ID.value) {
+    if (USER_CONSULTANT_SESSION_ID && SUPERVISOR_CONSULTANT_SESSION_ID) {
         connectWebSocket()
     } else {
         ElMessage.warning('请先从预约页面开始咨询')
-        // 跳转回预约页面
-        setTimeout(() => {
-            window.location.href = '/consultant/schedule'
-        }, 1200)
     }
 })
 
-watch(messages, () => {
+watch(userConsultantMessages, () => {
     scrollToBottom()
     saveStateToStorage()
 }, { deep: true })
-watch(tutorMessages, () => {
+watch(supervisorConsultantMessages, () => {
     scrollSupervisorToBottom()
-})
+    saveStateToStorage()
+}, { deep: true })
 
 watch(() => route.params.id, () => {
     stopTimer()
@@ -529,7 +476,7 @@ onUnmounted(() => {
     stopTimer()
     saveStateToStorage() // 保存最终状态
     document.removeEventListener('mousedown', handleClickOutsideEmoji)
-    document.removeEventListener('mousedown', handleClickOutsideSupervisorEmoji)
+    document.removeEventListener('mousedown', handleClickOutsideUserEmoji)
 })
 
 const insertEmoji = (emoji) => {
@@ -685,6 +632,11 @@ const insertEmoji = (emoji) => {
     color: #333;
 }
 
+.supervisor-bubble {
+    background-color: #5060c5;
+    color: #fff;
+}
+
 .input-area {
     border-top: 1px solid #e0e0e0;
     background-color: #fff;
@@ -823,24 +775,24 @@ const insertEmoji = (emoji) => {
 
 /* Message styling within supervisor chat */
 .supervisor-chat-box .message.supervisor {
-    align-self: flex-start;
+    align-self: flex-end;
+    flex-direction: row-reverse;
 }
 
 .supervisor-chat-box .message.consultant {
-    align-self: flex-end;
+    align-self: flex-start;
     flex-direction: row;
-    /* Avatar on the right, bubble on the left */
 }
 
 .supervisor-chat-box .supervisor-bubble {
-    background-color: #fff;
-    border: 1px solid #e0e0e0;
-    color: #333;
-}
-
-.supervisor-chat-box .consultant-bubble-right {
     background-color: #19c490;
     color: #fff;
+}
+
+.supervisor-chat-box .consultant-bubble {
+    background-color: #fff;
+    color: #333;
+    border: 1px solid #e0e0e0;
 }
 
 .supervisor-input-area {

@@ -34,7 +34,8 @@ export const API = {
     },
     // 用户管理相关接口
     USER: {
-        SEARCH: `${BASE_URL}/api/user/search`
+        SEARCH: `${BASE_URL}/api/user/search`,
+        SEARCH_PERSON: (id) => `${BASE_URL}/api/search/person/${id}`
     },
     // 督导管理相关接口
     TUTOR: {
@@ -48,13 +49,27 @@ export const API = {
         GET_BY_DATE: (date) => `${BASE_URL}/api/duty/getdutybydate/${date}`,
         GET_BY_ID: (id) => `${BASE_URL}/api/duty/getdutybyid/${id}`,
         ADD: `${BASE_URL}/api/duty/add`,
-        REMOVE: `${BASE_URL}/api/duty/remove`
+        REMOVE: `${BASE_URL}/api/duty/remove`,
+        ADD_DUTY: `${BASE_URL}/api/duty/addduty`,
+        GENERATE: (start, end, perDay) => `${BASE_URL}/api/generate?start=${start}&end=${end}&perDay=${perDay}`
     },
     LEAVE: {
         SHOW_LEAVE: `${BASE_URL}/api/leave/showleave`,
-        ADD_LEAVE_AGREE: `${BASE_URL}/api/leave/addleaveagree`
+        ADD_LEAVE_AGREE: `${BASE_URL}/api/leave/addleaveagree`,
+        SHOW_LEAVE_BY_ID: (staffId) => `${BASE_URL}/api/leave/showleavebyid/${staffId}`
     },
     MESSAGES: {
         SESSION: `${CHAT_BASE_URL}/api/messages/session`
+    },
+    // 新增：会话token相关接口
+    CHAT: {
+        SET_CURRENT_USER: `${CHAT_BASE_URL}/api/users/setCurrentUser`
+    },
+    STATISTICS: {
+        ONLINE_STATUS: `${CHAT_BASE_URL}/api/statistics/online-status`,
+        CONSULTATION_RANKING: `${CHAT_BASE_URL}/api/statistics/consultation-ranking`
+    },
+    SESSIONS: {
+        CREATE: `${CHAT_BASE_URL}/api/sessions`
     }
 }; 
