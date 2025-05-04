@@ -13,19 +13,24 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URLEncoder;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 
 import com.example.demo.DTO.ChatRecordDTO;
 import com.example.demo.DTO.ChatSessionWithParticipantsDTO;
+import com.example.demo.DTO.SessionRecordDTO;
+import com.example.demo.DTO.SimpleUserDTO;
 import com.example.demo.common.Result;
 import com.example.demo.models.ChatMessage;
 import com.example.demo.models.ChatSession;
 import com.example.demo.models.SessionParticipant;
 import com.example.demo.models.User;
 import com.example.demo.repositories.ChatMessageRepository;
+import com.example.demo.repositories.SessionParticipantRepository;
 import com.example.demo.service.ChatExportService;
 import com.example.demo.service.ChatMessageService;
 import com.example.demo.service.ChatSessionService;
@@ -77,6 +82,9 @@ public class SessionController {
 
     @Autowired
     private ChatExportService chatExportService;
+
+    @Autowired
+    private SessionParticipantRepository sessionParticipantRepository;
 
     @Data
     public static class EndSessionRequest {
@@ -458,17 +466,74 @@ public class SessionController {
      * 获取所有会话
      * 仅管理员可访问
      */
+//    @GetMapping
+//    @PreAuthorize("hasRole('ROLE_ADMIN')")
+//    public ResponseEntity<?> getAllSessions() {
+//        try {
+//            List<ChatSession> sessions = chatSessionService.findAllByOrderByUpdatedAtDesc();
+//            return ResponseEntity.ok(sessions);
+//        } catch (Exception e) {
+//            log.error("Failed to get all sessions", e);
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to get all sessions: " + e.getMessage());
+//        }
+//    }
+
     @GetMapping
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<?> getAllSessions() {
         try {
-            List<ChatSession> sessions = chatSessionService.findAllByOrderByUpdatedAtDesc();;
-            return ResponseEntity.ok(sessions);
+            List<ChatSession> sessions = chatSessionService.findAllByOrderByUpdatedAtDesc();
+            List<SessionRecordDTO> result = new ArrayList<>();
+
+            for (ChatSession session : sessions) {
+                String visitorName = "";
+                SimpleUserDTO counselorDTO = null;
+                SimpleUserDTO supervisorDTO = null;
+
+                List<SessionParticipant> participants = sessionParticipantRepository.findBySessionId(session.getId());
+                for (SessionParticipant p : participants) {
+                    User user = p.getUser();
+                    if (user == null) continue;
+
+                    switch (p.getRole()) {
+                        case USER -> visitorName = user.getName();
+                        case COUNSELOR -> counselorDTO = new SimpleUserDTO(user.getId(), user.getName());
+                        case TUTOR -> supervisorDTO = new SimpleUserDTO(user.getId(), user.getName());
+                    }
+                }
+
+                String duration = "00:00:00";
+                if (session.getCreatedAt() != null && session.getEndedAt() != null) {
+                    long seconds = Duration.between(session.getCreatedAt(), session.getEndedAt()).getSeconds();
+                    duration = String.format("%02d:%02d:%02d", seconds / 3600, (seconds % 3600) / 60, seconds % 60);
+                }
+
+                String date = session.getUpdatedAt() != null
+                        ? session.getUpdatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                        : "";
+
+                SessionRecordDTO dto = new SessionRecordDTO();
+                dto.setVisitorName(visitorName);
+                dto.setDate(date);
+                dto.setDuration(duration);
+                dto.setRating(session.getRating());
+                dto.setUserComment(session.getUserComment());
+                dto.setCounselorComment(session.getCounselorComment());
+                dto.setTutorComment(session.getTutorComment());
+                dto.setCounselor(counselorDTO);
+                dto.setSupervisor(supervisorDTO);
+
+                result.add(dto);
+            }
+
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
-            log.error("Failed to get all sessions", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to get all sessions: " + e.getMessage());
+            log.error("❌ 获取会话列表失败", e);
+            return ResponseEntity.internalServerError().body("获取失败: " + e.getMessage());
         }
     }
+
+
 
     /**
      * 获取当前用户的会话
