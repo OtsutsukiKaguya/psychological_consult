@@ -110,4 +110,12 @@ public interface BackstageArrangementMapper {
             "</script>"
     })
     int batchInsertDuties(@Param("records") List<Duty_calendar> records);
+
+    /** ① 取出所有 “咨询师 → 督导” 绑定 */
+    @Select("SELECT counselor_id, tutor_id FROM bind")
+    @Results({
+            @Result(column="counselor_id", property="counselorId"),
+            @Result(column="tutor_id",     property="tutorId")
+    })
+    List<Bind> findAllBinds();
 }

@@ -72,6 +72,9 @@ public interface  InformationMapper {
     @Select("SELECT SUM(cs.ended_at-cs.created_at) FROM chat_sessions cs join session_participants sp on cs.id=sp.session_id WHERE sp.user_id=#{id} and sp.role='COUNSELOR' and sp.joined_at LIKE CONCAT('%', #{date}, '%')")
     public Long counselorHomePage4(String id, String date);
 
-    @Select("SELECT COUNT(*) FROM chat_sessions cs join session_participants sp on cs.id=sp.session_id WHERE sp.user_id=#{id} and sp.role='COUNSELOR' and cs.ended=0")
+    @Select("SELECT COUNT(*) FROM chat_sessions cs join session_participants sp on cs.id=sp.session_id WHERE sp.user_id=#{id} and sp.role='COUNSELOR' and (cs.ended IS NULL OR cs.ended != 1)")
     public int counselorHomePage5(String id);
+
+    @Select("SELECT COUNT(*) FROM chat_sessions WHERE ended IS NULL OR ended != 1")
+    int countOngoingSessions();
 }

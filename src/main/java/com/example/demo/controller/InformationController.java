@@ -389,4 +389,21 @@ public class InformationController {
             return Result.error("An error occurred while retrieving counselor homepage data");
         }
     }
+
+    @GetMapping("/admin/ongoing/count")
+    public Result getOngoingSessionCount() {
+        try {
+            // 查询未结束的会话数量
+            int count = informationMapper.countOngoingSessions();
+
+            // 日志记录
+            logger.info("当前正在进行的会话数量为: {}", count);
+
+            return Result.success(count);
+        } catch (Exception e) {
+            logger.error("查询正在进行的会话数量时发生异常", e);
+            return Result.error("查询进行中会话数量失败");
+        }
+    }
+
 }
