@@ -368,6 +368,7 @@ public class ChatMessageController {
             messageData.put("sessionId", message.getSession().getId());
             messageData.put("senderId", message.getSender().getId());
             messageData.put("senderName", sender.getName());
+            messageData.put("senderType", sender.getRole().name()); // 👈 添加角色字段
             messageData.put("content", message.getContent());
             messageData.put("type", message.getType().name());
             messageData.put("sentAt", message.getSentAt().toString());

@@ -780,40 +780,67 @@ public class SessionController {
         }
     }
 
-
-    /**
-     * 获取会话参与者
-     */
-    @GetMapping("/{id}/participants")
-    public ResponseEntity<?> getSessionParticipants(@PathVariable String id) {
+    @PostMapping("/supervisor/with-group")
+    public ResponseEntity<?> createSupervisorAndJoinGroupSession(@Valid @RequestBody SupervisorJoinRequest request) {
         try {
-            // 获取当前用户
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             User currentUser = userService.findById(authentication.getName());
+
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
             }
 
-            // 获取会话
-            ChatSession session = chatSessionService.findById(id);
-            if (session == null) {
-                return ResponseEntity.notFound().build();
+            if (currentUser.getRole() != User.UserRole.COUNSELOR) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("只有咨询师可以发起该操作");
             }
 
-            // 检查用户是否是会话的参与者，或者是管理员
-            if (!chatSessionService.isSessionParticipant(id, currentUser.getId()) &&
-                    currentUser.getRole() != User.UserRole.ADMIN) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized to access this session");
+            // ✅ 获取督导信息
+            User supervisor = userService.findById(request.getSupervisorId());
+            if (supervisor == null || supervisor.getRole() != User.UserRole.TUTOR) {
+                return ResponseEntity.badRequest().body("无效的督导ID或角色");
             }
 
-            // 获取参与者
-            List<User> participants = chatSessionService.getSessionParticipants(id);
-            return ResponseEntity.ok(participants);
+            // ✅ 创建一对一会话（咨询师-督导）
+            String privateSessionId = UUID.randomUUID().toString();
+            ChatSession privateSession = ChatSession.builder()
+                    .id(privateSessionId)
+                    .type(ChatSession.SessionType.ONE_TO_ONE)
+                    .consultId(request.getConsultId())
+                    .build();
+            chatSessionService.createSession(privateSession);
+
+            chatSessionService.addParticipant(privateSessionId, currentUser.getId(), determineRole(currentUser));
+            chatSessionService.addParticipant(privateSessionId, supervisor.getId(), determineRole(supervisor));
+
+            sendSessionInvitation(supervisor, privateSession, currentUser);
+
+            // ✅ 拉督导入群聊（必须传 groupSessionId）
+            String groupSessionId = request.getGroupSessionId();
+            ChatSession groupSession = chatSessionService.findById(groupSessionId);
+            if (groupSession == null) {
+                return ResponseEntity.badRequest().body("群聊会话不存在");
+            }
+
+            if (!chatSessionService.isSessionParticipant(groupSessionId, supervisor.getId())) {
+                chatSessionService.addParticipant(groupSessionId, supervisor.getId(), determineRole(supervisor));
+                notifyParticipantsAdded(groupSession, List.of(supervisor.getId()), currentUser);
+            }
+
+            // ✅ 返回信息
+            Map<String, Object> response = new HashMap<>();
+            response.put("sessionId", privateSessionId);
+            response.put("userId", supervisor.getId());
+            response.put("userName", supervisor.getName());
+            response.put("consultantId", currentUser.getId());
+            response.put("consultantName", currentUser.getName());
+
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Failed to get session participants: {}", id, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to get session participants: " + e.getMessage());
+            log.error("创建督导会话并加入群聊失败", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("操作失败：" + e.getMessage());
         }
     }
+
 
     /**
      * 添加参与者到会话
@@ -1181,4 +1208,17 @@ public class SessionController {
         @NotNull
         private List<String> participantIds;
     }
+
+    @Data
+    public static class SupervisorJoinRequest {
+        @NotBlank
+        private String consultId;
+
+        @NotBlank
+        private String supervisorId;
+
+        @NotBlank
+        private String groupSessionId;
+    }
+
 }
