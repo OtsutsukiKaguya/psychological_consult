@@ -1,8 +1,11 @@
 <!-- 咨询记录页面 -->
 <script setup>
 import ConsultantBaseLayout from '@/components/layout/ConsultantBaseLayout.vue'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
+import { API, CHAT_BASE_URL } from '@/config'
+import { ElMessageBox, ElMessage } from 'element-plus'
 
 const router = useRouter()
 
@@ -12,9 +15,16 @@ const pageSize = ref(10)
 
 // 计算当前页的数据
 const currentPageData = computed(() => {
+    let filtered = tableData.value
+    if (searchForm.value.date) {
+        filtered = filtered.filter(item => item.date === searchForm.value.date)
+    }
+    if (searchForm.value.name) {
+        filtered = filtered.filter(item => item.visitor && item.visitor.includes(searchForm.value.name))
+    }
     const start = (currentPage.value - 1) * pageSize.value
     const end = start + pageSize.value
-    return tableData.slice(start, end)
+    return filtered.slice(start, end)
 })
 
 // 搜索表单
@@ -24,125 +34,114 @@ const searchForm = ref({
 })
 
 // 静态数据
-const tableData = [
-    {
-        id: 1,
-        visitor: 'Apple',
-        duration: '11:11:11',
-        date: '12.09.2019',
-        rating: 3.5,
-        comment: '咨询师态度很好，帮助很大'
-    },
-    {
-        id: 2,
-        visitor: 'Banana',
-        duration: '22:22:22',
-        date: '12.10.2019',
-        rating: 4,
-        comment: '很耐心地倾听，给出了很好的建议'
-    },
-    {
-        id: 3,
-        visitor: 'Orange',
-        duration: '33:33:33',
-        date: '12.11.2019',
-        rating: 5,
-        comment: '非常专业，解决了我的困扰'
-    },
-    {
-        id: 4,
-        visitor: 'David',
-        duration: '44:44:44',
-        date: '12.12.2019',
-        rating: 4.5,
-        comment: '咨询效果很好，感谢帮助'
-    },
-    {
-        id: 5,
-        visitor: 'Emma',
-        duration: '55:55:55',
-        date: '12.13.2019',
-        rating: 3,
-        comment: '建议比较实用'
-    },
-    {
-        visitor: 'Frank',
-        duration: '01:30:00',
-        date: '12.14.2019',
-        rating: 4.5,
-        comment: '很有耐心，讲解详细'
-    },
-    {
-        visitor: 'Grace',
-        duration: '02:15:30',
-        date: '12.15.2019',
-        rating: 5,
-        comment: '非常满意的一次咨询'
-    },
-    {
-        visitor: 'Henry',
-        duration: '01:45:20',
-        date: '12.16.2019',
-        rating: 3.5,
-        comment: '解答了我的疑惑'
-    },
-    {
-        visitor: 'Ivy',
-        duration: '02:30:15',
-        date: '12.17.2019',
-        rating: 4,
-        comment: '咨询师很专业'
-    },
-    {
-        visitor: 'Jack',
-        duration: '01:20:45',
-        date: '12.18.2019',
-        rating: 4.5,
-        comment: '帮助很大，谢谢'
-    },
-    {
-        visitor: 'Kelly',
-        duration: '02:45:00',
-        date: '12.19.2019',
-        rating: 5,
-        comment: '非常好的咨询体验'
-    },
-    {
-        visitor: 'Liam',
-        duration: '01:50:30',
-        date: '12.20.2019',
-        rating: 3.5,
-        comment: '建议很有帮助'
-    },
-    {
-        visitor: 'Mary',
-        duration: '02:10:25',
-        date: '12.21.2019',
-        rating: 4,
-        comment: '态度很好，很耐心'
-    },
-    {
-        visitor: 'Noah',
-        duration: '01:35:40',
-        date: '12.22.2019',
-        rating: 4.5,
-        comment: '解决了我的问题'
-    },
-    {
-        visitor: 'Olivia',
-        duration: '02:20:15',
-        date: '12.23.2019',
-        rating: 5,
-        comment: '非常满意'
+const tableData = ref([])
+
+// 获取当前用户信息
+const currentUser = computed(() => {
+    const userInfo = localStorage.getItem('userInfo')
+    return userInfo ? JSON.parse(userInfo) : null
+})
+
+// 获取咨询记录数据
+const fetchRecords = async () => {
+    let params = {}
+    if (!currentUser.value) return
+    if (currentUser.value.role === 'consultant') {
+        params.counselorId = currentUser.value.id
+    } else if (currentUser.value.role === 'supervisor') {
+        params.supervisorId = currentUser.value.id
     }
-]
+    try {
+        const res = await axios.get(`${CHAT_BASE_URL}/api/sessions/records`, { params })
+        console.log('接口原始返回：', res)
+        console.log('接口返回data：', res.data)
+        if (res.data && Array.isArray(res.data.data)) {
+            tableData.value = res.data.data.map(item => ({
+                sessionId: item.sessionId,
+                visitor: item.visitorName || '-',
+                duration: item.duration || '-',
+                date: item.date || '-',
+                rating: item.rating,
+                comment: item.userComment || '-'
+            }))
+        } else if (Array.isArray(res.data)) {
+            tableData.value = res.data.map(item => ({
+                sessionId: item.sessionId,
+                visitor: item.visitorName || '-',
+                duration: item.duration || '-',
+                date: item.date || '-',
+                rating: item.rating,
+                comment: item.userComment || '-'
+            }))
+        } else {
+            tableData.value = []
+        }
+    } catch (e) {
+        tableData.value = []
+    }
+}
+
+onMounted(() => {
+    fetchRecords()
+})
 
 // 处理查看详情按钮点击
 const handleViewDetail = (row) => {
     router.push({
         name: 'consultationDetail',
-        params: { id: row.id }
+        params: { id: row.sessionId }
     })
+}
+
+const handleDateChange = () => {
+    currentPage.value = 1
+}
+
+const handleNameInput = () => {
+    currentPage.value = 1
+}
+
+const handleExportRecord = async (row) => {
+    try {
+        const { value: format } = await ElMessageBox.prompt(
+            '请选择导出格式（txt、csv、pdf）',
+            '导出咨询记录',
+            {
+                confirmButtonText: '导出',
+                cancelButtonText: '取消',
+                inputPlaceholder: '请输入格式（txt、csv、pdf）',
+                inputValue: 'txt',
+                inputValidator: (val) => ['txt', 'csv', 'pdf'].includes(val),
+                inputErrorMessage: '格式只能是txt、csv或pdf'
+            }
+        )
+        const sessionId = row.sessionId
+        if (!sessionId) {
+            ElMessage.error('未获取到sessionId')
+            return
+        }
+        const url = `${CHAT_BASE_URL}/api/sessions/${sessionId}/export?format=${format}`
+        const response = await axios.get(url, { responseType: 'blob' })
+        // 获取文件名
+        let filename = `consultation_${sessionId}.${format}`
+        const disposition = response.headers['content-disposition']
+        if (disposition) {
+            const match = disposition.match(/filename="(.+)"/)
+            if (match) filename = decodeURIComponent(match[1])
+        }
+        // 下载
+        const blob = new Blob([response.data])
+        const link = document.createElement('a')
+        link.href = window.URL.createObjectURL(blob)
+        link.download = filename
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(link.href)
+        ElMessage.success('导出成功')
+    } catch (e) {
+        if (e !== 'cancel') ElMessage.error('导出失败')
+    }
 }
 </script>
 
@@ -153,14 +152,14 @@ const handleViewDetail = (row) => {
             <div class="search-area">
                 <div class="search-item">
                     <div class="label">搜索姓名</div>
-                    <el-input v-model="searchForm.name" placeholder="输入姓名进行搜索" clearable />
+                    <el-input v-model="searchForm.name" placeholder="输入姓名进行搜索" clearable @input="handleNameInput" />
                 </div>
                 <div class="search-item">
                     <div class="label">选择日期</div>
                     <el-date-picker v-model="searchForm.date" type="date" placeholder="请选择日期" format="YYYY-MM-DD"
-                        value-format="YYYY-MM-DD" />
+                        value-format="YYYY-MM-DD" @change="handleDateChange" />
                 </div>
-                <el-button class="export-button">批量导出记录</el-button>
+
             </div>
 
             <!-- 表格区域 -->
@@ -181,7 +180,8 @@ const handleViewDetail = (row) => {
                             <div class="button-group">
                                 <el-button type="success" size="small" class="detail-button"
                                     @click="handleViewDetail(row)">查看详情</el-button>
-                                <el-button type="danger" size="small" class="record-button">导出记录</el-button>
+                                <el-button type="danger" size="small" class="record-button"
+                                    @click="handleExportRecord(row)">导出记录</el-button>
                             </div>
                         </template>
                     </el-table-column>

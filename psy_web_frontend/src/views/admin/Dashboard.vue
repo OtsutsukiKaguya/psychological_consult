@@ -5,13 +5,15 @@ import ConsultantStatus from '@/components/dashboard/ConsultantStatus.vue'
 import StatisticCharts from '@/components/dashboard/StatisticCharts.vue'
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
-import { API } from '@/config'
+import { API, BASE_URL } from '@/config'
 
 const consultants = ref([])
 const supervisors = ref([])
 const activeConversations = ref(0)
 const activeGuidance = ref(0)
 const rankingData = ref([])
+const todayConsultDuration = ref('00:00:00')
+const todayConsultCount = ref(0)
 
 const fetchOnlineStatus = async () => {
     try {
@@ -62,16 +64,40 @@ const fetchConsultationRanking = async () => {
     }
 }
 
+const fetchTodayConsultStats = async () => {
+    try {
+        // 今日咨询时长
+        const res1 = await axios.get(`${BASE_URL}/api/statistics/today/consult-duration`)
+        console.log('今日咨询时长接口返回:', res1.data)
+        if (res1.data.code === 0) {
+            todayConsultDuration.value = res1.data.data || '00:00:00'
+        }
+    } catch (e) {
+        console.error('今日咨询时长接口异常:', e)
+    }
+    try {
+        // 今日咨询数
+        const res2 = await axios.get(`${BASE_URL}/api/statistics/today/consult-count`)
+        console.log('今日咨询数接口返回:', res2.data)
+        if (res2.data.code === 0) {
+            todayConsultCount.value = res2.data.data || 0
+        }
+    } catch (e) {
+        console.error('今日咨询数接口异常:', e)
+    }
+}
+
 onMounted(() => {
     fetchOnlineStatus()
     fetchConsultationRanking()
+    fetchTodayConsultStats()
 })
 </script>
 
 <template>
     <BaseLayout>
         <div class="dashboard-container">
-            <StatisticCards />
+            <StatisticCards :consultCount="todayConsultCount" :consultDuration="todayConsultDuration" />
             <ConsultantStatus :consultants="consultants" :supervisors="supervisors"
                 :active-conversations="activeConversations" :active-guidance="activeGuidance" />
             <StatisticCharts :ranking-data="rankingData" />

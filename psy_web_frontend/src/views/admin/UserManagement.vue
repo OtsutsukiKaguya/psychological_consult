@@ -3,8 +3,8 @@
         <div class="page-container">
             <!-- 搜索区域 -->
             <div class="search-container">
-                <div class="search-title">搜索姓名</div>
-                <el-input v-model="searchQuery" placeholder="输入姓名进行搜索" class="search-input" clearable
+                <div class="search-title">搜索</div>
+                <el-input v-model="searchQuery" placeholder="输入ID或姓名进行搜索" class="search-input" clearable
                     @input="handleSearch" />
             </div>
 
@@ -61,7 +61,18 @@ import { API } from '../../config'
 const searchQuery = ref('')
 const handleSearch = () => {
     currentPage.value = 1
-    fetchData()
+    const query = searchQuery.value.toLowerCase().trim()
+    if (!query) {
+        fetchData()
+        return
+    }
+
+    // 本地过滤搜索结果
+    const filteredData = tableData.value.filter(item =>
+        (item.id && item.id.toString().toLowerCase().includes(query)) ||
+        (item.username && item.username.toLowerCase().includes(query))
+    )
+    tableData.value = filteredData
 }
 
 // 表格数据

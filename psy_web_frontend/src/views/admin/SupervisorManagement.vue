@@ -4,8 +4,8 @@
         <div class="page-container">
             <!-- 搜索区域 -->
             <div class="search-container">
-                <div class="search-title">搜索姓名</div>
-                <el-input v-model="searchQuery" placeholder="输入姓名进行搜索" class="search-input" clearable
+                <div class="search-title">搜索</div>
+                <el-input v-model="searchQuery" placeholder="输入ID或姓名进行搜索" class="search-input" clearable
                     @input="handleSearch" />
                 <el-button type="primary" class="add-button" @click="handleAdd">新增</el-button>
             </div>
@@ -86,8 +86,18 @@ const handleSearch = debounce(async () => {
         const response = await axios.get(API.TUTOR.SEARCH)
         console.log('搜索督导返回数据：', response)
         if (response.data.code === 0) {
-            tableData.value = response.data.data
-            total.value = response.data.data.length
+            const query = searchQuery.value.toLowerCase().trim()
+            let filteredData = response.data.data
+
+            if (query) {
+                filteredData = filteredData.filter(item =>
+                    (item.id && item.id.toString().toLowerCase().includes(query)) ||
+                    (item.name && item.name.toLowerCase().includes(query))
+                )
+            }
+
+            tableData.value = filteredData
+            total.value = filteredData.length
         } else {
             ElMessage.error(response.data.message || '搜索失败')
         }

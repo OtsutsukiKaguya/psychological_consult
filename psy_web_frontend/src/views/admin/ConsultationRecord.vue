@@ -1,18 +1,66 @@
 <!-- 咨询记录页面 -->
 <script setup>
 import BaseLayout from '@/components/layout/BaseLayout.vue'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import axios from 'axios'
+import { CHAT_BASE_URL } from '@/config'
+import { ElMessageBox, ElMessage } from 'element-plus'
 
 // 分页相关
 const currentPage = ref(1)
 const pageSize = ref(10)
 
 // 计算当前页的数据
+const filterDate = ref('')
+const filterName = ref('')
+
 const currentPageData = computed(() => {
+  let filtered = tableData.value
+  if (filterDate.value) {
+    filtered = filtered.filter(item => item.date === filterDate.value)
+  }
+  if (filterName.value) {
+    filtered = filtered.filter(item => {
+      const name = filterName.value
+      return (
+        (item.visitor && item.visitor.includes(name)) ||
+        (item.consultant && item.consultant.includes(name)) ||
+        (item.supervisor && item.supervisor.includes(name))
+      )
+    })
+  }
   const start = (currentPage.value - 1) * pageSize.value
   const end = start + pageSize.value
-  return tableData.slice(start, end)
+  return filtered.slice(start, end)
 })
+
+const totalItems = computed(() => {
+  let filtered = tableData.value
+  if (filterDate.value) {
+    filtered = filtered.filter(item => item.date === filterDate.value)
+  }
+  if (filterName.value) {
+    filtered = filtered.filter(item => {
+      const name = filterName.value
+      return (
+        (item.visitor && item.visitor.includes(name)) ||
+        (item.consultant && item.consultant.includes(name)) ||
+        (item.supervisor && item.supervisor.includes(name))
+      )
+    })
+  }
+  return filtered.length
+})
+
+const handleDateChange = (val) => {
+  filterDate.value = val || ''
+  currentPage.value = 1
+}
+
+const handleNameInput = (val) => {
+  filterName.value = val || ''
+  currentPage.value = 1
+}
 
 // 搜索表单
 const searchForm = ref({
@@ -21,128 +69,79 @@ const searchForm = ref({
 })
 
 // 静态数据
-const tableData = [
-  {
-    visitor: 'Apple',
-    duration: '11:11:11',
-    date: '12.09.2019',
-    rating: 3.5,
-    consultant: 'aa',
-    supervisor: 'aa'
-  },
-  {
-    visitor: 'Banana',
-    duration: '22:22:22',
-    date: '12.10.2019',
-    rating: 4,
-    consultant: 'bb',
-    supervisor: 'bb'
-  },
-  {
-    visitor: 'Orange',
-    duration: '33:33:33',
-    date: '12.11.2019',
-    rating: 5,
-    consultant: 'cc',
-    supervisor: 'cc'
-  },
-  {
-    visitor: 'David',
-    duration: '44:44:44',
-    date: '12.12.2019',
-    rating: 4.5,
-    consultant: 'dd',
-    supervisor: 'dd'
-  },
-  {
-    visitor: 'Emma',
-    duration: '55:55:55',
-    date: '12.13.2019',
-    rating: 3,
-    consultant: 'ee',
-    supervisor: 'ee'
-  },
-  {
-    visitor: 'Frank',
-    duration: '01:30:00',
-    date: '12.14.2019',
-    rating: 4.5,
-    consultant: 'ff',
-    supervisor: 'ff'
-  },
-  {
-    visitor: 'Grace',
-    duration: '02:15:30',
-    date: '12.15.2019',
-    rating: 5,
-    consultant: 'gg',
-    supervisor: 'gg'
-  },
-  {
-    visitor: 'Henry',
-    duration: '01:45:20',
-    date: '12.16.2019',
-    rating: 3.5,
-    consultant: 'hh',
-    supervisor: 'hh'
-  },
-  {
-    visitor: 'Ivy',
-    duration: '02:30:15',
-    date: '12.17.2019',
-    rating: 4,
-    consultant: 'ii',
-    supervisor: 'ii'
-  },
-  {
-    visitor: 'Jack',
-    duration: '01:20:45',
-    date: '12.18.2019',
-    rating: 4.5,
-    consultant: 'jj',
-    supervisor: 'jj'
-  },
-  {
-    visitor: 'Kelly',
-    duration: '02:45:00',
-    date: '12.19.2019',
-    rating: 5,
-    consultant: 'kk',
-    supervisor: 'kk'
-  },
-  {
-    visitor: 'Liam',
-    duration: '01:50:30',
-    date: '12.20.2019',
-    rating: 3.5,
-    consultant: 'll',
-    supervisor: 'll'
-  },
-  {
-    visitor: 'Mary',
-    duration: '02:10:25',
-    date: '12.21.2019',
-    rating: 4,
-    consultant: 'mm',
-    supervisor: 'mm'
-  },
-  {
-    visitor: 'Noah',
-    duration: '01:35:40',
-    date: '12.22.2019',
-    rating: 4.5,
-    consultant: 'nn',
-    supervisor: 'nn'
-  },
-  {
-    visitor: 'Olivia',
-    duration: '02:20:15',
-    date: '12.23.2019',
-    rating: 5,
-    consultant: 'oo',
-    supervisor: 'oo'
+const tableData = ref([])
+const loading = ref(false)
+
+const fetchConsultationRecords = async () => {
+  loading.value = true
+  try {
+    const res = await axios.get(`${CHAT_BASE_URL}/api/sessions`)
+    if (Array.isArray(res.data)) {
+      tableData.value = res.data.map(item => ({
+        sessionId: item.sessionId,
+        visitor: item.visitorName || '',
+        duration: item.duration || '',
+        date: item.date || '',
+        rating: item.rating,
+        consultant: item.counselor?.name || '',
+        supervisor: item.supervisor?.name || '无'
+      }))
+    } else {
+      tableData.value = []
+    }
+  } catch (e) {
+    tableData.value = []
+  } finally {
+    loading.value = false
   }
-]
+}
+
+const handleExportRecord = async (row) => {
+  try {
+    const { value: format } = await ElMessageBox.prompt(
+      '请选择导出格式（txt、csv、pdf）',
+      '导出咨询记录',
+      {
+        confirmButtonText: '导出',
+        cancelButtonText: '取消',
+        inputPlaceholder: '请输入格式（txt、csv、pdf）',
+        inputValue: 'txt',
+        inputValidator: (val) => ['txt', 'csv', 'pdf'].includes(val),
+        inputErrorMessage: '格式只能是txt、csv或pdf'
+      }
+    )
+    const sessionId = row.sessionId
+    if (!sessionId) {
+      ElMessage.error('未获取到sessionId')
+      return
+    }
+    const url = `${CHAT_BASE_URL}/api/sessions/${sessionId}/export?format=${format}`
+    const response = await axios.get(url, { responseType: 'blob' })
+    // 获取文件名
+    let filename = `consultation_${sessionId}.${format}`
+    const disposition = response.headers['content-disposition']
+    if (disposition) {
+      const match = disposition.match(/filename="(.+)"/)
+      if (match) filename = decodeURIComponent(match[1])
+    }
+    // 下载
+    const blob = new Blob([response.data])
+    const link = document.createElement('a')
+    link.href = window.URL.createObjectURL(blob)
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(link.href)
+    ElMessage.success('导出成功')
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('导出失败')
+  }
+}
+
+onMounted(() => {
+  fetchConsultationRecords()
+})
 </script>
 
 <template>
@@ -152,19 +151,18 @@ const tableData = [
       <div class="search-area">
         <div class="search-item">
           <div class="label">搜索姓名</div>
-          <el-input v-model="searchForm.name" placeholder="输入姓名进行搜索" clearable />
+          <el-input v-model="searchForm.name" placeholder="输入姓名进行搜索" clearable @input="handleNameInput" />
         </div>
         <div class="search-item">
           <div class="label">选择日期</div>
           <el-date-picker v-model="searchForm.date" type="date" placeholder="请选择日期" format="YYYY-MM-DD"
-            value-format="YYYY-MM-DD" />
+            value-format="YYYY-MM-DD" @change="handleDateChange" />
         </div>
-        <el-button class="export-button">批量导出记录</el-button>
       </div>
 
       <!-- 表格区域 -->
       <div class="table-area">
-        <el-table :data="currentPageData" style="width: 100%" height="600">
+        <el-table :data="currentPageData" style="width: 100%" height="600" v-loading="loading">
           <el-table-column prop="visitor" label="咨询人" />
           <el-table-column prop="duration" label="咨询时长" />
           <el-table-column prop="date" label="咨询日期" />
@@ -177,10 +175,11 @@ const tableData = [
           <el-table-column prop="consultant" label="咨询师" />
           <el-table-column prop="supervisor" label="督导" />
           <el-table-column label="操作" width="200">
-            <template #default>
+            <template #default="{ row }">
               <div class="button-group">
                 <el-button type="success" size="small" class="detail-button">查看详情</el-button>
-                <el-button type="danger" size="small" class="record-button">导出记录</el-button>
+                <el-button type="danger" size="small" class="record-button"
+                  @click="handleExportRecord(row)">导出记录</el-button>
               </div>
             </template>
           </el-table-column>
@@ -189,8 +188,8 @@ const tableData = [
 
       <!-- 分页 -->
       <div class="pagination">
-        <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10]" :total="15"
-          :pager-count="7" layout="prev, pager, next, ->, total, sizes, jumper" background />
+        <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10]"
+          :total="totalItems" :pager-count="7" layout="prev, pager, next, ->, total, sizes, jumper" background />
       </div>
     </div>
   </BaseLayout>

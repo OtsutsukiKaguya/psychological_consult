@@ -59,15 +59,21 @@ const fetchReservations = async () => {
                 }
             }))
             // 处理返回的数据
-            tableData.value = response.data.data.map(item => ({
-                id: item.id || '',
-                visitor: item.userId,
-                nickname: nameMap[item.userId] || item.userId,
-                appointmentDate: item.reservationTime.split(' ')[0],
-                appointmentTime: item.reservationTime.split(' ')[1],
-                description: item.reservationDescription,
-                details: '查看详情'
-            }))
+            tableData.value = response.data.data.map(item => {
+                const appointmentDateTime = new Date(item.reservationTime.replace(/-/g, '/'))
+                const now = new Date()
+                const isFinished = now.getTime() > (appointmentDateTime.getTime() + 60 * 60 * 1000)
+                return {
+                    id: item.id || '',
+                    visitor: item.userId,
+                    nickname: nameMap[item.userId] || item.userId,
+                    appointmentDate: item.reservationTime.split(' ')[0],
+                    appointmentTime: item.reservationTime.split(' ')[1],
+                    description: item.reservationDescription,
+                    details: '查看详情',
+                    isFinished
+                }
+            })
         } else {
             ElMessage.error(response.data.message || '获取预约记录失败')
         }
@@ -151,8 +157,9 @@ onMounted(() => {
                     <el-table-column prop="description" label="情况描述" min-width="250" />
                     <el-table-column label="操作" width="150" align="center">
                         <template #default="{ row }">
-                            <el-button type="success" size="small" class="detail-button"
+                            <el-button v-if="!row.isFinished" type="success" size="small" class="detail-button"
                                 @click="handleViewDetails(row)">开始咨询</el-button>
+                            <span v-else style="color: #aaa;">已完成咨询</span>
                         </template>
                     </el-table-column>
                 </el-table>

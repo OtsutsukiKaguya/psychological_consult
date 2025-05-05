@@ -22,6 +22,7 @@ import SupervisorRecords from '@/views/supervisor/Records.vue'
 import ConsultantTreeHole from '@/views/consultant/TreeHole.vue'
 import ConsultantTreeHoleDetail from '@/views/consultant/TreeHoleDetail.vue'
 import SupervisorChat from '@/views/supervisor/Chat.vue'
+import SupervisorRequestList from '@/views/supervisor/RequestList.vue'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -208,6 +209,14 @@ const router = createRouter({
             name: 'supervisorChat',
             component: SupervisorChat,
             props: true,
+            meta: {
+                role: 'supervisor'
+            }
+        },
+        {
+            path: '/supervisor/request-list',
+            name: 'supervisorRequestList',
+            component: SupervisorRequestList,
             meta: {
                 role: 'supervisor'
             }

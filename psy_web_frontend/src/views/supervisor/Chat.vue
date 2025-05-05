@@ -1,5 +1,5 @@
 <template>
-    <SupervisorBaseLayout>
+    <SupervisorBaseLayout ref="layoutRef">
         <div class="chat-layout" v-if="chatInfo">
             <!-- 左侧栏：咨询信息 -->
             <div class="left-panel">
@@ -25,12 +25,12 @@
             <div class="center-panel">
                 <div class="chat-box" ref="userConsultantChatBoxRef">
                     <div v-for="(message, index) in userConsultantMessages" :key="index"
-                        :class="['message', message.senderId === 'nbnb' ? 'user' : 'consultant']">
-                        <template v-if="message.senderId === 'nbnb'">
+                        :class="['message', message.type]">
+                        <template v-if="message.type === 'user'">
                             <img src="@/assets/avatar.png" alt="用户头像" class="avatar" />
                             <div class="bubble user-bubble">{{ message.content }}</div>
                         </template>
-                        <template v-else-if="message.senderId === 'zyqzxs'">
+                        <template v-else-if="message.type === 'consultant'">
                             <div class="bubble consultant-bubble">{{ message.content }}</div>
                             <img src="@/assets/avatar.png" alt="咨询师头像" class="avatar" />
                         </template>
@@ -66,9 +66,8 @@
                                 class="emoji-icon" ref="userEmojiIconRef" />
                         </div>
                     </div>
-                    <textarea v-model="userInputMessage" placeholder="输入消息..."
-                        @keyup.enter="sendUserMessage"></textarea>
-                    <button class="send-button" @click="sendUserMessage">发送</button>
+                    <textarea v-model="inputMessage" placeholder="输入消息..." @keyup.enter="sendConsultMessage"></textarea>
+                    <button class="send-button" @click="sendConsultMessage">发送</button>
                     <!-- fixed全局表情面板 for 右侧 -->
                     <transition name="fade">
                         <div v-if="showUserEmojiPanel" class="emoji-panel-fixed" :style="userEmojiPanelStyle"
@@ -90,11 +89,13 @@
 <script setup>
 import SupervisorBaseLayout from '@/components/layout/SupervisorBaseLayout.vue'
 import { ref, onMounted, nextTick, watch, onUnmounted, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { API } from '@/config'
+import { API, CHAT_BASE_URL } from '@/config'
+import axios from 'axios'
 
 const route = useRoute()
+const router = useRouter()
 const chatInfo = ref(null)
 const userConsultantMessages = ref([])
 const supervisorConsultantMessages = ref([])
@@ -166,8 +167,8 @@ const loadStateFromStorage = () => {
     const savedState = localStorage.getItem(`chat-timer-${chatInfo.value.id}`)
     if (savedState) {
         const state = JSON.parse(savedState)
-        userConsultantMessages.value = state.userConsultantMessages
-        supervisorConsultantMessages.value = state.supervisorConsultantMessages
+        userConsultantMessages.value = state.userConsultantMessages || []
+        supervisorConsultantMessages.value = state.supervisorConsultantMessages || []
         if (state.startTime) {
             startTime.value = new Date(state.startTime)
             consultationTime.value = state.consultationTime
@@ -182,7 +183,8 @@ const loadStateFromStorage = () => {
 
 // 清除localStorage中的聊天状态
 const clearChatState = () => {
-    localStorage.removeItem('chatState')
+    if (!chatInfo.value) return
+    localStorage.removeItem(`chat-timer-${chatInfo.value.id}`)
     userConsultantMessages.value = []
     supervisorConsultantMessages.value = []
     consultationTime.value = '00:00:00'
@@ -234,11 +236,27 @@ const stopTimer = () => {
     }
 }
 
-// 硬编码sessionId
-const USER_CONSULTANT_SESSION_ID = 'a48c7023-f115-49fd-a551-8756ef2cfea6'
-const SUPERVISOR_CONSULTANT_SESSION_ID = '96e57a6e-b15a-4227-8530-61994f7c4e63'
+// 需要的sessionId
+const USER_CONSULTANT_SESSION_ID = ref('') // 用户-咨询师
+const SUPERVISOR_CONSULTANT_SESSION_ID = ref('') // 督导-咨询师
 
-// 连接WebSocket
+// onMounted时从路由参数获取
+onMounted(() => {
+    // 从localStorage获取督导咨询师-会话ID和用户咨询师-会话ID
+    SUPERVISOR_CONSULTANT_SESSION_ID.value = localStorage.getItem('supervisorSessionId') || ''
+    USER_CONSULTANT_SESSION_ID.value = localStorage.getItem('userSessionId') || ''
+    console.log('[督导Chat页面] 中间栏sessionId:', USER_CONSULTANT_SESSION_ID.value)
+    console.log('[督导Chat页面] 右边栏sessionId:', SUPERVISOR_CONSULTANT_SESSION_ID.value)
+    initChat() // 先初始化聊天状态
+    fetchParticipants() // 再获取参与者信息
+    if (USER_CONSULTANT_SESSION_ID.value && SUPERVISOR_CONSULTANT_SESSION_ID.value) {
+        connectWebSocket()
+    } else {
+        ElMessage.warning('请先从请求列表进入')
+    }
+})
+
+// WebSocket推送处理
 const connectWebSocket = () => {
     const socket = new window.SockJS('http://47.117.102.116:8081/ws')
     stompClient.value = window.Stomp.over(socket)
@@ -247,94 +265,103 @@ const connectWebSocket = () => {
         Authorization: 'Bearer ' + TOKEN
     }
     stompClient.value.connect(headers, frame => {
-        console.log('✅ STOMP连接成功', frame)
         connected.value = true
         stompClient.value.subscribe('/user/queue/messages', message => {
             const receivedMessage = JSON.parse(message.body)
-            console.log('收到消息:', receivedMessage)
+            console.log('[收到消息]', receivedMessage)
             // 中间栏：用户与咨询师
-            if (receivedMessage.sessionId === USER_CONSULTANT_SESSION_ID) {
-                userConsultantMessages.value.push(receivedMessage)
+            if (receivedMessage.sessionId === USER_CONSULTANT_SESSION_ID.value) {
+                console.log('[中间栏收到消息]', receivedMessage)
+                if (receivedMessage.senderType === 'USER') {
+                    userConsultantMessages.value.push({
+                        type: 'user',
+                        content: receivedMessage.content
+                    })
+                } else if (receivedMessage.senderType === 'COUNSELOR') {
+                    userConsultantMessages.value.push({
+                        type: 'consultant',
+                        content: receivedMessage.content
+                    })
+                }
                 scrollToBottom()
             }
             // 右侧栏：督导与咨询师
-            if (receivedMessage.sessionId === SUPERVISOR_CONSULTANT_SESSION_ID) {
-                // 判断是否自己发的（假设本地没有id，所有本地发的isSelf: true）
-                supervisorConsultantMessages.value.push({ ...receivedMessage, isSelf: false })
+            if (receivedMessage.sessionId === SUPERVISOR_CONSULTANT_SESSION_ID.value) {
+                console.log('[右侧栏收到消息]', receivedMessage)
+                if (receivedMessage.senderType === 'COUNSELOR') {
+                    supervisorConsultantMessages.value.push({
+                        type: 'consultant', // 自己发的显示为consultant-bubble（绿色、靠右）
+                        content: receivedMessage.content,
+                        isSelf: false
+                    })
+                } else if (receivedMessage.senderType === 'TUTOR') {
+                    supervisorConsultantMessages.value.push({
+                        type: 'supervisor', // 督导发来的消息显示为supervisor-bubble（白底、靠左）
+                        content: receivedMessage.content,
+                        isSelf: true
+                    })
+                }
                 scrollSupervisorToBottom()
             }
         })
     }, error => {
-        console.error('❌ STOMP连接失败', error)
         ElMessage.error('连接失败，请检查网络')
         connected.value = false
     })
 }
 
-// 发送右侧栏消息（督导与咨询师）
-const sendUserMessage = () => {
-    if (!userInputMessage.value.trim()) return
-    const messagePayload = {
-        content: userInputMessage.value,
-        type: 'TEXT',
-        fileId: 0
-    }
-    fetch(`${API.MESSAGES.SESSION}/${SUPERVISOR_CONSULTANT_SESSION_ID}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${TOKEN}`
-        },
-        body: JSON.stringify(messagePayload)
-    })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('发送失败')
-            }
-            return response.json()
-        })
-        .then(() => {
-            supervisorConsultantMessages.value.push({
-                content: userInputMessage.value,
-                type: 'supervisor',
-                isSelf: true
-            })
-            userInputMessage.value = ''
-            scrollSupervisorToBottom()
-            saveStateToStorage()
-        })
-        .catch(error => {
-            console.error('发送消息失败:', error)
-            ElMessage.error('发送消息失败')
-        })
-}
-
 // 结束咨询
 const endConsultation = () => {
-    ElMessageBox.confirm(
-        '是否结束本次咨询？',
-        '提示',
+    ElMessageBox.prompt(
+        '请输入对本次协助的评价',
+        '结束协助',
         {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
-            type: 'warning',
+            inputPlaceholder: '请输入评价',
+            inputType: 'textarea',
+            inputValue: '',
         }
-    )
-        .then(() => {
-            clearChatState() // 清除聊天记录和计时
+    ).then(async ({ value }) => {
+        // value为评价内容
+        const sessionId = SUPERVISOR_CONSULTANT_SESSION_ID.value
+        if (!sessionId) {
+            ElMessage.error('未获取到会话ID')
+            return
+        }
+        try {
+            await axios.post(`${CHAT_BASE_URL}/api/sessions/${sessionId}/end`, {
+                comment: value,
+                rating: 0
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${TOKEN}`
+                }
+            })
+            // 成功后清理本地缓存
+            clearChatState()
             stopTimer()
-            // 清除会话id和consultId
-            const chatId = route.params.id
-            localStorage.removeItem(`sessionId-${chatId}`)
-            localStorage.removeItem(`consultId-${chatId}`)
+            if (layoutRef.value && layoutRef.value.removeConversation) {
+                layoutRef.value.removeConversation(sessionId)
+            }
+            // 额外：同步localStorage中的supervisor_conversations
+            const conversations = JSON.parse(localStorage.getItem('supervisor_conversations') || '[]')
+            const idx = conversations.findIndex(c => String(c.id) === sessionId)
+            if (idx !== -1) {
+                conversations.splice(idx, 1)
+                localStorage.setItem('supervisor_conversations', JSON.stringify(conversations))
+            }
+            router.push('/supervisor/request-list')
             ElMessage({
                 type: 'success',
-                message: '咨询已结束'
+                message: '协助已结束'
             })
-        })
-        .catch(() => {
-            // 用户点击取消，不做任何操作
-        })
+        } catch (e) {
+            ElMessage.error('结束协助失败')
+        }
+    }).catch(() => {
+        // 用户点击取消，无需处理
+    })
 }
 
 // 工具栏功能
@@ -419,13 +446,52 @@ const handleClickOutsideUserEmoji = (e) => {
     }
 }
 
+const counselorInfo = ref({ id: '', name: '' })
+
+const layoutRef = ref(null)
+
+const fetchParticipants = async () => {
+    const sessionId = route.params.id
+    if (!sessionId) return
+    try {
+        const res = await axios.get(`${CHAT_BASE_URL}/api/sessions/${sessionId}/participants`)
+        if (Array.isArray(res.data)) {
+            const counselor = res.data.find(p => p.role === 'COUNSELOR')
+            if (counselor) {
+                counselorInfo.value = { id: counselor.id, name: counselor.name }
+                // 只在chatInfo不存在时才设置
+                if (!chatInfo.value) {
+                    chatInfo.value = {
+                        id: counselor.id,
+                        name: counselor.name,
+                        duration: '00:00:00'
+                    }
+                }
+                if (layoutRef.value) {
+                    // 先查找会话是否已存在
+                    const conversations = JSON.parse(localStorage.getItem('supervisor_conversations') || '[]')
+                    const exist = conversations.find(c => String(c.id) === String(sessionId))
+                    if (!exist && layoutRef.value.addConversation) {
+                        layoutRef.value.addConversation({ id: sessionId, name: counselor.name, avatar: '', unread: 0 })
+                    }
+                    if (layoutRef.value.updateConversationName) {
+                        layoutRef.value.updateConversationName(sessionId, counselor.name)
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        // 可以根据需要提示错误
+    }
+}
+
 // 初始化聊天
 const initChat = async () => {
     try {
         // 根据当前路由id查找会话信息
         const chatId = route.params.id
         let name = chatId
-        const conversations = JSON.parse(localStorage.getItem('conversations') || '[]')
+        const conversations = JSON.parse(localStorage.getItem('supervisor_conversations') || '[]')
         const found = conversations.find(c => String(c.id) === String(chatId))
         if (found) {
             name = found.name
@@ -445,19 +511,11 @@ const initChat = async () => {
     }
 }
 
-onMounted(() => {
-    initChat()
-    if (USER_CONSULTANT_SESSION_ID && SUPERVISOR_CONSULTANT_SESSION_ID) {
-        connectWebSocket()
-    } else {
-        ElMessage.warning('请先从预约页面开始咨询')
-    }
-})
-
 watch(userConsultantMessages, () => {
     scrollToBottom()
     saveStateToStorage()
 }, { deep: true })
+
 watch(supervisorConsultantMessages, () => {
     scrollSupervisorToBottom()
     saveStateToStorage()
@@ -465,8 +523,8 @@ watch(supervisorConsultantMessages, () => {
 
 watch(() => route.params.id, () => {
     stopTimer()
-    saveStateToStorage()
-    initChat()
+    saveStateToStorage() // 保存当前会话状态
+    initChat() // 初始化新会话
 })
 
 onUnmounted(() => {
@@ -474,7 +532,7 @@ onUnmounted(() => {
         stompClient.value.disconnect()
     }
     stopTimer()
-    saveStateToStorage() // 保存最终状态
+    saveStateToStorage() // 只保存，不清除
     document.removeEventListener('mousedown', handleClickOutsideEmoji)
     document.removeEventListener('mousedown', handleClickOutsideUserEmoji)
 })
@@ -491,6 +549,42 @@ const insertEmoji = (emoji) => {
         textarea.selectionStart = textarea.selectionEnd = start + emoji.length
         showEmojiPanel.value = false
     })
+}
+
+// 发送右侧栏消息（督导与咨询师）
+const sendConsultMessage = () => {
+    if (!inputMessage.value.trim() || !SUPERVISOR_CONSULTANT_SESSION_ID.value) return
+    fetch(`${CHAT_BASE_URL}/api/messages/session/${SUPERVISOR_CONSULTANT_SESSION_ID.value}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${TOKEN}`
+        },
+        body: JSON.stringify({
+            content: inputMessage.value,
+            type: 'TEXT',
+            fileId: 0
+        })
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('发送失败')
+            }
+            return response.json()
+        })
+        .then(() => {
+            supervisorConsultantMessages.value.push({
+                content: inputMessage.value,
+                type: 'supervisor', // 自己发的显示为supervisor-bubble（右，绿色）
+                isSelf: true
+            })
+            inputMessage.value = ''
+            scrollSupervisorToBottom()
+            saveStateToStorage()
+        })
+        .catch(error => {
+            ElMessage.error('发送消息失败')
+        })
 }
 </script>
 
@@ -776,11 +870,13 @@ const insertEmoji = (emoji) => {
 /* Message styling within supervisor chat */
 .supervisor-chat-box .message.supervisor {
     align-self: flex-end;
-    flex-direction: row-reverse;
+    display: flex;
+    flex-direction: row;
 }
 
 .supervisor-chat-box .message.consultant {
     align-self: flex-start;
+    display: flex;
     flex-direction: row;
 }
 

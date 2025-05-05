@@ -1,6 +1,6 @@
 # 创建聊天页面
 <template>
-    <ConsultantBaseLayout>
+    <ConsultantBaseLayout ref="layoutRef">
         <div class="chat-layout" v-if="chatInfo">
             <!-- 左侧栏：咨询信息 -->
             <div class="left-panel">
@@ -71,7 +71,7 @@
             <div class="right-panel">
                 <div class="supervisor-header">
                     <img src="@/assets/avatar.png" alt="督导头像" class="avatar" />
-                    <h3>督导</h3>
+                    <h3>{{ tutorName }}</h3>
                 </div>
                 <div class="chat-box supervisor-chat-box" ref="supervisorChatBoxRef">
                     <div v-for="(message, index) in tutorMessages" :key="index" :class="['message', message.type]">
@@ -115,17 +115,34 @@
                 </div>
             </div>
         </div>
+        <div v-if="showTutorSelect" style="padding: 20px; background: #fff; border-top: 1px solid #eee;">
+            <el-select v-model="selectedTutorId" placeholder="请选择督导" style="width: 200px;">
+                <el-option v-for="tutor in tutorList" :key="tutor.id" :label="tutor.name" :value="tutor.id" />
+            </el-select>
+            <el-button type="primary" @click="confirmSelectTutor" style="margin-left: 16px;">确定</el-button>
+        </div>
+        <el-dialog v-model="showTutorSelect" title="请选择督导" width="350px" :close-on-click-modal="false" center>
+            <el-select v-model="selectedTutorId" placeholder="请选择督导" style="width: 100%;">
+                <el-option v-for="tutor in tutorList" :key="tutor.id" :label="tutor.name" :value="tutor.id" />
+            </el-select>
+            <template #footer>
+                <el-button @click="showTutorSelect = false">取消</el-button>
+                <el-button type="primary" @click="confirmSelectTutor">确定</el-button>
+            </template>
+        </el-dialog>
     </ConsultantBaseLayout>
 </template>
 
 <script setup>
 import ConsultantBaseLayout from '@/components/layout/ConsultantBaseLayout.vue'
 import { ref, onMounted, nextTick, watch, onUnmounted, computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { API } from '@/config'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox, ElSelect, ElOption } from 'element-plus'
+import { API, CHAT_BASE_URL } from '@/config'
+import axios from 'axios'
 
 const route = useRoute()
+const router = useRouter()
 const chatInfo = ref(null)
 const messages = ref([])
 const tutorMessages = ref([])
@@ -189,6 +206,7 @@ const saveStateToStorage = () => {
     if (!chatInfo.value) return
     const chatState = {
         messages: messages.value,
+        tutorMessages: tutorMessages.value,
         startTime: startTime.value ? startTime.value.getTime() : null,
         consultationTime: consultationTime.value
     }
@@ -202,12 +220,14 @@ const loadStateFromStorage = () => {
     if (savedState) {
         const state = JSON.parse(savedState)
         messages.value = state.messages
+        tutorMessages.value = state.tutorMessages || []
         if (state.startTime) {
             startTime.value = new Date(state.startTime)
             consultationTime.value = state.consultationTime
         }
     } else {
         messages.value = []
+        tutorMessages.value = []
         consultationTime.value = '00:00:00'
         startTime.value = null
     }
@@ -215,8 +235,9 @@ const loadStateFromStorage = () => {
 
 // 清除localStorage中的聊天状态
 const clearChatState = () => {
-    localStorage.removeItem('chatState')
+    localStorage.removeItem(`chat-timer-${chatInfo.value.id}`)
     messages.value = []
+    tutorMessages.value = []
     consultationTime.value = '00:00:00'
     startTime.value = null
 }
@@ -266,7 +287,50 @@ const stopTimer = () => {
     }
 }
 
-// 连接WebSocket
+// 右侧栏sessionId
+const tutorSessionId = ref('')
+const tutorName = ref('督导')
+
+// 监听请求督导接口返回sessionId
+const confirmSelectTutor = async () => {
+    const supervisorId = selectedTutorId.value
+    const supervisor = tutorList.value.find(t => t.id === supervisorId)
+    const consultId = localStorage.getItem(`consultId-${route.params.id}`) || ''
+    if (!consultId) {
+        ElMessage.error('未找到consultId')
+        return
+    }
+    // 先请求获取groupSessionId（即咨询师与督导的sessionId）
+    // 这里假设当前页面的sessionId就是groupSessionId
+    const groupSessionId = localStorage.getItem(`sessionId-${route.params.id}`) || ''
+    if (!groupSessionId) {
+        ElMessage.error('未找到sessionId')
+        return
+    }
+    try {
+        const res = await axios.post(`${CHAT_BASE_URL}/api/sessions/supervisor/with-group`, {
+            consultId,
+            supervisorId,
+            groupSessionId
+        })
+        console.log('[请求督导] /api/sessions/supervisor/with-group 返回:', res.data)
+        if (res.data && res.data.sessionId) {
+            tutorSessionId.value = res.data.sessionId
+            tutorName.value = res.data.userName || '督导'
+            localStorage.setItem(`tutorSessionId-${route.params.id}`, res.data.sessionId)
+            localStorage.setItem(`tutorName-${route.params.id}`, res.data.userName || '')
+            localStorage.setItem(`tutorId-${route.params.id}`, res.data.userId || '')
+            ElMessage.success('已选择督导: ' + (supervisor?.name || ''))
+            showTutorSelect.value = false
+        } else {
+            ElMessage.error('未获取到督导会话ID')
+        }
+    } catch (e) {
+        ElMessage.error('请求失败')
+    }
+}
+
+// WebSocket推送处理
 const connectWebSocket = () => {
     const socket = new window.SockJS('http://47.117.102.116:8081/ws')
     stompClient.value = window.Stomp.over(socket)
@@ -275,50 +339,56 @@ const connectWebSocket = () => {
         Authorization: 'Bearer ' + TOKEN
     }
     stompClient.value.connect(headers, frame => {
-        console.log('✅ STOMP连接成功', frame)
         connected.value = true
         stompClient.value.subscribe('/user/queue/messages', message => {
-            console.log('📩 收到推送：', message.body)
             const receivedMessage = JSON.parse(message.body)
-            // 判断sessionId归属
+            console.log('[收到消息]', receivedMessage)
+            // 中间栏：用户与咨询师
             if (receivedMessage.sessionId === SESSION_ID.value) {
+                console.log('[中间栏收到消息]', receivedMessage)
                 messages.value.push({
                     type: 'user',
                     content: receivedMessage.content
                 })
                 scrollToBottom()
-            } else {
-                tutorMessages.value.push({
-                    type: 'supervisor',
-                    content: receivedMessage.content
-                })
+            }
+            // 右侧栏：督导与咨询师
+            if (receivedMessage.sessionId === tutorSessionId.value) {
+                console.log('[右侧栏收到消息]', receivedMessage)
+                if (receivedMessage.senderType === 'TUTOR') {
+                    tutorMessages.value.push({
+                        type: 'supervisor', // 督导发来的消息显示为supervisor-bubble（白底、靠左）
+                        content: receivedMessage.content
+                    })
+                } else {
+                    tutorMessages.value.push({
+                        type: 'consultant', // 自己发的显示为consultant-bubble（绿色、靠右）
+                        content: receivedMessage.content
+                    })
+                }
                 scrollSupervisorToBottom()
             }
         })
     }, error => {
-        console.error('❌ STOMP连接失败', error)
         ElMessage.error('连接失败，请检查网络')
         connected.value = false
     })
 }
 
-// 发送消息
-const sendMessage = () => {
-    if (!inputMessage.value.trim()) return
-
-    const messagePayload = {
-        content: inputMessage.value,
-        type: "TEXT",
-        fileId: 0
-    }
-
-    fetch(`${API.MESSAGES.SESSION}/${SESSION_ID.value}`, {
+// 发送督导消息（右侧栏）
+const sendSupervisorMessage = () => {
+    if (!supervisorInputMessage.value.trim() || !tutorSessionId.value) return
+    fetch(`${CHAT_BASE_URL}/api/messages/session/${tutorSessionId.value}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${TOKEN}`
         },
-        body: JSON.stringify(messagePayload)
+        body: JSON.stringify({
+            content: supervisorInputMessage.value,
+            type: 'TEXT',
+            fileId: 0
+        })
     })
         .then(response => {
             if (!response.ok) {
@@ -327,63 +397,106 @@ const sendMessage = () => {
             return response.json()
         })
         .then(() => {
-            // 发送成功，添加到消息列表
-            messages.value.push({
-                type: 'consultant',
-                content: inputMessage.value
+            tutorMessages.value.push({
+                type: 'consultant', // 自己发的显示为consultant-bubble（绿色、靠右）
+                content: supervisorInputMessage.value
             })
-            inputMessage.value = ''
-            scrollToBottom()
-            saveStateToStorage() // 保存新的消息状态
+            supervisorInputMessage.value = ''
+            scrollSupervisorToBottom()
+            saveStateToStorage()
         })
         .catch(error => {
-            console.error('发送消息失败:', error)
             ElMessage.error('发送消息失败')
         })
 }
 
-// 发送督导消息
-const sendSupervisorMessage = () => {
-    if (!supervisorInputMessage.value.trim()) return
-    tutorMessages.value.push({
-        type: 'supervisor',
-        content: supervisorInputMessage.value
-    })
-    supervisorInputMessage.value = ''
-    scrollSupervisorToBottom()
-}
-
 // 请求督导
-const requestSupervisor = () => {
-    ElMessage.success('已发送督导请求')
+const showTutorSelect = ref(false)
+
+const requestSupervisor = async () => {
+    // 这里假设 dutyDate 为今天日期，格式为 yyyy-MM-dd
+    const today = new Date()
+    const yyyy = today.getFullYear()
+    const mm = String(today.getMonth() + 1).padStart(2, '0')
+    const dd = String(today.getDate()).padStart(2, '0')
+    const dutyDate = `${yyyy}-${mm}-${dd}`
+    const url = API.DUTY.GET_BY_DATE(dutyDate)
+    console.log('[请求督导] dutyDate:', dutyDate)
+    console.log('[请求督导] url:', url)
+    try {
+        const res = await axios.get(url)
+        console.log('[请求督导] 接口返回:', res)
+        console.log('[请求督导] data内容:', res.data.data)
+        const tutors = Array.isArray(res.data.data) ? res.data.data.filter(item => item.role === 'TUTOR') : [];
+        console.log('[请求督导] TUTOR数组:', tutors)
+        if (res.data.code === 0 && tutors.length > 0) {
+            tutorList.value = tutors
+            selectedTutorId.value = tutorList.value[0].id
+            showTutorSelect.value = true
+        } else if (res.data.code === 0 && tutors.length === 0) {
+            ElMessage.warning('今日无可用督导')
+            return
+        } else {
+            console.warn('[请求督导] 获取失败，返回数据：', res.data)
+            ElMessage.error('获取督导列表失败')
+        }
+    } catch (e) {
+        console.error('[请求督导] 请求异常:', e)
+        ElMessage.error('请求失败')
+    }
 }
 
 // 结束咨询
 const endConsultation = () => {
-    ElMessageBox.confirm(
-        '是否结束本次咨询？',
-        '提示',
+    ElMessageBox.prompt(
+        '请输入对本次督导的评价',
+        '结束咨询',
         {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
-            type: 'warning',
+            inputPlaceholder: '请输入评价',
+            inputType: 'textarea',
+            inputValue: '',
         }
-    )
-        .then(() => {
-            clearChatState() // 清除聊天记录和计时
+    ).then(async ({ value }) => {
+        // value为评价内容
+        const sessionId = tutorSessionId.value
+        if (!sessionId) {
+            ElMessage.error('未获取到督导会话ID')
+            return
+        }
+        try {
+            await axios.post(`${CHAT_BASE_URL}/api/sessions/${sessionId}/end`, {
+                comment: value,
+                rating: 0
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${TOKEN}`
+                }
+            })
+            // 成功后清理本地缓存
+            clearChatState()
             stopTimer()
-            // 清除会话id和consultId
-            const chatId = route.params.id
+            const chatId = String(route.params.id)
             localStorage.removeItem(`sessionId-${chatId}`)
             localStorage.removeItem(`consultId-${chatId}`)
+            if (layoutRef.value && layoutRef.value.removeConversation) {
+                layoutRef.value.removeConversation(chatId)
+            }
+            // 跳转到预约情况页面
+            router.push('/consultant/schedule').then(() => {
+                window.location.reload()
+            })
             ElMessage({
                 type: 'success',
                 message: '咨询已结束'
             })
-        })
-        .catch(() => {
-            // 用户点击取消，不做任何操作
-        })
+        } catch (e) {
+            ElMessage.error('结束咨询失败')
+        }
+    }).catch(() => {
+        // 用户点击取消，无需处理
+    })
 }
 
 // 工具栏功能
@@ -497,14 +610,17 @@ const initChat = async () => {
 
 onMounted(() => {
     initChat()
+    // 自动读取tutorSessionId和tutorName，保证刷新后可发消息和显示名字
+    const localTutorSessionId = localStorage.getItem(`tutorSessionId-${route.params.id}`)
+    if (localTutorSessionId) {
+        tutorSessionId.value = localTutorSessionId
+    }
+    const localTutorName = localStorage.getItem(`tutorName-${route.params.id}`)
+    if (localTutorName) {
+        tutorName.value = localTutorName
+    }
     if (SESSION_ID.value) {
         connectWebSocket()
-    } else {
-        ElMessage.warning('请先从预约页面开始咨询')
-        // 跳转回预约页面
-        setTimeout(() => {
-            window.location.href = '/consultant/schedule'
-        }, 1200)
     }
 })
 
@@ -514,7 +630,8 @@ watch(messages, () => {
 }, { deep: true })
 watch(tutorMessages, () => {
     scrollSupervisorToBottom()
-})
+    saveStateToStorage()
+}, { deep: true })
 
 watch(() => route.params.id, () => {
     stopTimer()
@@ -527,7 +644,8 @@ onUnmounted(() => {
         stompClient.value.disconnect()
     }
     stopTimer()
-    saveStateToStorage() // 保存最终状态
+    // 不再清除聊天和计时数据，只保存当前状态
+    saveStateToStorage() // 只保存，不清除
     document.removeEventListener('mousedown', handleClickOutsideEmoji)
     document.removeEventListener('mousedown', handleClickOutsideSupervisorEmoji)
 })
@@ -544,6 +662,45 @@ const insertEmoji = (emoji) => {
         textarea.selectionStart = textarea.selectionEnd = start + emoji.length
         showEmojiPanel.value = false
     })
+}
+
+const layoutRef = ref(null)
+const selectedTutorId = ref('')
+const tutorList = ref([])
+
+const sendMessage = () => {
+    console.log('发送中间栏消息', SESSION_ID.value, inputMessage.value)
+    if (!inputMessage.value.trim() || !SESSION_ID.value) return
+    fetch(`${CHAT_BASE_URL}/api/messages/session/${SESSION_ID.value}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${TOKEN}`
+        },
+        body: JSON.stringify({
+            content: inputMessage.value,
+            type: 'TEXT',
+            fileId: 0
+        })
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('发送失败')
+            }
+            return response.json()
+        })
+        .then(() => {
+            messages.value.push({
+                type: 'consultant',
+                content: inputMessage.value
+            })
+            inputMessage.value = ''
+            scrollToBottom()
+            saveStateToStorage()
+        })
+        .catch(error => {
+            ElMessage.error('发送消息失败')
+        })
 }
 </script>
 

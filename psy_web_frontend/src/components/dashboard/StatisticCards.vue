@@ -2,9 +2,16 @@
 import { ref } from 'vue'
 import { TrendCharts } from '@element-plus/icons-vue'
 
-// 模拟数据，后续会替换为真实API数据
-const consultCount = ref(35)
-const consultDuration = ref('6:12:30')
+defineProps({
+    consultCount: {
+        type: [Number, String],
+        default: 0
+    },
+    consultDuration: {
+        type: String,
+        default: '00:00:00'
+    }
+})
 </script>
 
 <template>

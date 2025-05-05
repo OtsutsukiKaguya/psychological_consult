@@ -103,7 +103,7 @@ const userInfo = {
 }
 
 // 会话列表
-const conversations = ref(JSON.parse(localStorage.getItem('conversations') || '[{"id":"1","name":"ppplusss","avatar":"","unread":0},{"id":"2","name":"周小姐","avatar":"","unread":6}]'))
+const conversations = ref([])
 
 // 当前激活的会话ID
 const activeConversationId = ref(null)
@@ -117,7 +117,20 @@ function addConversation(conversation) {
     localStorage.setItem('activeConversationId', conversation.id)
 }
 
-defineExpose({ addConversation })
+function removeConversation(conversationId) {
+    const idx = conversations.value.findIndex(c => c.id === conversationId)
+    if (idx !== -1) {
+        conversations.value.splice(idx, 1)
+        localStorage.setItem('conversations', JSON.stringify(conversations.value))
+        // 如果当前激活的会话被删了，重置activeConversationId
+        if (activeConversationId.value === conversationId) {
+            activeConversationId.value = null
+            localStorage.removeItem('activeConversationId')
+        }
+    }
+}
+
+defineExpose({ addConversation, removeConversation })
 
 function handleConversationClick(conversation) {
     activeConversationId.value = conversation.id
@@ -138,7 +151,7 @@ const updateActiveConversation = () => {
 // 监听路由变化
 onMounted(() => {
     // 每次挂载都同步一次
-    conversations.value = JSON.parse(localStorage.getItem('conversations') || '[{"id":"1","name":"ppplusss","avatar":"","unread":0},{"id":"2","name":"周小姐","avatar":"","unread":6}]')
+    conversations.value = JSON.parse(localStorage.getItem('conversations') || '[]')
     activeConversationId.value = localStorage.getItem('activeConversationId') || null
     updateActiveConversation()
 })

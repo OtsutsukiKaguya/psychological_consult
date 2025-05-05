@@ -308,6 +308,8 @@ onMounted(async () => {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    max-height: 100%;
+    overflow-y: auto;
 }
 
 .date-header {

@@ -91,7 +91,8 @@ const menuItems = [
     { icon: 'House', label: '首页', path: '/supervisor/dashboard' },
     { icon: 'Document', label: '会话记录', path: '/supervisor/records' },
     { icon: 'Share', label: '树洞', path: '/supervisor/tree-hole' },
-    { icon: Bell, label: '通知', path: '/supervisor/notification' }
+    { icon: Bell, label: '通知', path: '/supervisor/notification' },
+    { icon: 'List', label: '请求列表', path: '/supervisor/request-list' }
 ]
 
 // 用户信息
@@ -102,9 +103,7 @@ const userInfo = {
 }
 
 // 会话列表
-const conversations = ref([
-    { id: 1, name: '张先生', avatar: '', unread: 0 }
-])
+const conversations = ref([])
 
 // 当前激活的会话ID
 const activeConversationId = ref(null)
@@ -120,7 +119,7 @@ const handleConversationClick = (conversation) => {
 const updateActiveConversation = () => {
     const chatId = route.params.id
     if (route.path.includes('/supervisor/chat/') && chatId) {
-        activeConversationId.value = Number(chatId)
+        activeConversationId.value = String(chatId)
     } else {
         activeConversationId.value = null
     }
@@ -150,8 +149,38 @@ function addConversation(conversation) {
     localStorage.setItem('activeConversationId', conversation.id)
 }
 
+// 新增：更新会话名称的方法
+function updateConversationName(id, name) {
+    const conv = conversations.value.find(c => String(c.id) === String(id))
+    if (conv && conv.name !== name) {
+        conv.name = name
+        localStorage.setItem('supervisor_conversations', JSON.stringify(conversations.value))
+    }
+}
+
+// 删除会话的方法
+function removeConversation(conversationId) {
+    const idx = conversations.value.findIndex(c => c.id === conversationId)
+    if (idx !== -1) {
+        conversations.value.splice(idx, 1)
+        // 同步清理localStorage缓存
+        const cache = JSON.parse(localStorage.getItem('supervisor_conversations') || '[]')
+        const cacheIdx = cache.findIndex(c => String(c.id) === String(conversationId))
+        if (cacheIdx !== -1) {
+            cache.splice(cacheIdx, 1)
+            localStorage.setItem('supervisor_conversations', JSON.stringify(cache))
+        }
+        localStorage.setItem('supervisor_conversations', JSON.stringify(conversations.value))
+        // 如果当前激活的会话被删了，重置activeConversationId
+        if (activeConversationId.value === conversationId) {
+            activeConversationId.value = null
+            localStorage.removeItem('activeConversationId')
+        }
+    }
+}
+
 // 暴露方法给父组件
-defineExpose({ addConversation })
+defineExpose({ addConversation, updateConversationName, removeConversation })
 
 // 菜单点击处理
 const handleMenuClick = (path) => {

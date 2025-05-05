@@ -5,14 +5,14 @@
             <div class="search-area">
                 <div class="search-item">
                     <div class="label">搜索姓名</div>
-                    <el-input v-model="searchForm.name" placeholder="输入姓名进行搜索" clearable />
+                    <el-input v-model="searchForm.name" placeholder="输入姓名进行搜索" clearable @input="handleNameInput" />
                 </div>
                 <div class="search-item">
                     <div class="label">选择日期</div>
                     <el-date-picker v-model="searchForm.date" type="date" placeholder="请选择日期" format="YYYY-MM-DD"
-                        value-format="YYYY-MM-DD" />
+                        value-format="YYYY-MM-DD" @change="handleDateChange" />
                 </div>
-                <el-button class="export-button">批量导出记录</el-button>
+
             </div>
 
             <!-- 表格区域 -->
@@ -29,10 +29,11 @@
                         </template>
                     </el-table-column>
                     <el-table-column label="操作" width="200">
-                        <template #default>
+                        <template #default="{ row }">
                             <div class="button-group">
                                 <el-button type="success" size="small" class="detail-button">查看详情</el-button>
-                                <el-button type="danger" size="small" class="record-button">导出记录</el-button>
+                                <el-button type="danger" size="small" class="record-button"
+                                    @click="handleExportRecord(row)">导出记录</el-button>
                             </div>
                         </template>
                     </el-table-column>
@@ -49,8 +50,11 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import SupervisorBaseLayout from '@/components/layout/SupervisorBaseLayout.vue'
+import axios from 'axios'
+import { CHAT_BASE_URL } from '@/config'
+import { ElMessageBox, ElMessage } from 'element-plus'
 
 // 分页相关
 const currentPage = ref(1)
@@ -62,121 +66,115 @@ const searchForm = ref({
     date: ''
 })
 
-// 静态数据
-const tableData = [
-    {
-        consultant: 'Apple',
-        duration: '11:11:11',
-        date: '12.09.2019',
-        visitor: 'Apple',
-        rating: 3.5
-    },
-    {
-        consultant: 'Banana',
-        duration: '22:22:22',
-        date: '12.10.2019',
-        visitor: 'Banana',
-        rating: 4
-    },
-    {
-        consultant: 'Orange',
-        duration: '33:33:33',
-        date: '12.11.2019',
-        visitor: 'Orange',
-        rating: 5
-    },
-    {
-        consultant: 'David',
-        duration: '44:44:44',
-        date: '12.12.2019',
-        visitor: 'David',
-        rating: 4.5
-    },
-    {
-        consultant: 'Emma',
-        duration: '55:55:55',
-        date: '12.13.2019',
-        visitor: 'Emma',
-        rating: 3
-    },
-    {
-        consultant: 'Frank',
-        duration: '01:30:00',
-        date: '12.14.2019',
-        visitor: 'Frank',
-        rating: 4.5
-    },
-    {
-        consultant: 'Grace',
-        duration: '02:15:30',
-        date: '12.15.2019',
-        visitor: 'Grace',
-        rating: 5
-    },
-    {
-        consultant: 'Henry',
-        duration: '01:45:20',
-        date: '12.16.2019',
-        visitor: 'Henry',
-        rating: 3.5
-    },
-    {
-        consultant: 'Ivy',
-        duration: '02:30:15',
-        date: '12.17.2019',
-        visitor: 'Ivy',
-        rating: 4
-    },
-    {
-        consultant: 'Jack',
-        duration: '01:20:45',
-        date: '12.18.2019',
-        visitor: 'Jack',
-        rating: 4.5
-    },
-    {
-        consultant: 'Kelly',
-        duration: '02:45:00',
-        date: '12.19.2019',
-        visitor: 'Kelly',
-        rating: 5
-    },
-    {
-        consultant: 'Liam',
-        duration: '01:50:30',
-        date: '12.20.2019',
-        visitor: 'Liam',
-        rating: 3.5
-    },
-    {
-        consultant: 'Mary',
-        duration: '02:10:25',
-        date: '12.21.2019',
-        visitor: 'Mary',
-        rating: 4
-    },
-    {
-        consultant: 'Noah',
-        duration: '01:35:40',
-        date: '12.22.2019',
-        visitor: 'Noah',
-        rating: 4.5
-    },
-    {
-        consultant: 'Olivia',
-        duration: '02:20:15',
-        date: '12.23.2019',
-        visitor: 'Olivia',
-        rating: 5
-    }
-]
+const tableData = ref([])
 
-// 计算当前页的数据
+// 获取当前用户信息
+const currentUser = computed(() => {
+    const userInfo = localStorage.getItem('userInfo')
+    return userInfo ? JSON.parse(userInfo) : null
+})
+
+// 获取咨询记录数据
+const fetchRecords = async () => {
+    let params = {}
+    if (!currentUser.value) return
+    if (currentUser.value.role === 'supervisor') {
+        params.supervisorId = currentUser.value.id
+    }
+    try {
+        const res = await axios.get(`${CHAT_BASE_URL}/api/sessions/records`, { params })
+        if (Array.isArray(res.data)) {
+            tableData.value = res.data.map(item => ({
+                sessionId: item.sessionId,
+                consultant: item.counselor?.name || '-',
+                duration: item.duration || '-',
+                date: item.date || '-',
+                visitor: item.visitorName || '-',
+                rating: item.rating
+            }))
+        } else {
+            tableData.value = []
+        }
+    } catch (e) {
+        tableData.value = []
+    }
+}
+
+onMounted(() => {
+    fetchRecords()
+})
+
+const handleDateChange = () => {
+    currentPage.value = 1
+}
+
+const handleNameInput = () => {
+    currentPage.value = 1
+}
+
 const currentPageData = computed(() => {
+    let filtered = tableData.value
+    if (searchForm.value.date) {
+        filtered = filtered.filter(item => item.date === searchForm.value.date)
+    }
+    if (searchForm.value.name) {
+        filtered = filtered.filter(item =>
+            (item.consultant && item.consultant.includes(searchForm.value.name)) ||
+            (item.visitor && item.visitor.includes(searchForm.value.name))
+        )
+    }
     const start = (currentPage.value - 1) * pageSize.value
     const end = start + pageSize.value
-    return tableData.slice(start, end)
+    return filtered.slice(start, end)
 })
+
+const handleExportRecord = async (row) => {
+    try {
+        const { value: format } = await ElMessageBox.prompt(
+            '请选择导出格式（txt、csv、pdf）',
+            '导出咨询记录',
+            {
+                confirmButtonText: '导出',
+                cancelButtonText: '取消',
+                inputPlaceholder: '请输入格式（txt、csv、pdf）',
+                inputValue: 'txt',
+                inputValidator: (val) => ['txt', 'csv', 'pdf'].includes(val),
+                inputErrorMessage: '格式只能是txt、csv或pdf'
+            }
+        )
+        const sessionId = row.sessionId
+        console.log('导出记录 row:', row)
+        console.log('导出参数 sessionId:', sessionId)
+        console.log('导出参数 format:', format)
+        const url = `${CHAT_BASE_URL}/api/sessions/${sessionId}/export?format=${format}`
+        console.log('导出请求 url:', url)
+        if (!sessionId) {
+            ElMessage.error('未获取到sessionId')
+            return
+        }
+        const response = await axios.get(url, { responseType: 'blob' })
+        // 获取文件名
+        let filename = `consultation_${sessionId}.${format}`
+        const disposition = response.headers['content-disposition']
+        if (disposition) {
+            const match = disposition.match(/filename="(.+)"/)
+            if (match) filename = decodeURIComponent(match[1])
+        }
+        // 下载
+        const blob = new Blob([response.data])
+        const link = document.createElement('a')
+        link.href = window.URL.createObjectURL(blob)
+        link.download = filename
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(link.href)
+        ElMessage.success('导出成功')
+    } catch (e) {
+        if (e !== 'cancel') ElMessage.error('导出失败')
+        console.error('导出异常:', e)
+    }
+}
 </script>
 
 <style scoped>

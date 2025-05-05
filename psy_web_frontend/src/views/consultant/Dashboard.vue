@@ -6,7 +6,7 @@ import { ref, computed, onMounted, h, watch } from 'vue'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import { ElConfigProvider, ElMessage } from 'element-plus'
 import axios from 'axios'
-import { API } from '@/config'
+import { API, BASE_URL } from '@/config'
 import dayjs from 'dayjs'
 
 // 获取当前用户信息
@@ -23,6 +23,7 @@ const introduction = ref('')
 // 请假相关
 const leaveDialogVisible = ref(false)
 const leaveDate = ref('')
+const leaveReason = ref('')
 
 // 判断日期是否可选
 const disabledDate = (time) => {
@@ -42,20 +43,16 @@ const leaveRecords = ref([])
 const fetchLeaveRecords = async () => {
     if (!currentUser.value?.id) return
     try {
-        console.log('正在获取请假记录，用户ID:', currentUser.value.id)
         const response = await axios.get(API.LEAVE.SHOW_LEAVE_BY_ID(currentUser.value.id))
-        console.log('请假记录API返回数据:', response.data)
-        
+
         if (response.data.code === 0 && Array.isArray(response.data.data)) {
             // 只显示本月的请假记录
             const currentMonth = dayjs().format('YYYY-MM')
-            console.log('当前月份:', currentMonth)
-            
+
             leaveRecords.value = response.data.data.filter(item => item.dutyDate.startsWith(currentMonth)).map(item => {
-                console.log('处理请假记录项:', item)
                 let status = ''
                 let comment = ''
-                
+
                 if (item.isAgree) {
                     status = '同意请假'
                     comment = '同意请假'
@@ -66,27 +63,25 @@ const fetchLeaveRecords = async () => {
                     status = '已拒绝'
                     comment = item.leaveComment
                 }
-                
-                console.log('处理后的状态:', status, '处理后的意见:', comment)
+
                 return {
                     date: item.dutyDate,
                     status,
                     comment
                 }
             })
-            console.log('最终处理后的请假记录:', leaveRecords.value)
         } else {
-            console.log('API返回数据格式不正确:', response.data)
             leaveRecords.value = []
         }
     } catch (e) {
-        console.error('获取请假记录失败:', e)
         leaveRecords.value = []
     }
 }
 
 // 值班日期列表
-const dutyDates = ref([])
+const allDutyDates = ref([]) // 保存所有 dutyDate 及 isLeave 信息
+const dutyDates = ref([])    // 只保存 isLeave === 0 的日期
+const leaveDates = ref([])   // 只保存 isLeave === 1 的日期
 
 // 计算当前月值班天数
 const currentMonthDutyDays = computed(() => {
@@ -99,45 +94,38 @@ const selectedDate = ref(null)
 
 // 监听值班日期列表的变化
 watch(dutyDates, (newDates) => {
-    console.log('值班日期列表已更新:', newDates)
 }, { deep: true })
 
 // 获取值班信息
 const fetchDutyInfo = async () => {
     if (!currentUser.value?.id) {
-        console.error('未获取到用户ID')
         return
     }
-
     try {
         const response = await axios.get(API.DUTY.GET_BY_ID(currentUser.value.id))
-
         if (response.data.code === 0 && response.data.data) {
-            dutyDates.value = response.data.data.map(item => {
-                const formattedDate = dayjs(item.dutyDate).format('YYYY-MM-DD')
-                return formattedDate
-            })
-            console.log('处理后的值班日期列表:', dutyDates.value)
+            allDutyDates.value = response.data.data
+            dutyDates.value = response.data.data
+                .filter(item => item.isLeave === 0)
+                .map(item => dayjs(item.dutyDate).format('YYYY-MM-DD'))
+            leaveDates.value = response.data.data
+                .filter(item => item.isLeave === 1)
+                .map(item => dayjs(item.dutyDate).format('YYYY-MM-DD'))
         }
     } catch (error) {
-        console.error('获取值班信息失败:', error)
         ElMessage.error('获取值班信息失败')
     }
 }
 
 // 检查日期是否是值班日期
 const isDutyDate = (date) => {
-    console.log('==================== 日期匹配检查 ====================')
-    console.log('当前检查的日期:', date)
-    console.log('值班日期列表:', dutyDates.value)
-
     const formattedDate = dayjs(date).format('YYYY-MM-DD')
-    console.log('格式化后的当前日期:', formattedDate)
+    return dutyDates.value.includes(formattedDate)
+}
 
-    const isMatch = dutyDates.value.includes(formattedDate)
-    console.log('是否匹配:', isMatch)
-    console.log('=================================================')
-    return isMatch
+const isLeaveDate = (date) => {
+    const formattedDate = dayjs(date).format('YYYY-MM-DD')
+    return leaveDates.value.includes(formattedDate)
 }
 
 // 格式化日期
@@ -152,16 +140,68 @@ const handleLeaveClick = () => {
 
 // 处理请假提交
 const handleLeaveSubmit = async () => {
-    if (leaveDate.value) {
-        // 这里添加请假提交逻辑
+    if (leaveDate.value && leaveReason.value) {
+        try {
+            const res = await axios.post(`${BASE_URL}/api/leave/addleave`, {
+                staffId: currentUser.value.id,
+                dutyDate: leaveDate.value,
+                leaveReason: leaveReason.value
+            })
+            if (res.data.code === 0) {
+                ElMessage.success('请假申请已提交')
+            } else {
+                ElMessage.error(res.data.message || '请假申请失败')
+            }
+        } catch (e) {
+            ElMessage.error('请假申请失败')
+        }
         leaveDialogVisible.value = false
         leaveDate.value = ''
+        leaveReason.value = ''
         await fetchLeaveRecords()
+        await fetchDutyInfo()
+    } else {
+        ElMessage.warning('请选择日期并填写请假理由')
+    }
+}
+
+const homepageStats = ref({
+    averageRating: 0,
+    totalSessions: 0,
+    dailySessions: 0,
+    dailyTotalDuration: 0,
+    ongoingSessions: 0
+})
+
+// 秒转时分秒
+function formatDuration(seconds) {
+    const h = Math.floor(seconds / 3600)
+    const m = Math.floor((seconds % 3600) / 60)
+    const s = seconds % 60
+    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+}
+
+const fetchHomepageStats = async () => {
+    try {
+        const id = currentUser.value?.id
+        const date = dayjs().format('YYYY-MM-DD')
+        const res = await axios.get(`${BASE_URL}/api/counselor/homepage`, {
+            params: { id, date }
+        })
+        console.log('[首页] /api/counselor/homepage 返回:', res.data)
+        if (res.data.code === 0 && res.data.data) {
+            homepageStats.value = res.data.data
+            rating.value = res.data.data.averageRating
+            console.log('[首页] 最终赋值 homepageStats:', homepageStats.value)
+        }
+    } catch (e) {
+        // 忽略错误
     }
 }
 
 // 组件挂载时获取值班信息和请假记录
 onMounted(async () => {
+    await fetchHomepageStats()
     await fetchDutyInfo()
     await fetchLeaveRecords()
 })
@@ -199,21 +239,21 @@ const isToday = (date) => {
                         <div class="stats">
                             <div class="completed">
                                 <p>累计完成咨询</p>
-                                <h1>12345</h1>
+                                <h1>{{ homepageStats.totalSessions }}</h1>
                             </div>
                         </div>
                     </div>
                     <div class="stats-panel">
                         <div class="stat-item">
-                            <div class="stat-value">35</div>
+                            <div class="stat-value">{{ homepageStats.dailySessions }}</div>
                             <div class="stat-label">今日咨询数</div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-value">6:12:30</div>
-                            <div class="stat-label">今日咨询时长</div>
+                            <div class="stat-value">{{ formatDuration(homepageStats.dailyTotalDuration) }}</div>
+                            <div class="stat-label">累计咨询时长</div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-value">2</div>
+                            <div class="stat-value">{{ homepageStats.ongoingSessions }}</div>
                             <div class="stat-label">当前会话数</div>
                         </div>
                     </div>
@@ -259,11 +299,13 @@ const isToday = (date) => {
                                 <div :class="[
                                     'calendar-cell',
                                     { 'duty-cell': isDutyDate(data.day) },
+                                    { 'leave-cell': isLeaveDate(data.day) },
                                     { 'past-date': isPastDate(data.day) },
                                     { 'today': isToday(data.day) }
                                 ]">
                                     <span>{{ data.day.split('-')[2] }}</span>
                                     <div v-if="isDutyDate(data.day)" class="duty-text">值班</div>
+                                    <div v-else-if="isLeaveDate(data.day)" class="leave-text">请假</div>
                                 </div>
                             </template>
                         </el-calendar>
@@ -298,6 +340,9 @@ const isToday = (date) => {
                 <div class="leave-dialog-content">
                     <el-date-picker v-model="leaveDate" type="date" placeholder="选择值班日期" format="YYYY-MM-DD"
                         value-format="YYYY-MM-DD" :disabled-date="disabledDate" />
+                </div>
+                <div class="leave-dialog-content">
+                    <el-input v-model="leaveReason" type="textarea" :rows="3" placeholder="请输入请假理由" />
                 </div>
                 <template #footer>
                     <span class="dialog-footer">
@@ -937,5 +982,19 @@ const isToday = (date) => {
 .status-tag.pending {
     background-color: #fff3e0;
     color: #ff9800;
+}
+
+.leave-cell {
+    background-color: #e0eaff !important;
+    border: 1px solid #b3c6ff !important;
+}
+
+.leave-text {
+    font-size: 11px;
+    color: #409EFF;
+    background: #fff;
+    padding: 1px 6px;
+    border-radius: 8px;
+    border: 1px solid #b3c6ff;
 }
 </style>
