@@ -3,6 +3,7 @@ package com.example.demo.controller;
 import com.example.demo.common.Result;
 import com.example.demo.dto.CounselorHomePageDTO;
 import com.example.demo.dto.InformationDTO;
+import com.example.demo.dto.TutorHomePageDTO;
 import com.example.demo.entity.*;
 import com.example.demo.mapper.InformationMapper;
 import jakarta.websocket.server.PathParam;
@@ -390,20 +391,54 @@ public class InformationController {
         }
     }
 
-    @GetMapping("/admin/ongoing/count")
-    public Result getOngoingSessionCount() {
+    @GetMapping("/tutor/homepage")
+    public Result getTutorHomePage(
+            @RequestParam("id") String id,
+            @RequestParam(value = "date", required = false) String date) {
         try {
-            // 查询未结束的会话数量
-            int count = informationMapper.countOngoingSessions();
+            // 参数校验
+            if (id == null || id.trim().isEmpty()) {
+                return Result.error("Tutor ID cannot be empty");
+            }
+            if (date != null && date.trim().isEmpty()) {
+                return Result.error("Date cannot be empty");
+            }
+
+            // 创建 DTO
+            TutorHomePageDTO dto = new TutorHomePageDTO();
+
+            // 调用 MyBatis 方法
+            // 1. 总会话数
+            int totalSessions = informationMapper.tutorHomePage1(id);
+            dto.setTotalSessions(totalSessions);
+
+            // 2. 某天会话数（如果提供了 date）
+            if (date != null) {
+                int dailySessions = informationMapper.tutorHomePage2(id, date);
+                dto.setDailySessions(dailySessions);
+            } else {
+                dto.setDailySessions(0);
+            }
+
+            // 3. 某天总时长（如果提供了 date）
+            if (date != null) {
+                Long dailyTotalDuration = informationMapper.tutorHomePage3(id, date);
+                dto.setDailyTotalDuration(dailyTotalDuration != null ? dailyTotalDuration : 0L);
+            } else {
+                dto.setDailyTotalDuration(0L);
+            }
+
+            // 4. 未结束会话数
+            int ongoingSessions = informationMapper.tutorHomePage4(id);
+            dto.setOngoingSessions(ongoingSessions);
 
             // 日志记录
-            logger.info("当前正在进行的会话数量为: {}", count);
+            logger.info("Retrieved tutor homepage data for id: {}, date: {}, data: {}", id, date, dto);
 
-            return Result.success(count);
+            return Result.success(dto);
         } catch (Exception e) {
-            logger.error("查询正在进行的会话数量时发生异常", e);
-            return Result.error("查询进行中会话数量失败");
+            logger.error("Error retrieving tutor homepage data for id: {}, date: {}", id, date, e);
+            return Result.error("An error occurred while retrieving tutor homepage data");
         }
     }
-
 }
