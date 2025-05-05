@@ -19,6 +19,15 @@ public class OngoingSessionDTO {
     private LocalDateTime createdAt;
     private ChatSession.SessionType type;
     private List<String> participantIds;
+    private String consultId;
+
+    public String getConsultId() {
+        return consultId;
+    }
+
+    public void setConsultId(String consultId) {
+        this.consultId = consultId;
+    }
 
     public String getSessionId() {
         return sessionId;

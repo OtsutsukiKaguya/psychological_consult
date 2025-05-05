@@ -132,7 +132,8 @@ public class SessionStatisticsServiceImpl implements SessionStatisticsService {
                             session.getId(),
                             session.getCreatedAt(),
                             session.getType(),
-                            participantIds
+                            participantIds,
+                            session.getConsultId() // ✅ 添加 consultId
                     );
                 }).toList();
     }

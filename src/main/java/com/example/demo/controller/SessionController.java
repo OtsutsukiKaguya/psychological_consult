@@ -841,6 +841,39 @@ public class SessionController {
         }
     }
 
+    /**
+     * 获取会话参与者
+     */
+    @GetMapping("/{id}/participants")
+    public ResponseEntity<?> getSessionParticipants(@PathVariable String id) {
+        try {
+            // 获取当前用户
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            User currentUser = userService.findById(authentication.getName());
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
+            }
+
+            // 获取会话
+            ChatSession session = chatSessionService.findById(id);
+            if (session == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            // 检查用户是否是会话的参与者，或者是管理员
+            if (!chatSessionService.isSessionParticipant(id, currentUser.getId()) &&
+                    currentUser.getRole() != User.UserRole.ADMIN) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized to access this session");
+            }
+
+            // 获取参与者
+            List<User> participants = chatSessionService.getSessionParticipants(id);
+            return ResponseEntity.ok(participants);
+        } catch (Exception e) {
+            log.error("Failed to get session participants: {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to get session participants: " + e.getMessage());
+        }
+    }
 
     /**
      * 添加参与者到会话
