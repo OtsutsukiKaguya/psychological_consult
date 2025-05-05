@@ -19,6 +19,24 @@ import java.util.Optional;
 public interface ChatSessionRepository extends JpaRepository<ChatSession, String> {  // 修改主键类型为 String
 
 
+    @Query("""
+SELECT cs FROM ChatSession cs
+JOIN SessionParticipant sp ON cs.id = sp.session.id
+WHERE sp.user.id = :counselorId
+  AND sp.role = 'COUNSELOR'
+ORDER BY cs.updatedAt DESC
+""")
+    List<ChatSession> findByCounselorId(@Param("counselorId") String counselorId);
+
+    @Query("""
+SELECT cs FROM ChatSession cs
+JOIN SessionParticipant sp ON cs.id = sp.session.id
+WHERE sp.user.id = :supervisorId
+  AND sp.role = 'TUTOR'
+ORDER BY cs.updatedAt DESC
+""")
+    List<ChatSession> findBySupervisorId(@Param("supervisorId") String supervisorId);
+
     List<ChatSession> findAllByOrderByUpdatedAtDesc();
 
     // 根据参与者ID查找会话

@@ -53,6 +53,16 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 //    }
 
     @Override
+    public List<ChatSession> findByCounselorId(String counselorId){
+        return chatSessionRepository.findByCounselorId(counselorId);
+    }
+
+    @Override
+    public List<ChatSession> findBySupervisorId(String supervisorId){
+        return chatSessionRepository.findBySupervisorId(supervisorId);
+    }
+
+    @Override
     @Transactional
     public ChatSession createSession(ChatSession session) {
         if (session.getCreatedAt() == null) {

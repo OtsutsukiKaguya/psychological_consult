@@ -214,7 +214,7 @@ public class SessionController {
 
 
     /**
-     * 查看会话详情
+     * 查看会话记录详情
      */
     @GetMapping("/{sessionId}/records")
     public ResponseEntity<?> viewChatSessionDetails(@PathVariable String sessionId) {
@@ -262,6 +262,8 @@ public class SessionController {
                     .body("查看失败：" + e.getMessage());
         }
     }
+
+
 
     /**
      * 用户导出会话聊天记录
@@ -513,6 +515,7 @@ public class SessionController {
                         : "";
 
                 SessionRecordDTO dto = new SessionRecordDTO();
+                dto.setSessionId(session.getId());              // ★ 新增
                 dto.setVisitorName(visitorName);
                 dto.setDate(date);
                 dto.setDuration(duration);
@@ -532,6 +535,74 @@ public class SessionController {
             return ResponseEntity.internalServerError().body("获取失败: " + e.getMessage());
         }
     }
+
+
+    @GetMapping("/records")
+    @PreAuthorize("hasRole('ROLE_ADMIN') or hasRole('ROLE_COUNSELOR') or hasRole('ROLE_TUTOR')")
+    public ResponseEntity<?> getRecords(
+            @RequestParam(required = false) String counselorId,
+            @RequestParam(required = false) String supervisorId) {
+        // 参数互斥检查
+        if ((counselorId == null) == (supervisorId == null)) {
+            return ResponseEntity.badRequest()
+                    .body("必须且只能填一个参数：counselorId 或 supervisorId");
+        }
+
+        // 1. 根据角色查 session
+        List<ChatSession> sessions = (counselorId != null)
+                ? chatSessionService.findByCounselorId(counselorId)
+                : chatSessionService.findBySupervisorId(supervisorId);
+
+        // 2. 组装 DTO
+        List<SessionRecordDTO> result = new ArrayList<>();
+        for (ChatSession session : sessions) {
+            // —— 原有的 participants 循环，提取 visitorName / counselorDTO / supervisorDTO ——
+            String visitorName = "";
+            SimpleUserDTO counselorDTO = null;
+            SimpleUserDTO supervisorDTO = null;
+
+            List<SessionParticipant> parts = sessionParticipantRepository.findBySessionId(session.getId());
+            for (SessionParticipant p : parts) {
+                User user = p.getUser();
+                if (user == null) continue;
+                switch (p.getRole()) {
+                    case USER      -> visitorName    = user.getName();
+                    case COUNSELOR -> counselorDTO   = new SimpleUserDTO(user.getId(), user.getName());
+                    case TUTOR     -> supervisorDTO  = new SimpleUserDTO(user.getId(), user.getName());
+                }
+            }
+
+            // —— 原有的时长 + 日期 计算 ——
+            String duration = "00:00:00";
+            if (session.getCreatedAt() != null && session.getEndedAt() != null) {
+                long sec = Duration.between(session.getCreatedAt(), session.getEndedAt()).getSeconds();
+                duration = String.format("%02d:%02d:%02d",
+                        sec / 3600, (sec % 3600) / 60, sec % 60);
+            }
+            String date = session.getUpdatedAt() != null
+                    ? session.getUpdatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                    : "";
+
+            // —— 构造 DTO ——
+            SessionRecordDTO dto = new SessionRecordDTO();
+            dto.setSessionId(session.getId());              // ★ 导出按钮需要
+            dto.setVisitorName(visitorName);
+            dto.setDate(date);
+            dto.setDuration(duration);
+            dto.setRating(session.getRating());
+            dto.setUserComment(session.getUserComment());
+            dto.setCounselorComment(session.getCounselorComment());
+            dto.setTutorComment(session.getTutorComment());
+            dto.setCounselor(counselorDTO);
+            dto.setSupervisor(supervisorDTO);
+
+            result.add(dto);
+        }
+
+        // 3. 返回
+        return ResponseEntity.ok(result);
+    }
+
 
 
 
@@ -1207,7 +1278,7 @@ public class SessionController {
      */
     @Data
     public static class CreateSessionRequest {
-//        private String name;
+        //        private String name;
 //        private String description;
 //        private String type;
         private List<String> participantIds;

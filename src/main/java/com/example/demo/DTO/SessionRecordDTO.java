@@ -11,6 +11,15 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class SessionRecordDTO {
 
+    public String getSessionId() {
+        return sessionId;
+    }
+
+    public void setSessionId(String sessionId) {
+        this.sessionId = sessionId;
+    }
+
+    private String sessionId;      // ★ 新增
     private String visitorName;
     private SimpleUserDTO counselor;
     private SimpleUserDTO supervisor;

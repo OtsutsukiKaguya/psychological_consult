@@ -15,6 +15,9 @@ import java.util.List;
  */
 public interface ChatSessionService {
 
+    List<ChatSession> findByCounselorId(String counselorId);
+    List<ChatSession> findBySupervisorId(String supervisorId);
+
     /**
      * 创建会话
      */
