@@ -4,7 +4,8 @@
             <!-- 表格区域 -->
             <div class="table-area">
                 <el-table :data="groupedSessions" style="width: 100%" height="600" v-loading="loading">
-                    <el-table-column prop="consultId" label="咨询ID" width="200" />
+                    <el-table-column prop="counselorName" label="咨询师名字" width="200" />
+                    <el-table-column prop="counselorId" label="咨询师id" width="200" />
                     <el-table-column label="督导咨询师-会话ID" width="350">
                         <template #default="{ row }">
                             {{ row.oneToOne?.sessionId || '-' }}
@@ -77,6 +78,22 @@ const fetchSessions = async () => {
                     oneToOne: v.oneToOne,
                     group: v.group
                 }))
+
+            await Promise.all(groupedSessions.value.map(async (item) => {
+                if (item.oneToOne?.sessionId) {
+                    try {
+                        const resp = await axios.get(`${CHAT_BASE_URL}/api/sessions/${item.oneToOne.sessionId}/participants`)
+                        if (Array.isArray(resp.data)) {
+                            const counselor = resp.data.find(u => u.role === 'COUNSELOR')
+                            if (counselor) {
+                                item.counselorName = counselor.name
+                                item.counselorId = counselor.id
+                                console.log('获取到的咨询师:', counselor.name, counselor.id)
+                            }
+                        }
+                    } catch (e) { }
+                }
+            }))
         } else {
             groupedSessions.value = []
             ElMessage.error('获取会话数据失败')

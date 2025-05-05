@@ -225,7 +225,7 @@ const isLeaveDate = (date) => {
                         </div>
                         <div class="stat-item">
                             <div class="stat-value">{{ formatDuration(homepageStats.dailyTotalDuration) }}</div>
-                            <div class="stat-label">累计咨询时长</div>
+                            <div class="stat-label">当日咨询时长</div>
                         </div>
                         <div class="stat-item">
                             <div class="stat-value">{{ homepageStats.ongoingSessions }}</div>

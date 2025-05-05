@@ -97,7 +97,6 @@ const formatDateForApi = (date) => {
 const fetchDutyByDate = async (date) => {
     const formattedDate = formatDateForApi(date)
     const response = await axios.get(API.DUTY.GET_BY_DATE(formattedDate))
-    console.log(`【${formattedDate}】接口原始返回:`, response.data)
     let consultants = []
     let supervisors = []
     if (response.data.code === 0 && Array.isArray(response.data.data)) {
@@ -109,7 +108,6 @@ const fetchDutyByDate = async (date) => {
         consultants: consultants.length > 0 ? consultants.map(c => c.name) : [],
         supervisors: supervisors.length > 0 ? supervisors.map(s => s.name) : []
     }
-    console.log(`【${formattedDate}】处理后:`, scheduleItem)
     // 更新或添加该日期的排班信息
     const existingIndex = scheduleData.value.findIndex(item => item.date === formattedDate)
     if (existingIndex !== -1) {
@@ -260,17 +258,35 @@ const handleGenerate = async () => {
     const start = dayjs(generateForm.value.start).format('YYYY-MM-DD')
     const end = dayjs(generateForm.value.end).format('YYYY-MM-DD')
     const url = API.DUTY.GENERATE(start, end, generateForm.value.perDay)
-    console.log('生成排班请求URL:', url)
     try {
-        await axios.post(url, null, {
+        const res = await axios.post(url, null, {
             headers: { 'Content-Type': 'application/json' }
         })
-        ElMessage.success('排班生成成功')
-        showGenerateDialog.value = false
-        await fetchCurrentMonthDuty()
+        console.log('排班生成接口返回:', res.data)
+        if (res.data.code === 0) {
+            ElMessage.success('排班生成成功')
+            showGenerateDialog.value = false
+            await fetchCurrentMonthDuty()
+        } else if (res.data.code === 500 && res.data.message?.includes('Duplicate entry')) {
+            ElMessage.error('排班失败，已有排班')
+        } else {
+            ElMessage.error('排班生成失败')
+        }
     } catch (e) {
-        ElMessage.error('排班生成失败')
         console.error('排班生成失败:', e)
+        if (e.response) {
+            console.log('排班生成接口异常返回:', e.response.data)
+            if (
+                e.response.data?.code === 500 &&
+                e.response.data?.message?.includes('Duplicate entry')
+            ) {
+                ElMessage.error('排班失败，已有排班')
+            } else {
+                ElMessage.error('排班生成失败')
+            }
+        } else {
+            ElMessage.error('排班生成失败')
+        }
     }
 }
 

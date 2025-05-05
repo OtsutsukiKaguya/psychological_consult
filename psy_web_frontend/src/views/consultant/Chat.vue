@@ -35,7 +35,20 @@
                         </template>
                         <template v-else>
                             <div class="bubble consultant-bubble">
-                                {{ message.content }}
+                                <template v-if="message.fileUrl">
+                                    <template v-if="isImage(message.fileType, message.fileUrl)">
+                                        <el-image :src="message.fileUrl"
+                                            style="max-width: 200px; max-height: 200px; cursor: pointer"
+                                            :preview-src-list="[message.fileUrl]" fit="contain" />
+                                    </template>
+                                    <template v-else>
+                                        <a :href="message.fileUrl" target="_blank" style="color: white;"
+                                            rel="noopener noreferrer" download>{{ message.content }}</a>
+                                    </template>
+                                </template>
+                                <template v-else>
+                                    {{ message.content }}
+                                </template>
                             </div>
                             <img src="@/assets/avatar.png" :alt="`${message.type}头像`" class="avatar" />
                         </template>
@@ -45,6 +58,7 @@
                     <div class="toolbar toolbar-align" style="position:relative;">
                         <img src="@/assets/chat/icon_microphone.png" alt="Mic" @click="handleVoice" />
                         <img src="@/assets/chat/icon-photo.png" alt="Image" @click="handleImage" />
+                        <input ref="fileInputRef" type="file" style="display:none" @change="handleFileChange" />
                         <div style="display:inline-block;position:relative;">
                             <img src="@/assets/chat/icon-emoji.png" alt="Emoji" @click="handleEmoji" class="emoji-icon"
                                 ref="emojiIconRef" />
@@ -78,12 +92,38 @@
                         <template v-if="message.type === 'supervisor'">
                             <img src="@/assets/avatar.png" alt="督导头像" class="avatar" />
                             <div class="bubble supervisor-bubble">
-                                {{ message.content }}
+                                <template v-if="message.fileUrl">
+                                    <template v-if="isImage(message.fileType, message.fileUrl)">
+                                        <el-image :src="message.fileUrl"
+                                            style="max-width: 200px; max-height: 200px; cursor: pointer"
+                                            :preview-src-list="[message.fileUrl]" fit="contain" />
+                                    </template>
+                                    <template v-else>
+                                        <a :href="message.fileUrl" target="_blank" style="color: white;"
+                                            rel="noopener noreferrer" download>{{ message.content }}</a>
+                                    </template>
+                                </template>
+                                <template v-else>
+                                    {{ message.content }}
+                                </template>
                             </div>
                         </template>
                         <template v-else>
                             <div class="bubble consultant-bubble">
-                                {{ message.content }}
+                                <template v-if="message.fileUrl">
+                                    <template v-if="isImage(message.fileType, message.fileUrl)">
+                                        <el-image :src="message.fileUrl"
+                                            style="max-width: 200px; max-height: 200px; cursor: pointer"
+                                            :preview-src-list="[message.fileUrl]" fit="contain" />
+                                    </template>
+                                    <template v-else>
+                                        <a :href="message.fileUrl" target="_blank" style="color: white;"
+                                            rel="noopener noreferrer" download>{{ message.content }}</a>
+                                    </template>
+                                </template>
+                                <template v-else>
+                                    {{ message.content }}
+                                </template>
                             </div>
                             <img src="@/assets/avatar.png" alt="咨询师头像" class="avatar" />
                         </template>
@@ -93,6 +133,8 @@
                     <div class="toolbar toolbar-align" style="position:relative;">
                         <img src="@/assets/chat/icon_microphone.png" alt="Mic" @click="handleSupervisorVoice" />
                         <img src="@/assets/chat/icon-photo.png" alt="Image" @click="handleSupervisorImage" />
+                        <input ref="supervisorFileInputRef" type="file" style="display:none"
+                            @change="handleSupervisorFileChange" />
                         <div style="display:inline-block;position:relative;">
                             <img src="@/assets/chat/icon-emoji.png" alt="Emoji" @click="handleSupervisorEmoji"
                                 class="emoji-icon" ref="supervisorEmojiIconRef" />
@@ -413,6 +455,10 @@ const sendSupervisorMessage = () => {
 // 请求督导
 const showTutorSelect = ref(false)
 
+const hasRequestedSupervisor = ref(
+    localStorage.getItem(`hasRequestedSupervisor-${route.params.id}`) === 'true'
+)
+
 const requestSupervisor = async () => {
     // 这里假设 dutyDate 为今天日期，格式为 yyyy-MM-dd
     const today = new Date()
@@ -433,6 +479,8 @@ const requestSupervisor = async () => {
             tutorList.value = tutors
             selectedTutorId.value = tutorList.value[0].id
             showTutorSelect.value = true
+            hasRequestedSupervisor.value = true
+            localStorage.setItem(`hasRequestedSupervisor-${route.params.id}`, 'true')
         } else if (res.data.code === 0 && tutors.length === 0) {
             ElMessage.warning('今日无可用督导')
             return
@@ -448,6 +496,26 @@ const requestSupervisor = async () => {
 
 // 结束咨询
 const endConsultation = () => {
+    if (!hasRequestedSupervisor.value) {
+        // 没有请求过督导，直接关闭会话卡
+        clearChatState()
+        stopTimer()
+        const chatId = String(route.params.id)
+        localStorage.removeItem(`sessionId-${chatId}`)
+        localStorage.removeItem(`consultId-${chatId}`)
+        localStorage.removeItem(`hasRequestedSupervisor-${chatId}`)
+        if (layoutRef.value && layoutRef.value.removeConversation) {
+            layoutRef.value.removeConversation(chatId)
+        }
+        router.push('/consultant/schedule').then(() => {
+            window.location.reload()
+        })
+        ElMessage({
+            type: 'success',
+            message: '咨询已结束'
+        })
+        return
+    }
     ElMessageBox.prompt(
         '请输入对本次督导的评价',
         '结束咨询',
@@ -480,6 +548,7 @@ const endConsultation = () => {
             const chatId = String(route.params.id)
             localStorage.removeItem(`sessionId-${chatId}`)
             localStorage.removeItem(`consultId-${chatId}`)
+            localStorage.removeItem(`hasRequestedSupervisor-${chatId}`)
             if (layoutRef.value && layoutRef.value.removeConversation) {
                 layoutRef.value.removeConversation(chatId)
             }
@@ -501,10 +570,16 @@ const endConsultation = () => {
 
 // 工具栏功能
 const handleVoice = () => ElMessage.info('语音功能开发中')
-const handleImage = () => ElMessage.info('图片功能开发中')
+const handleImage = () => {
+    if (fileInputRef.value) fileInputRef.value.value = '' // 清空上次选择
+    fileInputRef.value && fileInputRef.value.click()
+}
 const handleCall = () => ElMessage.info('通话功能开发中')
 const handleSupervisorVoice = () => ElMessage.info('督导语音功能开发中')
-const handleSupervisorImage = () => ElMessage.info('督导图片功能开发中')
+const handleSupervisorImage = () => {
+    if (supervisorFileInputRef.value) supervisorFileInputRef.value.value = '' // 清空上次选择
+    supervisorFileInputRef.value && supervisorFileInputRef.value.click()
+}
 
 // 右侧emoji面板相关
 const showSupervisorEmojiPanel = ref(false)
@@ -701,6 +776,83 @@ const sendMessage = () => {
         .catch(error => {
             ElMessage.error('发送消息失败')
         })
+}
+
+// 1. 添加文件选择ref
+const fileInputRef = ref(null)
+
+// 2. 文件选择后上传
+const handleFileChange = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+        const res = await axios.post(
+            `${CHAT_BASE_URL}/api/messages/session/${SESSION_ID.value}/files/upload-and-send`,
+            formData,
+            {
+                headers: {
+                    'Authorization': `Bearer ${TOKEN}`,
+                    'Content-Type': 'multipart/form-data'
+                }
+            }
+        )
+        if (res.data && res.data.type === 'FILE') {
+            messages.value.push({
+                type: 'consultant',
+                content: `[文件] ${res.data.file.originalName}`,
+                fileUrl: res.data.file.ossUrl,
+                fileType: res.data.file.fileType
+            })
+        }
+        ElMessage.success('文件发送成功')
+    } catch (e) {
+        ElMessage.error('文件发送失败')
+    }
+}
+
+// 判断是否为图片类型（兼容fileType和url后缀）
+const isImage = (fileType, fileUrl) => {
+    if (fileType && fileType.startsWith('image/')) return true
+    if (fileUrl) {
+        return /\.(png|jpe?g|gif|bmp|webp|svg)$/i.test(fileUrl)
+    }
+    return false
+}
+
+// 1. 添加右侧栏文件选择ref
+const supervisorFileInputRef = ref(null)
+
+// 2. 右侧栏文件选择后上传
+const handleSupervisorFileChange = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+        const res = await axios.post(
+            `${CHAT_BASE_URL}/api/messages/session/${tutorSessionId.value}/files/upload-and-send`,
+            formData,
+            {
+                headers: {
+                    'Authorization': `Bearer ${TOKEN}`,
+                    'Content-Type': 'multipart/form-data'
+                }
+            }
+        )
+        if (res.data && res.data.type === 'FILE') {
+            tutorMessages.value.push({
+                type: 'consultant',
+                content: `[文件] ${res.data.file.originalName}`,
+                fileUrl: res.data.file.ossUrl,
+                fileType: res.data.file.fileType
+            })
+        }
+        ElMessage.success('文件发送成功')
+    } catch (e) {
+        ElMessage.error('文件发送失败')
+    }
 }
 </script>
 

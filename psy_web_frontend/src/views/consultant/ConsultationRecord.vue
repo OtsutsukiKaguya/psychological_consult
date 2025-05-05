@@ -58,7 +58,7 @@ const fetchRecords = async () => {
         if (res.data && Array.isArray(res.data.data)) {
             tableData.value = res.data.data.map(item => ({
                 sessionId: item.sessionId,
-                visitor: item.visitorName || '-',
+                visitor: item.visitorName ? item.visitorName : (item.supervisor?.name || '-'),
                 duration: item.duration || '-',
                 date: item.date || '-',
                 rating: item.rating,
@@ -67,7 +67,7 @@ const fetchRecords = async () => {
         } else if (Array.isArray(res.data)) {
             tableData.value = res.data.map(item => ({
                 sessionId: item.sessionId,
-                visitor: item.visitorName || '-',
+                visitor: item.visitorName ? item.visitorName : (item.supervisor?.name || '-'),
                 duration: item.duration || '-',
                 date: item.date || '-',
                 rating: item.rating,

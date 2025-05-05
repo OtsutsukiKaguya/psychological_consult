@@ -143,18 +143,17 @@ const getScheduleForDate = (date) => {
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')
     const dateStr = `${year}-${month}-${day}`
-    console.log('Checking date:', dateStr)
     const schedule = props.scheduleData.find(schedule => schedule.date === dateStr)
     if (schedule) {
-        console.log('Found schedule for date:', dateStr, schedule)
+        // console.log('Found schedule for date:', dateStr, schedule)
     }
     return schedule
 }
 
 // 初始化
 onMounted(() => {
-    console.log('Calendar mounted with year:', props.selectedDate.getFullYear())
-    console.log('Calendar mounted with month:', props.selectedDate.getMonth())
+    // console.log('Calendar mounted with year:', props.selectedDate.getFullYear())
+    // console.log('Calendar mounted with month:', props.selectedDate.getMonth())
     currentYear.value = props.selectedDate.getFullYear()
     currentMonth.value = props.selectedDate.getMonth()
 })
