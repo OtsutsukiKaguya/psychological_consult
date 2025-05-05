@@ -118,4 +118,10 @@ public interface BackstageArrangementMapper {
             @Result(column="tutor_id",     property="tutorId")
     })
     List<Bind> findAllBinds();
+
+    @Select("SELECT id FROM person WHERE name=#{name} and idcard=#{idcard}")
+    public String findId(String name, String idcard);
+
+    @Select("SELECT * FROM person p join counselor c on p.id=c.id")
+    public List<FindPersonDTO> findPerson();
 }

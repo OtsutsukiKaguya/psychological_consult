@@ -6,37 +6,22 @@ import com.example.demo.entity.Ask_leave;
 import com.example.demo.entity.Bind;
 import com.example.demo.entity.Duty_calendar;
 import com.example.demo.mapper.BackstageArrangementMapper;
-import com.example.demo.service.DutyScheduleService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api")
 public class BackstageArrangementController {
-    @Autowired
-    private DutyScheduleService dutyScheduleService;
 
     private static final Logger logger = LoggerFactory.getLogger(BackstageArrangementController.class);
 
     @Autowired
     private BackstageArrangementMapper backstageArrangementMapper;
-
-    /** 新增：批量生成排班 */
-    @PostMapping("/generate")
-    public Result generate(
-            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate start,
-            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate end,
-            @RequestParam int perDay) {
-        dutyScheduleService.generateSchedule(start, end, perDay);
-        return Result.success("排班已生成");
-    }
 
     // 查询指定 ID 的值班记录
     @GetMapping("/duty/getdutybyid/{id}")
@@ -437,6 +422,50 @@ public class BackstageArrangementController {
             return Result.success(count);
         } catch (Exception e) {
             return Result.error("服务器错误: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/findId")
+    public Result findId(@RequestParam String name, @RequestParam String idcard) {
+        try {
+            // 参数验证
+            if (name == null || name.trim().isEmpty()) {
+                logger.warn("Name parameter is empty");
+                return Result.error("姓名不能为空");
+            }
+            if (idcard == null || idcard.trim().isEmpty()) {
+                logger.warn("ID card parameter is empty");
+                return Result.error("身份证号不能为空");
+            }
+
+            String id = backstageArrangementMapper.findId(name, idcard);
+            if (id == null) {
+                logger.warn("No person found with name: {} and idcard: {}", name, idcard);
+                return Result.error("未找到匹配的个人信息，姓名: " + name + "，身份证号: " + idcard);
+            }
+
+            logger.info("成功查询到ID，姓名: {}，身份证号: {}", name, idcard);
+            return Result.success(id);
+        } catch (Exception e) {
+            logger.error("查询个人ID时发生错误，姓名: {}，身份证号: {}", name, idcard, e);
+            return Result.error("查询个人ID时发生错误");
+        }
+    }
+
+    @GetMapping("/findCounselors")
+    public Result findPerson() {
+        try {
+            List<FindPersonDTO> persons = backstageArrangementMapper.findPerson();
+            if (persons == null || persons.isEmpty()) {
+                logger.warn("未找到咨询师记录");
+                return Result.error("未找到咨询师记录");
+            }
+
+            logger.info("成功查询到 {} 条咨询师记录", persons.size());
+            return Result.success(persons);
+        } catch (Exception e) {
+            logger.error("查询咨询师记录时发生错误", e);
+            return Result.error("查询咨询师记录时发生错误");
         }
     }
 }
