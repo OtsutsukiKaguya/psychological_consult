@@ -1273,6 +1273,50 @@ public class SessionController {
         }
     }
 
+    @GetMapping("/by-user/{userId}")
+    @PreAuthorize("hasRole('ROLE_ADMIN') or hasRole('ROLE_COUNSELOR') or hasRole('ROLE_TUTOR')")
+    public ResponseEntity<?> getSessionsGroupedByConsultId(@PathVariable String userId) {
+        try {
+            User user = userService.findById(userId);
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("用户不存在");
+            }
+
+            List<SessionParticipant> participants = sessionParticipantRepository.findByUserId(userId);
+            Map<String, List<Map<String, Object>>> consultMap = new LinkedHashMap<>();
+
+            for (SessionParticipant sp : participants) {
+                if (sp.getRole() == SessionParticipant.ParticipantRole.COUNSELOR ||
+                        sp.getRole() == SessionParticipant.ParticipantRole.TUTOR) {
+
+                    ChatSession session = sp.getSession();
+                    String consultId = session.getConsultId();
+
+                    if (consultId == null) continue;  // 跳过未关联 consultId 的会话
+
+                    consultMap.computeIfAbsent(consultId, k -> new ArrayList<>()).add(Map.of(
+                            "sessionId", session.getId(),
+                            "sessionType", session.getType().name()
+                    ));
+                }
+            }
+
+            // 转换成 List<consultId + sessions>
+            List<Map<String, Object>> result = consultMap.entrySet().stream()
+                    .map(entry -> Map.of(
+                            "consultId", entry.getKey(),
+                            "sessions", entry.getValue()
+                    ))
+                    .toList();
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("❌ 查询失败", e);
+            return ResponseEntity.internalServerError().body("查询失败：" + e.getMessage());
+        }
+    }
+
+
     /**
      * 创建会话请求
      */
