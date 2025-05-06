@@ -156,11 +156,12 @@ const handleDelete = async () => {
                     <div class="post-content">
                         <div class="post-title">{{ post.postTitle }}</div>
                         <div class="post-info">
-                            <span class="post-author">发布人：{{ post.personId }}</span>
+                            <span class="post-author">发布人：{{ post.userInfo?.name || '' }}</span>
                             <span class="post-time">发布时间：{{ post.postTime }}</span>
                         </div>
                         <div class="post-content-text">{{ post.postContent }}</div>
                     </div>
+                    <el-avatar :size="40" :src="post.userInfo?.avatarUrl || ''" class="post-avatar-right" />
                     <!-- 只有管理员才显示删除按钮 -->
                     <el-button v-if="isAdmin" type="danger" :icon="Delete" circle class="delete-button"
                         @click.stop="showDeleteDialog(post.postId)" />
@@ -260,11 +261,8 @@ const handleDelete = async () => {
     flex: 1;
 }
 
-.post-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
+.post-avatar-right {
+    margin-left: 24px;
 }
 
 .post-title {
@@ -281,8 +279,9 @@ const handleDelete = async () => {
 }
 
 .post-info {
-    font-size: 14px;
+    margin-bottom: 6px;
     color: #666;
+    font-size: 14px;
 }
 
 .post-info span {
@@ -371,7 +370,6 @@ const handleDelete = async () => {
 }
 
 .post-content-text {
-    margin-top: 10px;
     color: #666;
     font-size: 14px;
     line-height: 1.5;

@@ -1,14 +1,14 @@
-# 创建咨询详情页面
+# 创建督导的咨询详情页面
 <template>
-    <ConsultantBaseLayout>
+    <SupervisorBaseLayout>
         <ConsultationDetailContent :counselor-comment="counselorComment" :counselor-messages="counselorMessages"
             :tutor-comment="tutorComment" :tutor-messages="tutorMessages" :has-tutor="hasTutor" :date="date"
             :loading="loading" />
-    </ConsultantBaseLayout>
+    </SupervisorBaseLayout>
 </template>
 
 <script setup>
-import ConsultantBaseLayout from '@/components/layout/ConsultantBaseLayout.vue'
+import SupervisorBaseLayout from '@/components/layout/SupervisorBaseLayout.vue'
 import ConsultationDetailContent from '@/components/consultation/ConsultationDetailContent.vue'
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'

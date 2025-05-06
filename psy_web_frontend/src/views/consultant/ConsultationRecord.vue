@@ -13,14 +13,17 @@ const router = useRouter()
 const currentPage = ref(1)
 const pageSize = ref(10)
 
+const tableData = ref([])
+const loading = ref(false)
+
 // 计算当前页的数据
 const currentPageData = computed(() => {
     let filtered = tableData.value
-    if (searchForm.value.date) {
-        filtered = filtered.filter(item => item.date === searchForm.value.date)
-    }
     if (searchForm.value.name) {
         filtered = filtered.filter(item => item.visitor && item.visitor.includes(searchForm.value.name))
+    }
+    if (searchForm.value.date) {
+        filtered = filtered.filter(item => item.date === searchForm.value.date)
     }
     const start = (currentPage.value - 1) * pageSize.value
     const end = start + pageSize.value
@@ -33,63 +36,17 @@ const searchForm = ref({
     date: ''
 })
 
-// 静态数据
-const tableData = ref([])
-
-// 获取当前用户信息
-const currentUser = computed(() => {
-    const userInfo = localStorage.getItem('userInfo')
-    return userInfo ? JSON.parse(userInfo) : null
-})
-
-// 获取咨询记录数据
-const fetchRecords = async () => {
-    let params = {}
-    if (!currentUser.value) return
-    if (currentUser.value.role === 'consultant') {
-        params.counselorId = currentUser.value.id
-    } else if (currentUser.value.role === 'supervisor') {
-        params.supervisorId = currentUser.value.id
-    }
-    try {
-        const res = await axios.get(`${CHAT_BASE_URL}/api/sessions/records`, { params })
-        console.log('接口原始返回：', res)
-        console.log('接口返回data：', res.data)
-        if (res.data && Array.isArray(res.data.data)) {
-            tableData.value = res.data.data.map(item => ({
-                sessionId: item.sessionId,
-                visitor: item.visitorName ? item.visitorName : (item.supervisor?.name || '-'),
-                duration: item.duration || '-',
-                date: item.date || '-',
-                rating: item.rating,
-                comment: item.userComment || '-'
-            }))
-        } else if (Array.isArray(res.data)) {
-            tableData.value = res.data.map(item => ({
-                sessionId: item.sessionId,
-                visitor: item.visitorName ? item.visitorName : (item.supervisor?.name || '-'),
-                duration: item.duration || '-',
-                date: item.date || '-',
-                rating: item.rating,
-                comment: item.userComment || '-'
-            }))
-        } else {
-            tableData.value = []
-        }
-    } catch (e) {
-        tableData.value = []
-    }
-}
-
-onMounted(() => {
-    fetchRecords()
-})
-
 // 处理查看详情按钮点击
 const handleViewDetail = (row) => {
+    console.log('跳转详情页参数 row.date:', row.date)
     router.push({
         name: 'consultationDetail',
-        params: { id: row.sessionId }
+        params: { consultId: row.consultId },
+        query: {
+            groupSessionId: row.groupSessionId,
+            oneToOneSessionId: row.oneToOneSessionId,
+            date: row.date
+        }
     })
 }
 
@@ -115,15 +72,15 @@ const handleExportRecord = async (row) => {
                 inputErrorMessage: '格式只能是txt、csv或pdf'
             }
         )
-        const sessionId = row.sessionId
-        if (!sessionId) {
-            ElMessage.error('未获取到sessionId')
+        const consultId = row.consultId
+        if (!consultId) {
+            ElMessage.error('未获取到consultId')
             return
         }
-        const url = `${CHAT_BASE_URL}/api/sessions/${sessionId}/export?format=${format}`
+        const url = `${CHAT_BASE_URL}/api/sessions/export-by-consult?consultId=${consultId}&format=${format}`
         const response = await axios.get(url, { responseType: 'blob' })
         // 获取文件名
-        let filename = `consultation_${sessionId}.${format}`
+        let filename = `consultation_${consultId}.${format}`
         const disposition = response.headers['content-disposition']
         if (disposition) {
             const match = disposition.match(/filename="(.+)"/)
@@ -143,6 +100,67 @@ const handleExportRecord = async (row) => {
         if (e !== 'cancel') ElMessage.error('导出失败')
     }
 }
+
+onMounted(async () => {
+    loading.value = true
+    // 获取当前用户id
+    let userId = ''
+    try {
+        const userInfo = localStorage.getItem('userInfo')
+        if (userInfo) {
+            userId = JSON.parse(userInfo).id
+        }
+    } catch { }
+    if (!userId) {
+        console.warn('未获取到当前用户id')
+        loading.value = false
+        return
+    }
+    try {
+        const res = await axios.get(`${CHAT_BASE_URL}/api/sessions/by-user/${userId}`)
+        const consultArr = Array.isArray(res.data) ? res.data : []
+        // 并发请求所有GROUP类型的sessionId详情
+        const groupSessions = []
+        consultArr.forEach(item => {
+            const group = item.sessions.find(s => s.sessionType === 'GROUP')
+            if (group) {
+                groupSessions.push({
+                    consultId: item.consultId,
+                    groupSessionId: group.sessionId,
+                    oneToOneSessionId: (item.sessions.find(s => s.sessionType === 'ONE_TO_ONE') || {}).sessionId || null
+                })
+            }
+        })
+        // 请求所有GROUP session详情
+        const detailResults = await Promise.all(groupSessions.map(async s => {
+            try {
+                const detailRes = await axios.get(`${CHAT_BASE_URL}/api/sessions/${s.groupSessionId}`)
+                const detail = detailRes.data
+                // 咨询人
+                const user = (detail.participants || []).find(p => p.role === 'USER')
+                // 是否督导
+                const tutor = (detail.participants || []).find(p => p.role === 'TUTOR')
+                // 咨询日期
+                const date = detail.createdAt ? detail.createdAt.split('T')[0] : ''
+                return {
+                    consultId: s.consultId,
+                    groupSessionId: s.groupSessionId,
+                    oneToOneSessionId: s.oneToOneSessionId,
+                    visitor: user ? user.name : '-',
+                    date,
+                    tutor: tutor ? tutor.name : '无'
+                }
+            } catch (e) {
+                return null
+            }
+        }))
+        tableData.value = detailResults.filter(Boolean)
+    } catch (e) {
+        console.error('获取by-user数据失败:', e)
+    } finally {
+        loading.value = false
+    }
+})
 </script>
 
 <template>
@@ -164,18 +182,11 @@ const handleExportRecord = async (row) => {
 
             <!-- 表格区域 -->
             <div class="table-area">
-                <el-table :data="currentPageData" style="width: 100%" height="600">
-                    <el-table-column prop="visitor" label="咨询人" width="150" />
-                    <el-table-column prop="duration" label="咨询时长" width="150" />
-                    <el-table-column prop="date" label="咨询日期" width="150" />
-                    <el-table-column label="咨询评级" width="200">
-                        <template #default="{ row }">
-                            <el-rate v-model="row.rating" :colors="['#ffd21e', '#ffd21e', '#ffd21e']" :allow-half="true"
-                                show-score score-template="{value} points" disabled />
-                        </template>
-                    </el-table-column>
-                    <el-table-column label="评价" prop="comment" min-width="200" />
-                    <el-table-column label="操作" width="200">
+                <el-table :data="currentPageData" style="width: 100%" height="600" border v-loading="loading">
+                    <el-table-column prop="visitor" label="咨询人" min-width="120" />
+                    <el-table-column prop="date" label="咨询日期" min-width="120" />
+                    <el-table-column prop="tutor" label="是否督导" min-width="120" />
+                    <el-table-column label="操作" min-width="200" fixed="right">
                         <template #default="{ row }">
                             <div class="button-group">
                                 <el-button type="success" size="small" class="detail-button"

@@ -54,19 +54,20 @@ const fetchSessions = async () => {
     if (firstLoad.value) loading.value = true
     try {
         const res = await axios.get(`${CHAT_BASE_URL}/api/statistics/ongoing-sessions`)
+        console.log('[ongoing-sessions] 返回数据:', res.data)
         if (res.data.code === 0 && Array.isArray(res.data.data)) {
             // 先分组
             const oneToOne = res.data.data.filter(item => item.type === 'ONE_TO_ONE')
             const group = res.data.data.filter(item => item.type === 'GROUP')
-            // 用consultId分组（假设participantIds[0]为consultId）
+            // 用consultId分组
             const groupMap = {}
             oneToOne.forEach(item => {
-                const consultId = item.participantIds[0]
+                const consultId = item.consultId
                 if (!groupMap[consultId]) groupMap[consultId] = {}
                 groupMap[consultId].oneToOne = item
             })
             group.forEach(item => {
-                const consultId = item.participantIds[0]
+                const consultId = item.consultId
                 if (!groupMap[consultId]) groupMap[consultId] = {}
                 groupMap[consultId].group = item
             })

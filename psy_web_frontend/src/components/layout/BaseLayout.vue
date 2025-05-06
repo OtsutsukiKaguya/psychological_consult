@@ -1,6 +1,6 @@
 <!-- 基础布局组件 -->
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   House,
@@ -14,19 +14,51 @@ import {
   SwitchButton
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { CHAT_BASE_URL, BASE_URL } from '@/config'
+import axios from 'axios'
 
 // 路由
 const router = useRouter()
 const route = useRoute()
 
+// 添加文件输入框ref
+const fileInputRef = ref(null)
+
+// 获取当前用户信息
+const currentUser = ref(null)
+
+// 初始化用户信息
+const initUserInfo = () => {
+  const userInfo = localStorage.getItem('userInfo')
+  if (userInfo) {
+    currentUser.value = JSON.parse(userInfo)
+  }
+}
+
 // 处理退出登录
-const handleLogout = () => {
-  // 清空本地存储的用户信息
-  localStorage.removeItem('userInfo')
-  // 跳转到登录页面
-  router.push('/login')
-  // 显示提示消息
-  ElMessage.success('退出登录成功')
+const handleLogout = async () => {
+  try {
+    // 获取当前用户ID
+    const userInfo = localStorage.getItem('userInfo')
+    const userId = userInfo ? JSON.parse(userInfo).id : null
+
+    if (userId) {
+      // 调用退出登录接口
+      await axios.post(`${BASE_URL}/api/quit`, null, {
+        params: { id: userId }
+      })
+    }
+  } catch (error) {
+    console.error('退出登录接口调用失败:', error)
+  } finally {
+    // 清空本地存储的用户信息和token
+    localStorage.removeItem('userInfo')
+    localStorage.removeItem('token')
+    // 跳转到登录页面
+    router.push('/login')
+    // 显示提示消息
+    ElMessage.success('退出登录成功')
+  }
 }
 
 // 菜单配置
@@ -51,14 +83,14 @@ const menuItems = [
 ]
 
 // 获取当前用户信息
-const currentUser = computed(() => {
+const currentUserInfo = computed(() => {
   const userInfo = localStorage.getItem('userInfo')
   return userInfo ? JSON.parse(userInfo) : null
 })
 
 // 欢迎文本
 const welcomeText = computed(() => {
-  return currentUser.value ? `欢迎，管理员${currentUser.value.name}` : '欢迎'
+  return currentUserInfo.value ? `欢迎，管理员${currentUserInfo.value.name}` : '欢迎'
 })
 
 // 菜单点击处理
@@ -74,6 +106,79 @@ const activeMenu = computed(() => {
   }
   return route.path
 })
+
+// 处理头像点击
+const handleAvatarClick = () => {
+  if (fileInputRef.value) {
+    fileInputRef.value.value = '' // 清空上次选择
+    fileInputRef.value.click()
+  }
+}
+
+// 处理文件上传
+const handleFileUpload = async (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+
+  // 检查文件类型
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error('请上传图片文件')
+    return
+  }
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  try {
+    const res = await axios.post(
+      `${CHAT_BASE_URL}/api/files/upload`,
+      formData,
+      {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    )
+
+    if (res.data && res.data.ossUrl) {
+      // 更新本地存储的用户信息
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      userInfo.idPictureLink = res.data.ossUrl
+      localStorage.setItem('userInfo', JSON.stringify(userInfo))
+      // 直接更新 currentUser
+      currentUser.value = userInfo
+
+      // 调用 /api/person/update 同步数据库
+      const params = {
+        newid: userInfo.id,
+        id: userInfo.id,
+        email: userInfo.email || '',
+        phone: userInfo.phone || '',
+        selfDescription: userInfo.selfDescription || '',
+        idPictureLink: userInfo.idPictureLink || ''
+      }
+      console.log('[person update] 请求参数:', params)
+      try {
+        const updateRes = await axios.post(`${BASE_URL}/api/person/update`, null, { params })
+        console.log('[person update] 返回数据:', updateRes.data)
+        ElMessage.success('头像上传并同步成功')
+      } catch (e) {
+        ElMessage.error('头像已上传，但信息同步失败')
+      }
+    } else {
+      ElMessage.error('上传失败')
+    }
+  } catch (error) {
+    console.error('上传失败:', error)
+    ElMessage.error('上传失败')
+  }
+}
+
+// 在组件挂载时初始化用户信息
+onMounted(() => {
+  initUserInfo()
+})
 </script>
 
 <template>
@@ -82,9 +187,10 @@ const activeMenu = computed(() => {
     <div class="sidebar">
       <!-- 用户信息区域 -->
       <div class="user-info">
-        <el-avatar :size="50" :src="currentUser?.idPictureLink">
+        <el-avatar :size="50" :src="currentUser?.idPictureLink" @click="handleAvatarClick" style="cursor: pointer;">
           {{ currentUser?.name?.charAt(0) }}
         </el-avatar>
+        <input ref="fileInputRef" type="file" accept="image/*" style="display: none" @change="handleFileUpload" />
         <div class="user-detail">
           <div class="welcome">欢迎，</div>
           <div class="role">管理员{{ currentUser?.name }}</div>

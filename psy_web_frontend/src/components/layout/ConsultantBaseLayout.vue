@@ -4,9 +4,11 @@
         <div class="sidebar">
             <!-- 用户信息区域 -->
             <div class="user-info">
-                <el-avatar :size="50" :src="userInfo.avatar">
-                    {{ currentUser?.name?.charAt(0) }}
+                <el-avatar :size="50" :src="userInfo.avatar" @click="handleAvatarClick" style="cursor:pointer;">
+                    {{ userInfo.name?.charAt(0) }}
                 </el-avatar>
+                <input ref="fileInputRef" type="file" accept="image/*" style="display:none"
+                    @change="handleFileUpload" />
                 <div class="user-detail">
                     <div class="welcome">欢迎，</div>
                     <div class="role">咨询师{{ currentUser?.name }}</div>
@@ -70,20 +72,37 @@ import { ref, onMounted, watch, computed, defineExpose } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { House, Document, Calendar, Bell, SwitchButton } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { CHAT_BASE_URL, BASE_URL } from '@/config'
+import axios from 'axios'
 
 // 路由
 const router = useRouter()
 const route = useRoute()
 
 // 处理退出登录
-const handleLogout = () => {
-    // 清空本地存储的用户信息和token
-    localStorage.removeItem('userInfo')
-    localStorage.removeItem('token')
-    // 跳转到登录页面
-    router.push('/login')
-    // 显示提示消息
-    ElMessage.success('退出登录成功')
+const handleLogout = async () => {
+    try {
+        // 获取当前用户ID
+        const userInfo = localStorage.getItem('userInfo')
+        const userId = userInfo ? JSON.parse(userInfo).id : null
+
+        if (userId) {
+            // 调用退出登录接口
+            await axios.post(`${BASE_URL}/api/quit`, null, {
+                params: { id: userId }
+            })
+        }
+    } catch (error) {
+        console.error('退出登录接口调用失败:', error)
+    } finally {
+        // 清空本地存储的用户信息和token
+        localStorage.removeItem('userInfo')
+        localStorage.removeItem('token')
+        // 跳转到登录页面
+        router.push('/login')
+        // 显示提示消息
+        ElMessage.success('退出登录成功')
+    }
 }
 
 // 菜单配置
@@ -96,11 +115,12 @@ const menuItems = [
 ]
 
 // 用户信息
-const userInfo = {
-    avatar: '', // 头像URL
+const fileInputRef = ref(null)
+const userInfo = ref({
+    avatar: '',
     name: '咨询师',
     role: '咨询师'
-}
+})
 
 // 会话列表
 const conversations = ref([])
@@ -154,6 +174,7 @@ onMounted(() => {
     conversations.value = JSON.parse(localStorage.getItem('conversations') || '[]')
     activeConversationId.value = localStorage.getItem('activeConversationId') || null
     updateActiveConversation()
+    initUserInfo()
 })
 
 watch(() => route.params.id, () => {
@@ -176,14 +197,84 @@ const handleMenuClick = (path) => {
 
 // 获取当前用户信息
 const currentUser = computed(() => {
-    const userInfo = localStorage.getItem('userInfo')
-    return userInfo ? JSON.parse(userInfo) : null
+    const info = localStorage.getItem('userInfo')
+    return info ? JSON.parse(info) : null
 })
 
 // 欢迎文本
 const welcomeText = computed(() => {
     return currentUser.value ? `欢迎，咨询师${currentUser.value.name}` : '欢迎'
 })
+
+// 初始化用户信息
+const initUserInfo = () => {
+    const info = localStorage.getItem('userInfo')
+    if (info) {
+        const parsed = JSON.parse(info)
+        userInfo.value.avatar = parsed.idPictureLink || ''
+        userInfo.value.name = parsed.name || '咨询师'
+    }
+}
+
+// 头像点击
+const handleAvatarClick = () => {
+    if (fileInputRef.value) {
+        fileInputRef.value.value = ''
+        fileInputRef.value.click()
+    }
+}
+
+// 上传头像
+const handleFileUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+        ElMessage.error('请上传图片文件')
+        return
+    }
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+        const res = await axios.post(
+            `${CHAT_BASE_URL}/api/files/upload`,
+            formData,
+            {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Content-Type': 'multipart/form-data'
+                }
+            }
+        )
+        if (res.data && res.data.ossUrl) {
+            // 更新本地 userInfo
+            const info = JSON.parse(localStorage.getItem('userInfo') || '{}')
+            info.idPictureLink = res.data.ossUrl
+            localStorage.setItem('userInfo', JSON.stringify(info))
+            userInfo.value.avatar = res.data.ossUrl
+            // 同步数据库
+            const params = {
+                newid: info.id,
+                id: info.id,
+                email: info.email || '',
+                phone: info.phone || '',
+                selfDescription: info.selfDescription || '',
+                idPictureLink: info.idPictureLink || ''
+            }
+            console.log('[person update] 请求参数:', params)
+            try {
+                const updateRes = await axios.post(`${BASE_URL}/api/person/update`, null, { params })
+                console.log('[person update] 返回数据:', updateRes.data)
+                ElMessage.success('头像上传并同步成功')
+            } catch (e) {
+                ElMessage.error('头像已上传，但信息同步失败')
+            }
+        } else {
+            ElMessage.error('上传失败')
+        }
+    } catch (error) {
+        ElMessage.error('上传失败')
+    }
+}
 </script>
 
 <style scoped>

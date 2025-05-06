@@ -18,7 +18,7 @@
                 </el-button>
                 <StaffList :consultants="currentSchedule.consultants" :supervisors="currentSchedule.supervisors"
                     @add-consultant="handleAddConsultant" @add-supervisor="handleAddSupervisor"
-                    @remove-consultant="handleRemoveConsultant" />
+                    @remove-consultant="handleRemoveConsultant" @remove-supervisor="handleRemoveSupervisor" />
             </div>
         </div>
         <!-- 添加人员弹窗 -->
@@ -61,7 +61,7 @@ import Calendar from '@/components/schedule/Calendar.vue'
 import StaffList from '@/components/schedule/StaffList.vue'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
-import { API } from '@/config'
+import { API, BASE_URL } from '@/config'
 import dayjs from 'dayjs'
 
 const selectedDate = ref(new Date())
@@ -105,8 +105,14 @@ const fetchDutyByDate = async (date) => {
     }
     const scheduleItem = {
         date: formattedDate,
-        consultants: consultants.length > 0 ? consultants.map(c => c.name) : [],
-        supervisors: supervisors.length > 0 ? supervisors.map(s => s.name) : []
+        consultants: consultants.length > 0 ? consultants.map(c => ({
+            id: c.id,
+            name: c.name
+        })) : [],
+        supervisors: supervisors.length > 0 ? supervisors.map(s => ({
+            id: s.id,
+            name: s.name
+        })) : []
     }
     // 更新或添加该日期的排班信息
     const existingIndex = scheduleData.value.findIndex(item => item.date === formattedDate)
@@ -192,13 +198,13 @@ const currentSchedule = computed(() => {
     const schedule = getScheduleForSelectedDate(selectedDate.value)
     return {
         consultants: schedule.consultants.map(name => ({
-            id: name,
-            name: name,
+            id: name.id,
+            name: name.name,
             avatar: ''
         })),
         supervisors: schedule.supervisors.map(name => ({
-            id: name,
-            name: name,
+            id: name.id,
+            name: name.name,
             avatar: ''
         }))
     }
@@ -238,9 +244,39 @@ const submitAddDuty = async () => {
 }
 
 // 移除咨询师
-const handleRemoveConsultant = (id) => {
-    // TODO: 实现移除咨询师逻辑
-    ElMessage.info('移除咨询师功能待实现')
+const handleRemoveConsultant = async (id) => {
+    const dutyDate = formatDateForApi(selectedDate.value)
+    console.log('移除咨询师请求参数:', { id, dutyDate })
+    try {
+        const res = await axios.post(`${BASE_URL}/api/duty/deleteduty`, null, {
+            params: {
+                id,
+                dutyDate
+            }
+        })
+        console.log('移除咨询师返回结果:', res.data)
+        await fetchDutyByDate(selectedDate.value)
+    } catch (e) {
+        console.error('移除咨询师失败:', e)
+    }
+}
+
+// 移除督导
+const handleRemoveSupervisor = async (id) => {
+    const dutyDate = formatDateForApi(selectedDate.value)
+    console.log('移除督导请求参数:', { id, dutyDate })
+    try {
+        const res = await axios.post(`${BASE_URL}/api/duty/deleteduty`, null, {
+            params: {
+                id,
+                dutyDate
+            }
+        })
+        console.log('移除督导返回结果:', res.data)
+        await fetchDutyByDate(selectedDate.value)
+    } catch (e) {
+        console.error('移除督导失败:', e)
+    }
 }
 
 // 一键排班点击事件（预留）

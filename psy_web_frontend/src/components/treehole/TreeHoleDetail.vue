@@ -6,8 +6,7 @@
             <div class="post-header">
                 <div class="post-info">
                     <div class="user-info">
-                        <el-avatar :size="40"
-                            src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png" />
+                        <el-avatar :size="40" :src="postUserAvatar" />
                         <div class="user-meta">
                             <span class="username">{{ personId }}</span>
                             <span class="post-time">{{ postTime }}</span>
@@ -34,14 +33,20 @@
                     <div class="reply-header">
                         <div class="reply-relation">
                             <div class="reply-box">
-                                <span class="replier-name">{{ reply.userInfo.id }}</span>
+                                <span class="replier-name">{{ reply.userInfo.name }}</span>
                                 <span class="reply-action">回复了</span>
                                 <span class="replier-name">{{ personId }}</span>
                             </div>
                         </div>
                         <span class="reply-time">{{ reply.replyTime }}</span>
                     </div>
-                    <div class="reply-content">{{ reply.replyContent }}</div>
+                    <div class="reply-content">
+                        {{ reply.replyContent }}
+                        <div v-if="reply.pictureLink" class="reply-picture">
+                            <el-image :src="reply.pictureLink"
+                                style="max-width: 200px; max-height: 200px; margin-top: 8px;" fit="contain" />
+                        </div>
+                    </div>
                 </div>
             </template>
         </div>
@@ -115,6 +120,7 @@ const postTitle = ref('')
 const postContent = ref('')
 const postTime = ref('')
 const personId = ref('')
+const postUserAvatar = ref('')
 
 // 删除相关
 const deleteDialogVisible = ref(false)
@@ -214,6 +220,7 @@ const fetchPostDetails = async () => {
             postContent.value = post.postContent
             postTime.value = post.postTime
             personId.value = post.userInfo?.id || ''
+            postUserAvatar.value = post.userInfo?.avatarUrl || ''
         } else {
             ElMessage.error('获取帖子详情失败')
         }
@@ -455,5 +462,9 @@ onMounted(() => {
 :deep(.el-dialog__footer) {
     border-top: 1px solid #eee;
     padding: 20px;
+}
+
+.reply-picture {
+    margin-top: 8px;
 }
 </style>

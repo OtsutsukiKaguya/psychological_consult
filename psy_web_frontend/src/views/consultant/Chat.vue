@@ -30,16 +30,46 @@
                         <template v-if="message.type === 'user'">
                             <img src="@/assets/avatar.png" :alt="`${message.type}头像`" class="avatar" />
                             <div class="bubble user-bubble">
-                                {{ message.content }}
+                                <template v-if="message.fileUrl">
+                                    <template v-if="isImage(message.fileType, message.fileUrl)">
+                                        <el-image :src="message.fileUrl"
+                                            style="max-width: 200px; max-height: 200px; cursor: pointer"
+                                            :preview-src-list="[message.fileUrl]" fit="contain" />
+                                    </template>
+                                    <template v-else-if="message.isAudio">
+                                        <span>[语音消息，{{ message.duration || '?' }}秒]</span>
+                                    </template>
+                                    <template v-else-if="message.isFile">
+                                        <a :href="message.fileUrl" target="_blank"
+                                            style="color: #222 !important; font-weight: bold !important;"
+                                            rel="noopener noreferrer" download>
+                                            [收到文件，点击可以下载] {{ message.content }}
+                                        </a>
+                                    </template>
+                                    <template v-else>
+                                        <a :href="message.fileUrl" target="_blank" style="color: white;"
+                                            rel="noopener noreferrer" download>{{ message.content }}</a>
+                                    </template>
+                                </template>
+                                <template v-else>
+                                    {{ message.content }}
+                                </template>
                             </div>
                         </template>
-                        <template v-else>
+                        <template v-else-if="message.type === 'consultant'">
                             <div class="bubble consultant-bubble">
                                 <template v-if="message.fileUrl">
                                     <template v-if="isImage(message.fileType, message.fileUrl)">
                                         <el-image :src="message.fileUrl"
                                             style="max-width: 200px; max-height: 200px; cursor: pointer"
                                             :preview-src-list="[message.fileUrl]" fit="contain" />
+                                    </template>
+                                    <template v-else-if="message.isFile">
+                                        <a :href="message.fileUrl" target="_blank"
+                                            style="color: #222 !important; font-weight: bold !important;"
+                                            rel="noopener noreferrer" download>
+                                            [收到文件，点击可以下载]{{ message.content }}
+                                        </a>
                                     </template>
                                     <template v-else>
                                         <a :href="message.fileUrl" target="_blank" style="color: white;"
@@ -98,6 +128,13 @@
                                             style="max-width: 200px; max-height: 200px; cursor: pointer"
                                             :preview-src-list="[message.fileUrl]" fit="contain" />
                                     </template>
+                                    <template v-else-if="message.isFile">
+                                        <a :href="message.fileUrl" target="_blank"
+                                            style="color: #222 !important; font-weight: bold !important;"
+                                            rel="noopener noreferrer" download>
+                                            [收到文件，点击可以下载]{{ message.content }}
+                                        </a>
+                                    </template>
                                     <template v-else>
                                         <a :href="message.fileUrl" target="_blank" style="color: white;"
                                             rel="noopener noreferrer" download>{{ message.content }}</a>
@@ -108,13 +145,20 @@
                                 </template>
                             </div>
                         </template>
-                        <template v-else>
+                        <template v-else-if="message.type === 'consultant'">
                             <div class="bubble consultant-bubble">
                                 <template v-if="message.fileUrl">
                                     <template v-if="isImage(message.fileType, message.fileUrl)">
                                         <el-image :src="message.fileUrl"
                                             style="max-width: 200px; max-height: 200px; cursor: pointer"
                                             :preview-src-list="[message.fileUrl]" fit="contain" />
+                                    </template>
+                                    <template v-else-if="message.isFile">
+                                        <a :href="message.fileUrl" target="_blank"
+                                            style="color: #222 !important; font-weight: bold !important;"
+                                            rel="noopener noreferrer" download>
+                                            [收到文件，点击可以下载]{{ message.content }}
+                                        </a>
                                     </template>
                                     <template v-else>
                                         <a :href="message.fileUrl" target="_blank" style="color: white;"
@@ -132,17 +176,21 @@
                 <div class="input-area supervisor-input-area">
                     <div class="toolbar toolbar-align" style="position:relative;">
                         <img src="@/assets/chat/icon_microphone.png" alt="Mic" @click="handleSupervisorVoice" />
-                        <img src="@/assets/chat/icon-photo.png" alt="Image" @click="handleSupervisorImage" />
+                        <img src="@/assets/chat/icon-photo.png" alt="Image" @click="handleSupervisorImage"
+                            :style="{ opacity: hasRequestedSupervisor ? 1 : 0.5, cursor: hasRequestedSupervisor ? 'pointer' : 'not-allowed' }" />
                         <input ref="supervisorFileInputRef" type="file" style="display:none"
-                            @change="handleSupervisorFileChange" />
+                            @change="handleSupervisorFileChange" :disabled="!hasRequestedSupervisor" />
                         <div style="display:inline-block;position:relative;">
                             <img src="@/assets/chat/icon-emoji.png" alt="Emoji" @click="handleSupervisorEmoji"
                                 class="emoji-icon" ref="supervisorEmojiIconRef" />
                         </div>
                     </div>
-                    <textarea v-model="supervisorInputMessage" placeholder="输入消息..."
-                        @keyup.enter="sendSupervisorMessage"></textarea>
-                    <button class="send-button" @click="sendSupervisorMessage">发送</button>
+                    <textarea v-model="supervisorInputMessage"
+                        :placeholder="hasRequestedSupervisor ? '输入消息...' : '请先请求督导'"
+                        @keyup.enter="sendSupervisorMessage" :disabled="!hasRequestedSupervisor"></textarea>
+                    <button class="send-button" @click="sendSupervisorMessage"
+                        :disabled="!hasRequestedSupervisor">发送</button>
+
                     <!-- fixed全局表情面板 for 右侧 -->
                     <transition name="fade">
                         <div v-if="showSupervisorEmojiPanel" class="emoji-panel-fixed"
@@ -333,6 +381,23 @@ const stopTimer = () => {
 const tutorSessionId = ref('')
 const tutorName = ref('督导')
 
+// 根据当前会话id加载自己的tutorSessionId和tutorName
+function loadTutorSessionInfo() {
+    const chatId = route.params.id
+    const localTutorSessionId = localStorage.getItem(`tutorSessionId-${chatId}`)
+    if (localTutorSessionId) {
+        tutorSessionId.value = localTutorSessionId
+    } else {
+        tutorSessionId.value = ''
+    }
+    const localTutorName = localStorage.getItem(`tutorName-${chatId}`)
+    if (localTutorName) {
+        tutorName.value = localTutorName
+    } else {
+        tutorName.value = '督导'
+    }
+}
+
 // 监听请求督导接口返回sessionId
 const confirmSelectTutor = async () => {
     const supervisorId = selectedTutorId.value
@@ -372,6 +437,26 @@ const confirmSelectTutor = async () => {
     }
 }
 
+// 新增：所有会话卡的tutorMessages都存储在localStorage，按sessionId区分
+function appendTutorMessageToStorage(sessionId, message) {
+    const key = `tutorMessages-${sessionId}`
+    let msgs = []
+    try {
+        msgs = JSON.parse(localStorage.getItem(key)) || []
+    } catch (e) { }
+    msgs.push(message)
+    localStorage.setItem(key, JSON.stringify(msgs))
+}
+
+function loadTutorMessages() {
+    const key = `tutorMessages-${tutorSessionId.value}`
+    let msgs = []
+    try {
+        msgs = JSON.parse(localStorage.getItem(key)) || []
+    } catch (e) { }
+    tutorMessages.value = msgs
+}
+
 // WebSocket推送处理
 const connectWebSocket = () => {
     const socket = new window.SockJS('http://47.117.102.116:8081/ws')
@@ -388,27 +473,113 @@ const connectWebSocket = () => {
             // 中间栏：用户与咨询师
             if (receivedMessage.sessionId === SESSION_ID.value) {
                 console.log('[中间栏收到消息]', receivedMessage)
-                messages.value.push({
-                    type: 'user',
-                    content: receivedMessage.content
-                })
-                scrollToBottom()
-            }
-            // 右侧栏：督导与咨询师
-            if (receivedMessage.sessionId === tutorSessionId.value) {
-                console.log('[右侧栏收到消息]', receivedMessage)
-                if (receivedMessage.senderType === 'TUTOR') {
-                    tutorMessages.value.push({
-                        type: 'supervisor', // 督导发来的消息显示为supervisor-bubble（白底、靠左）
-                        content: receivedMessage.content
+                if (receivedMessage.type === 'IMAGE' || isOssImageUrl(receivedMessage.content)) {
+                    messages.value.push({
+                        type: 'user',
+                        content: '',
+                        fileUrl: receivedMessage.content,
+                        isImage: true
                     })
+                } else if (receivedMessage.type === 'FILE') {
+                    let fileInfo = {}
+                    try {
+                        fileInfo = JSON.parse(receivedMessage.content)
+                        // 判断是否为音频
+                        if (isAudio(fileInfo.fileType, fileInfo.url)) {
+                            messages.value.push({
+                                type: 'user',
+                                content: `[语音消息，${fileInfo.duration || '?'}秒]`,
+                                fileUrl: fileInfo.url,
+                                fileType: fileInfo.fileType || '',
+                                isAudio: true,
+                                duration: fileInfo.duration || ''
+                            })
+                        } else if (isImage(fileInfo.fileType, fileInfo.url)) {
+                            messages.value.push({
+                                type: 'user',
+                                content: fileInfo.fileName,
+                                fileUrl: fileInfo.url,
+                                fileType: fileInfo.fileType || ''
+                                // 不设置isFile
+                            })
+                        } else {
+                            messages.value.push({
+                                type: 'user',
+                                content: fileInfo.fileName,
+                                fileUrl: fileInfo.url,
+                                fileType: fileInfo.fileType || '',
+                                isFile: true
+                            })
+                        }
+                    } catch (e) {
+                        console.error('解析文件信息失败:', e)
+                        messages.value.push({
+                            type: 'user',
+                            content: '未知文件',
+                            fileUrl: '',
+                            fileType: '',
+                            isFile: true
+                        })
+                    }
                 } else {
-                    tutorMessages.value.push({
-                        type: 'consultant', // 自己发的显示为consultant-bubble（绿色、靠右）
+                    messages.value.push({
+                        type: 'user',
                         content: receivedMessage.content
                     })
                 }
-                scrollSupervisorToBottom()
+                scrollToBottom()
+            }
+            // 右侧栏：督导与咨询师
+            // 新增：无论当前页面在哪个会话卡，只要收到属于某个会话卡（sessionId匹配）的督导消息，都追加到对应localStorage
+            // 这里假设所有tutorSessionId都以localStorage的tutorSessionId-<chatId>存储
+            const allKeys = Object.keys(localStorage).filter(k => k.startsWith('tutorSessionId-'))
+            const allSessionIds = allKeys.map(k => localStorage.getItem(k)).filter(Boolean)
+            if (allSessionIds.includes(receivedMessage.sessionId)) {
+                // 组装消息对象
+                let msgObj = null
+                if (receivedMessage.type === 'FILE') {
+                    let fileInfo = {}
+                    try {
+                        fileInfo = JSON.parse(receivedMessage.content)
+                        msgObj = {
+                            type: receivedMessage.senderType === 'TUTOR' || receivedMessage.senderType === 'SYSTEM' ? 'supervisor' : 'consultant',
+                            content: fileInfo.fileName,
+                            fileUrl: fileInfo.url,
+                            fileType: getFileTypeFromUrl(fileInfo.url),
+                            isSelf: receivedMessage.senderType === 'TUTOR' || receivedMessage.senderType === 'SYSTEM',
+                            isFile: true
+                        }
+                    } catch (e) {
+                        console.error('解析文件信息失败:', e)
+                        msgObj = {
+                            type: receivedMessage.senderType === 'TUTOR' || receivedMessage.senderType === 'SYSTEM' ? 'supervisor' : 'consultant',
+                            content: '未知文件',
+                            fileUrl: '',
+                            fileType: '',
+                            isSelf: receivedMessage.senderType === 'TUTOR' || receivedMessage.senderType === 'SYSTEM',
+                            isFile: true
+                        }
+                    }
+                } else {
+                    // SYSTEM消息显示在supervisor bubble
+                    let msgType = 'consultant'
+                    let isSelf = false
+                    if (receivedMessage.senderType === 'TUTOR' || receivedMessage.senderType === 'SYSTEM') {
+                        msgType = 'supervisor'
+                        isSelf = true
+                    }
+                    msgObj = {
+                        type: msgType,
+                        content: receivedMessage.content,
+                        isSelf
+                    }
+                }
+                appendTutorMessageToStorage(receivedMessage.sessionId, msgObj)
+                // 如果当前页面的tutorSessionId就是这条消息的sessionId，则同步到tutorMessages.value
+                if (tutorSessionId.value && receivedMessage.sessionId === tutorSessionId.value) {
+                    loadTutorMessages()
+                    scrollSupervisorToBottom()
+                }
             }
         })
     }, error => {
@@ -420,6 +591,23 @@ const connectWebSocket = () => {
 // 发送督导消息（右侧栏）
 const sendSupervisorMessage = () => {
     if (!supervisorInputMessage.value.trim() || !tutorSessionId.value) return
+    const msg = supervisorInputMessage.value
+    // 先添加到本地消息列表
+    const myMsg = {
+        type: 'consultant',
+        content: msg,
+        isSelf: true
+    }
+    tutorMessages.value.push(myMsg)
+    appendTutorMessageToStorage(tutorSessionId.value, myMsg)
+    // 清空输入框
+    supervisorInputMessage.value = ''
+    // 滚动到底部
+    scrollSupervisorToBottom()
+    // 保存状态
+    saveStateToStorage()
+
+    // 发送到服务器
     fetch(`${CHAT_BASE_URL}/api/messages/session/${tutorSessionId.value}`, {
         method: 'POST',
         headers: {
@@ -427,7 +615,7 @@ const sendSupervisorMessage = () => {
             'Authorization': `Bearer ${TOKEN}`
         },
         body: JSON.stringify({
-            content: supervisorInputMessage.value,
+            content: msg,
             type: 'TEXT',
             fileId: 0
         })
@@ -439,16 +627,12 @@ const sendSupervisorMessage = () => {
             return response.json()
         })
         .then(() => {
-            tutorMessages.value.push({
-                type: 'consultant', // 自己发的显示为consultant-bubble（绿色、靠右）
-                content: supervisorInputMessage.value
-            })
-            supervisorInputMessage.value = ''
-            scrollSupervisorToBottom()
-            saveStateToStorage()
+            console.log('[右侧栏发送消息]', msg)
         })
         .catch(error => {
             ElMessage.error('发送消息失败')
+            // 发送失败时从消息列表中移除
+            tutorMessages.value.pop()
         })
 }
 
@@ -496,28 +680,8 @@ const requestSupervisor = async () => {
 
 // 结束咨询
 const endConsultation = () => {
-    if (!hasRequestedSupervisor.value) {
-        // 没有请求过督导，直接关闭会话卡
-        clearChatState()
-        stopTimer()
-        const chatId = String(route.params.id)
-        localStorage.removeItem(`sessionId-${chatId}`)
-        localStorage.removeItem(`consultId-${chatId}`)
-        localStorage.removeItem(`hasRequestedSupervisor-${chatId}`)
-        if (layoutRef.value && layoutRef.value.removeConversation) {
-            layoutRef.value.removeConversation(chatId)
-        }
-        router.push('/consultant/schedule').then(() => {
-            window.location.reload()
-        })
-        ElMessage({
-            type: 'success',
-            message: '咨询已结束'
-        })
-        return
-    }
     ElMessageBox.prompt(
-        '请输入对本次督导的评价',
+        '请输入对本次咨询用户的建议',
         '结束咨询',
         {
             confirmButtonText: '确定',
@@ -528,9 +692,9 @@ const endConsultation = () => {
         }
     ).then(async ({ value }) => {
         // value为评价内容
-        const sessionId = tutorSessionId.value
+        const sessionId = SESSION_ID.value
         if (!sessionId) {
-            ElMessage.error('未获取到督导会话ID')
+            ElMessage.error('未获取到会话ID')
             return
         }
         try {
@@ -545,10 +709,39 @@ const endConsultation = () => {
             // 成功后清理本地缓存
             clearChatState()
             stopTimer()
+
+            // 彻底清除所有相关数据
+            messages.value = []
+            tutorMessages.value = []
+            startTime.value = null
+            consultationTime.value = '00:00:00'
+
+            // 清除chat-timer中存储的聊天记录
             const chatId = String(route.params.id)
+            localStorage.removeItem(`chat-timer-${chatId}`)
+
+            // 清除右侧栏tutorMessages的localStorage数据
+            if (tutorSessionId.value) {
+                localStorage.removeItem(`tutorMessages-${tutorSessionId.value}`)
+                // 有些消息可能存储在chatId的key下
+                localStorage.removeItem(`tutorMessages-${chatId}`)
+            }
+
+            // 额外清理所有可能相关的数据
             localStorage.removeItem(`sessionId-${chatId}`)
             localStorage.removeItem(`consultId-${chatId}`)
             localStorage.removeItem(`hasRequestedSupervisor-${chatId}`)
+            localStorage.removeItem(`tutorSessionId-${chatId}`)
+            localStorage.removeItem(`tutorName-${chatId}`)
+            localStorage.removeItem(`tutorId-${chatId}`)
+
+            // 检查是否有其他相关数据
+            Object.keys(localStorage).forEach(key => {
+                if (key.includes(chatId) || (tutorSessionId.value && key.includes(tutorSessionId.value))) {
+                    localStorage.removeItem(key)
+                }
+            })
+
             if (layoutRef.value && layoutRef.value.removeConversation) {
                 layoutRef.value.removeConversation(chatId)
             }
@@ -577,6 +770,7 @@ const handleImage = () => {
 const handleCall = () => ElMessage.info('通话功能开发中')
 const handleSupervisorVoice = () => ElMessage.info('督导语音功能开发中')
 const handleSupervisorImage = () => {
+    if (!hasRequestedSupervisor.value) return
     if (supervisorFileInputRef.value) supervisorFileInputRef.value.value = '' // 清空上次选择
     supervisorFileInputRef.value && supervisorFileInputRef.value.click()
 }
@@ -673,6 +867,10 @@ const initChat = async () => {
             name: name,
             duration: '00:00:00'
         }
+        // 加载督导状态
+        hasRequestedSupervisor.value = localStorage.getItem(`hasRequestedSupervisor-${chatId}`) === 'true'
+        // 加载本会话卡的tutorSessionId和tutorName
+        loadTutorSessionInfo()
         loadStateFromStorage() // 加载保存的状态
         scrollToBottom()
         scrollSupervisorToBottom()
@@ -685,18 +883,13 @@ const initChat = async () => {
 
 onMounted(() => {
     initChat()
-    // 自动读取tutorSessionId和tutorName，保证刷新后可发消息和显示名字
-    const localTutorSessionId = localStorage.getItem(`tutorSessionId-${route.params.id}`)
-    if (localTutorSessionId) {
-        tutorSessionId.value = localTutorSessionId
-    }
-    const localTutorName = localStorage.getItem(`tutorName-${route.params.id}`)
-    if (localTutorName) {
-        tutorName.value = localTutorName
-    }
     if (SESSION_ID.value) {
         connectWebSocket()
     }
+    // 先赋值tutorSessionId再加载消息
+    nextTick(() => {
+        loadTutorMessages()
+    })
 })
 
 watch(messages, () => {
@@ -708,9 +901,15 @@ watch(tutorMessages, () => {
     saveStateToStorage()
 }, { deep: true })
 
+// 切换会话卡时，重新加载tutorSessionId和tutorName，并加载自己的tutorMessages
 watch(() => route.params.id, () => {
     stopTimer()
     saveStateToStorage()
+    loadTutorSessionInfo()
+    // 先赋值tutorSessionId再加载消息
+    nextTick(() => {
+        loadTutorMessages()
+    })
     initChat()
 })
 
@@ -735,8 +934,8 @@ const insertEmoji = (emoji) => {
     nextTick(() => {
         textarea.focus()
         textarea.selectionStart = textarea.selectionEnd = start + emoji.length
-        showEmojiPanel.value = false
     })
+    showEmojiPanel.value = false
 }
 
 const layoutRef = ref(null)
@@ -744,8 +943,22 @@ const selectedTutorId = ref('')
 const tutorList = ref([])
 
 const sendMessage = () => {
-    console.log('发送中间栏消息', SESSION_ID.value, inputMessage.value)
     if (!inputMessage.value.trim() || !SESSION_ID.value) return
+    const msg = inputMessage.value
+    // 先添加到本地消息列表
+    messages.value.push({
+        type: 'consultant',
+        content: msg,
+        isSelf: true
+    })
+    // 清空输入框
+    inputMessage.value = ''
+    // 滚动到底部
+    scrollToBottom()
+    // 保存状态
+    saveStateToStorage()
+
+    // 发送到服务器
     fetch(`${CHAT_BASE_URL}/api/messages/session/${SESSION_ID.value}`, {
         method: 'POST',
         headers: {
@@ -753,7 +966,7 @@ const sendMessage = () => {
             'Authorization': `Bearer ${TOKEN}`
         },
         body: JSON.stringify({
-            content: inputMessage.value,
+            content: msg,
             type: 'TEXT',
             fileId: 0
         })
@@ -765,16 +978,12 @@ const sendMessage = () => {
             return response.json()
         })
         .then(() => {
-            messages.value.push({
-                type: 'consultant',
-                content: inputMessage.value
-            })
-            inputMessage.value = ''
-            scrollToBottom()
-            saveStateToStorage()
+            console.log('[中间栏发送消息]', msg)
         })
         .catch(error => {
             ElMessage.error('发送消息失败')
+            // 发送失败时从消息列表中移除
+            messages.value.pop()
         })
 }
 
@@ -788,8 +997,9 @@ const handleFileChange = async (e) => {
     const formData = new FormData()
     formData.append('file', file)
     try {
-        const res = await axios.post(
-            `${CHAT_BASE_URL}/api/messages/session/${SESSION_ID.value}/files/upload-and-send`,
+        // 1. 上传文件
+        const uploadRes = await axios.post(
+            `${CHAT_BASE_URL}/api/files/upload`,
             formData,
             {
                 headers: {
@@ -798,14 +1008,38 @@ const handleFileChange = async (e) => {
                 }
             }
         )
-        if (res.data && res.data.type === 'FILE') {
-            messages.value.push({
-                type: 'consultant',
-                content: `[文件] ${res.data.file.originalName}`,
-                fileUrl: res.data.file.ossUrl,
-                fileType: res.data.file.fileType
-            })
+        const data = uploadRes.data
+        if (!data.id || !data.ossUrl) {
+            ElMessage.error('上传返回数据格式错误')
+            return
         }
+        // 2. 组装文件消息内容
+        const fileMsgContent = JSON.stringify({
+            url: data.ossUrl,
+            fileName: file.name,
+            fileSize: formatFileSize(file.size)
+        })
+        // 3. 发送WebSocket消息
+        await fetch(`${CHAT_BASE_URL}/api/messages/session/${SESSION_ID.value}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${TOKEN}`
+            },
+            body: JSON.stringify({
+                content: fileMsgContent,
+                type: 'FILE',
+                fileId: data.id
+            })
+        })
+        // 4. 本地显示
+        messages.value.push({
+            type: 'consultant',
+            content: `[文件] ${file.name}`,
+            fileUrl: data.ossUrl,
+            fileType: getFileTypeFromUrl(data.ossUrl),
+            isSelf: true
+        })
         ElMessage.success('文件发送成功')
     } catch (e) {
         ElMessage.error('文件发送失败')
@@ -821,6 +1055,15 @@ const isImage = (fileType, fileUrl) => {
     return false
 }
 
+// 新增：判断是否为音频类型
+const isAudio = (fileType, fileUrl) => {
+    if (fileType && fileType.startsWith('audio/')) return true
+    if (fileUrl) {
+        return /\.(mp3|wav|ogg|aac)$/i.test(fileUrl)
+    }
+    return false
+}
+
 // 1. 添加右侧栏文件选择ref
 const supervisorFileInputRef = ref(null)
 
@@ -831,8 +1074,9 @@ const handleSupervisorFileChange = async (e) => {
     const formData = new FormData()
     formData.append('file', file)
     try {
-        const res = await axios.post(
-            `${CHAT_BASE_URL}/api/messages/session/${tutorSessionId.value}/files/upload-and-send`,
+        // 1. 上传文件
+        const uploadRes = await axios.post(
+            `${CHAT_BASE_URL}/api/files/upload`,
             formData,
             {
                 headers: {
@@ -841,18 +1085,62 @@ const handleSupervisorFileChange = async (e) => {
                 }
             }
         )
-        if (res.data && res.data.type === 'FILE') {
-            tutorMessages.value.push({
-                type: 'consultant',
-                content: `[文件] ${res.data.file.originalName}`,
-                fileUrl: res.data.file.ossUrl,
-                fileType: res.data.file.fileType
-            })
+        const data = uploadRes.data
+        if (!data.id || !data.ossUrl) {
+            ElMessage.error('上传返回数据格式错误')
+            return
         }
+        // 2. 组装文件消息内容
+        const fileMsgContent = JSON.stringify({
+            url: data.ossUrl,
+            fileName: file.name,
+            fileSize: formatFileSize(file.size)
+        })
+        // 3. 发送WebSocket消息
+        await fetch(`${CHAT_BASE_URL}/api/messages/session/${tutorSessionId.value}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${TOKEN}`
+            },
+            body: JSON.stringify({
+                content: fileMsgContent,
+                type: 'FILE',
+                fileId: data.id
+            })
+        })
+        // 4. 本地显示
+        tutorMessages.value.push({
+            type: 'consultant',
+            content: `[文件] ${file.name}`,
+            fileUrl: data.ossUrl,
+            fileType: getFileTypeFromUrl(data.ossUrl),
+            isSelf: true
+        })
         ElMessage.success('文件发送成功')
     } catch (e) {
         ElMessage.error('文件发送失败')
     }
+}
+
+// 文件大小格式化
+function formatFileSize(size) {
+    if (size < 1024) return size + 'B'
+    if (size < 1024 * 1024) return (size / 1024).toFixed(2) + 'KB'
+    if (size < 1024 * 1024 * 1024) return (size / (1024 * 1024)).toFixed(2) + 'MB'
+    return (size / (1024 * 1024 * 1024)).toFixed(2) + 'GB'
+}
+
+// 判断文件类型（图片/其他）
+function getFileTypeFromUrl(url) {
+    if (!url) return ''
+    const ext = url.split('.').pop().toLowerCase()
+    if (["png", "jpg", "jpeg", "gif", "bmp", "webp", "svg"].includes(ext)) return 'image/' + ext
+    return ''
+}
+
+function isOssImageUrl(url) {
+    return typeof url === 'string' && /\.(png|jpe?g|gif|bmp|webp|svg)$/i.test(url)
 }
 </script>
 

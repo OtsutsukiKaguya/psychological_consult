@@ -29,15 +29,23 @@
                         <template v-if="message.type === 'user'">
                             <img src="@/assets/avatar.png" alt="用户头像" class="avatar" />
                             <div class="bubble user-bubble">
-                                <template v-if="message.fileUrl">
-                                    <template v-if="message.fileType && message.fileType.startsWith('image/')">
+                                <template v-if="message.isImage">
+                                    <el-image :src="message.content"
+                                        style="max-width: 200px; max-height: 200px; cursor: pointer"
+                                        :preview-src-list="[message.content]" fit="contain" />
+                                </template>
+                                <template v-else-if="message.fileUrl">
+                                    <template v-if="isImage(message.fileType, message.fileUrl)">
                                         <el-image :src="message.fileUrl"
                                             style="max-width: 200px; max-height: 200px; cursor: pointer"
                                             :preview-src-list="[message.fileUrl]" fit="contain" />
                                     </template>
                                     <template v-else>
-                                        <a :href="message.fileUrl" target="_blank" style="color: #333;"
-                                            rel="noopener noreferrer" download>{{ message.content || '下载文件' }}</a>
+                                        <a :href="message.fileUrl" target="_blank"
+                                            style="color: #222 !important; font-weight: bold !important;"
+                                            rel="noopener noreferrer" download>
+                                            [收到文件，点击可以下载] {{ message.content.replace('[文件] ', '') }}
+                                        </a>
                                     </template>
                                 </template>
                                 <template v-else>
@@ -47,15 +55,23 @@
                         </template>
                         <template v-else-if="message.type === 'consultant'">
                             <div class="bubble consultant-bubble">
-                                <template v-if="message.fileUrl">
-                                    <template v-if="message.fileType && message.fileType.startsWith('image/')">
+                                <template v-if="message.type === 'IMAGE'">
+                                    <el-image :src="message.content"
+                                        style="max-width: 200px; max-height: 200px; cursor: pointer"
+                                        :preview-src-list="[message.content]" fit="contain" />
+                                </template>
+                                <template v-else-if="message.fileUrl">
+                                    <template v-if="isImage(message.fileType, message.fileUrl)">
                                         <el-image :src="message.fileUrl"
                                             style="max-width: 200px; max-height: 200px; cursor: pointer"
                                             :preview-src-list="[message.fileUrl]" fit="contain" />
                                     </template>
                                     <template v-else>
-                                        <a :href="message.fileUrl" target="_blank" style="color: white;"
-                                            rel="noopener noreferrer" download>{{ message.content || '下载文件' }}</a>
+                                        <a :href="message.fileUrl" target="_blank"
+                                            style="color: #222 !important; font-weight: bold !important;"
+                                            rel="noopener noreferrer" download>
+                                            [收到文件，点击可以下载] {{ message.content.replace('[文件] ', '') }}
+                                        </a>
                                     </template>
                                 </template>
                                 <template v-else>
@@ -80,7 +96,7 @@
                         <template v-if="message.isSelf">
                             <div class="bubble supervisor-bubble">
                                 <template v-if="message.fileUrl">
-                                    <template v-if="message.fileType && message.fileType.startsWith('image/')">
+                                    <template v-if="isImage(message.fileType, message.fileUrl)">
                                         <el-image :src="message.fileUrl"
                                             style="max-width: 200px; max-height: 200px; cursor: pointer"
                                             :preview-src-list="[message.fileUrl]" fit="contain" />
@@ -100,14 +116,16 @@
                             <img src="@/assets/avatar.png" alt="咨询师头像" class="avatar" />
                             <div class="bubble consultant-bubble">
                                 <template v-if="message.fileUrl">
-                                    <template v-if="message.fileType && message.fileType.startsWith('image/')">
+                                    <template v-if="isImage(message.fileType, message.fileUrl)">
                                         <el-image :src="message.fileUrl"
                                             style="max-width: 200px; max-height: 200px; cursor: pointer"
                                             :preview-src-list="[message.fileUrl]" fit="contain" />
                                     </template>
                                     <template v-else>
-                                        <a :href="message.fileUrl" target="_blank" style="color: white;"
-                                            rel="noopener noreferrer" download>{{ message.content || '下载文件' }}</a>
+                                        <a :href="message.fileUrl" target="_blank"
+                                            style="color: #222; font-weight: bold;" rel="noopener noreferrer" download>
+                                            [收到文件，点击可以下载] {{ message.content }}
+                                        </a>
                                     </template>
                                 </template>
                                 <template v-else>
@@ -170,7 +188,7 @@ const TOKEN = localStorage.getItem('token') || ''
 const stompClient = ref(null)
 const connected = ref(false)
 
-// 添加计时相关的响应式变量
+// 计时相关变量
 const consultationTime = ref('00:00:00')
 const timer = ref(null)
 const startTime = ref(null)
@@ -210,42 +228,48 @@ const handleEmoji = (event) => {
     })
 }
 
+// 聊天状态持久化相关
+const chatStorageKey = computed(() => `supervisor-chat-state-${SUPERVISOR_CONSULTANT_SESSION_ID.value}`)
+
 // 保存聊天状态到localStorage
-const saveStateToStorage = () => {
-    if (!chatInfo.value) return
+function saveStateToStorage() {
+    if (!SUPERVISOR_CONSULTANT_SESSION_ID.value) return
     const chatState = {
         userConsultantMessages: userConsultantMessages.value,
         supervisorConsultantMessages: supervisorConsultantMessages.value,
         startTime: startTime.value ? startTime.value.getTime() : null,
         consultationTime: consultationTime.value
     }
-    localStorage.setItem(`chat-timer-${chatInfo.value.id}`, JSON.stringify(chatState))
+    localStorage.setItem(chatStorageKey.value, JSON.stringify(chatState))
 }
 
 // 从localStorage加载聊天状态
-const loadStateFromStorage = () => {
-    if (!chatInfo.value) return
-    const savedState = localStorage.getItem(`chat-timer-${chatInfo.value.id}`)
+function loadStateFromStorage() {
+    if (!SUPERVISOR_CONSULTANT_SESSION_ID.value) return
+    const savedState = localStorage.getItem(chatStorageKey.value)
     if (savedState) {
         const state = JSON.parse(savedState)
         userConsultantMessages.value = state.userConsultantMessages || []
         supervisorConsultantMessages.value = state.supervisorConsultantMessages || []
         if (state.startTime) {
             startTime.value = new Date(state.startTime)
-            consultationTime.value = state.consultationTime
+            consultationTime.value = state.consultationTime || '00:00:00'
+        } else {
+            startTime.value = null
+            consultationTime.value = '00:00:00'
         }
     } else {
         userConsultantMessages.value = []
         supervisorConsultantMessages.value = []
-        consultationTime.value = '00:00:00'
         startTime.value = null
+        consultationTime.value = '00:00:00'
     }
 }
 
 // 清除localStorage中的聊天状态
-const clearChatState = () => {
-    if (!chatInfo.value) return
-    localStorage.removeItem(`chat-timer-${chatInfo.value.id}`)
+function clearChatState() {
+    if (!SUPERVISOR_CONSULTANT_SESSION_ID.value) return
+    localStorage.removeItem(chatStorageKey.value)
     userConsultantMessages.value = []
     supervisorConsultantMessages.value = []
     consultationTime.value = '00:00:00'
@@ -272,12 +296,10 @@ const scrollSupervisorToBottom = () => {
     })
 }
 
-// 开始计时
+// 开始计时（每次进入页面都从0开始）
 const startTimer = () => {
-    if (timer.value) return
-    if (!startTime.value) {
-        startTime.value = new Date()
-    }
+    stopTimer()
+    if (!startTime.value) startTime.value = new Date()
     timer.value = setInterval(() => {
         const now = new Date()
         const diff = now - startTime.value
@@ -285,7 +307,7 @@ const startTimer = () => {
         const minutes = Math.floor((diff % 3600000) / 60000)
         const seconds = Math.floor((diff % 60000) / 1000)
         consultationTime.value = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-        saveStateToStorage() // 每次更新时间时保存状态
+        saveStateToStorage()
     }, 1000)
 }
 
@@ -315,6 +337,13 @@ onMounted(() => {
     } else {
         ElMessage.warning('请先从请求列表进入')
     }
+    loadStateFromStorage()
+    // 如果没有startTime，说明是新会话，重置计时
+    if (!startTime.value) {
+        startTime.value = new Date()
+        consultationTime.value = '00:00:00'
+    }
+    startTimer()
 })
 
 // WebSocket推送处理
@@ -332,39 +361,56 @@ const connectWebSocket = () => {
             console.log('[收到消息]', receivedMessage)
             // 中间栏：用户与咨询师
             if (receivedMessage.sessionId === USER_CONSULTANT_SESSION_ID.value) {
-                if (receivedMessage.type === 'FILE') {
+                if (receivedMessage.type === 'IMAGE') {
+                    userConsultantMessages.value.push({
+                        type: receivedMessage.senderType === 'USER' ? 'user' : 'consultant',
+                        content: receivedMessage.content,
+                        isImage: true
+                    })
+                } else if (receivedMessage.type === 'FILE') {
+                    let fileInfo = {}
                     try {
-                        const fileRes = await axios.get(
-                            `${CHAT_BASE_URL}/api/files/${receivedMessage.fileId}/download`,
-                            {
-                                headers: { 'Authorization': `Bearer ${TOKEN}` },
-                                responseType: 'blob'
-                            }
-                        )
-                        const fileType = fileRes.data.type
-                        const fileUrl = URL.createObjectURL(fileRes.data)
-                        const fileName = receivedMessage.content || '文件'
-                        const isImg = fileType && fileType.startsWith('image/')
+                        fileInfo = JSON.parse(receivedMessage.content)
+                        if (isImage(fileInfo.fileType, fileInfo.url)) {
+                            userConsultantMessages.value.push({
+                                type: receivedMessage.senderType === 'USER' ? 'user' : 'consultant',
+                                content: fileInfo.fileName,
+                                fileUrl: fileInfo.url,
+                                fileType: fileInfo.fileType || '',
+                                isImage: true
+                            })
+                        } else {
+                            userConsultantMessages.value.push({
+                                type: receivedMessage.senderType === 'USER' ? 'user' : 'consultant',
+                                content: fileInfo.fileName,
+                                fileUrl: fileInfo.url,
+                                fileType: fileInfo.fileType || '',
+                                isFile: true
+                            })
+                        }
+                    } catch (e) {
+                        console.error('解析文件信息失败:', e)
                         userConsultantMessages.value.push({
                             type: receivedMessage.senderType === 'USER' ? 'user' : 'consultant',
-                            content: fileName,
-                            fileUrl,
-                            fileType,
-                            isImage: isImg
+                            content: '未知文件',
+                            fileUrl: '',
+                            fileType: '',
+                            isFile: true
                         })
-                    } catch (e) {
-                        ElMessage.error('获取文件失败')
                     }
                 } else {
-                    if (receivedMessage.senderType === 'USER') {
+                    // 检查是否是图片URL
+                    const content = receivedMessage.content
+                    if (receivedMessage.senderType === 'USER' && isImageUrl(content)) {
                         userConsultantMessages.value.push({
                             type: 'user',
-                            content: receivedMessage.content
+                            content: content,
+                            isImage: true
                         })
-                    } else if (receivedMessage.senderType === 'COUNSELOR') {
+                    } else {
                         userConsultantMessages.value.push({
-                            type: 'consultant',
-                            content: receivedMessage.content
+                            type: receivedMessage.senderType === 'USER' ? 'user' : 'consultant',
+                            content: content
                         })
                     }
                 }
@@ -373,42 +419,33 @@ const connectWebSocket = () => {
             // 右侧栏：督导与咨询师
             if (receivedMessage.sessionId === SUPERVISOR_CONSULTANT_SESSION_ID.value) {
                 if (receivedMessage.type === 'FILE') {
+                    let fileInfo = {}
                     try {
-                        const fileRes = await axios.get(
-                            `${CHAT_BASE_URL}/api/files/${receivedMessage.fileId}/download`,
-                            {
-                                headers: { 'Authorization': `Bearer ${TOKEN}` },
-                                responseType: 'blob'
-                            }
-                        )
-                        const fileType = fileRes.data.type
-                        const fileUrl = URL.createObjectURL(fileRes.data)
-                        const fileName = receivedMessage.content || '文件'
-                        const isSelf = receivedMessage.senderType === 'TUTOR'
+                        fileInfo = JSON.parse(receivedMessage.content)
                         supervisorConsultantMessages.value.push({
-                            type: isSelf ? 'supervisor' : 'consultant',
-                            content: fileName,
-                            fileUrl,
-                            fileType,
-                            isSelf
+                            type: receivedMessage.senderType === 'TUTOR' ? 'supervisor' : 'consultant',
+                            content: fileInfo.fileName,
+                            fileUrl: fileInfo.url,
+                            fileType: getFileTypeFromUrl(fileInfo.url),
+                            isSelf: receivedMessage.senderType === 'TUTOR',
+                            isFile: true
                         })
                     } catch (e) {
-                        ElMessage.error('获取文件失败')
+                        console.error('解析文件信息失败:', e)
+                        supervisorConsultantMessages.value.push({
+                            type: receivedMessage.senderType === 'TUTOR' ? 'supervisor' : 'consultant',
+                            content: '未知文件',
+                            fileUrl: '',
+                            fileType: '',
+                            isSelf: receivedMessage.senderType === 'TUTOR',
+                            isFile: true
+                        })
                     }
                 } else {
-                    if (receivedMessage.senderType === 'COUNSELOR') {
-                        supervisorConsultantMessages.value.push({
-                            type: 'consultant',
-                            content: receivedMessage.content,
-                            isSelf: false
-                        })
-                    } else if (receivedMessage.senderType === 'TUTOR') {
-                        supervisorConsultantMessages.value.push({
-                            type: 'supervisor',
-                            content: receivedMessage.content,
-                            isSelf: true
-                        })
-                    }
+                    supervisorConsultantMessages.value.push({
+                        type: receivedMessage.senderType === 'TUTOR' ? 'supervisor' : 'consultant',
+                        content: receivedMessage.content
+                    })
                 }
                 scrollSupervisorToBottom()
             }
@@ -450,16 +487,24 @@ const endConsultation = () => {
             // 成功后清理本地缓存
             clearChatState()
             stopTimer()
-            if (layoutRef.value && layoutRef.value.removeConversation) {
-                layoutRef.value.removeConversation(sessionId)
+            startTime.value = null
+            consultationTime.value = '00:00:00'
+
+            // 删除会话卡并刷新会话列表
+            if (layoutRef.value) {
+                if (layoutRef.value.removeConversation) {
+                    layoutRef.value.removeConversation(sessionId)
+                }
+                // 额外：同步localStorage中的supervisor_conversations
+                const conversations = JSON.parse(localStorage.getItem('supervisor_conversations') || '[]')
+                const idx = conversations.findIndex(c => String(c.id) === sessionId)
+                if (idx !== -1) {
+                    conversations.splice(idx, 1)
+                    localStorage.setItem('supervisor_conversations', JSON.stringify(conversations))
+                }
             }
-            // 额外：同步localStorage中的supervisor_conversations
-            const conversations = JSON.parse(localStorage.getItem('supervisor_conversations') || '[]')
-            const idx = conversations.findIndex(c => String(c.id) === sessionId)
-            if (idx !== -1) {
-                conversations.splice(idx, 1)
-                localStorage.setItem('supervisor_conversations', JSON.stringify(conversations))
-            }
+
+            // 跳转回请求列表
             router.push('/supervisor/request-list')
             ElMessage({
                 type: 'success',
@@ -626,15 +671,9 @@ const initChat = async () => {
     }
 }
 
-watch(userConsultantMessages, () => {
-    scrollToBottom()
-    saveStateToStorage()
-}, { deep: true })
-
-watch(supervisorConsultantMessages, () => {
-    scrollSupervisorToBottom()
-    saveStateToStorage()
-}, { deep: true })
+// 监听消息变化自动保存
+watch(userConsultantMessages, saveStateToStorage, { deep: true })
+watch(supervisorConsultantMessages, saveStateToStorage, { deep: true })
 
 watch(() => route.params.id, () => {
     stopTimer()
@@ -713,14 +752,32 @@ const isImage = (fileType, fileUrl) => {
     return false
 }
 
+// 文件大小格式化
+function formatFileSize(size) {
+    if (size < 1024) return size + 'B'
+    if (size < 1024 * 1024) return (size / 1024).toFixed(2) + 'KB'
+    if (size < 1024 * 1024 * 1024) return (size / (1024 * 1024)).toFixed(2) + 'MB'
+    return (size / (1024 * 1024 * 1024)).toFixed(2) + 'GB'
+}
+
+// 判断文件类型（图片/其他）
+function getFileTypeFromUrl(url) {
+    if (!url) return ''
+    const ext = url.split('.').pop().toLowerCase()
+    if (["png", "jpg", "jpeg", "gif", "bmp", "webp", "svg"].includes(ext)) return 'image/' + ext
+    return ''
+}
+
+// 右侧栏文件选择后上传并发送（仿照consult.vue）
 const handleUserFileChange = async (e) => {
     const file = e.target.files[0]
     if (!file) return
     const formData = new FormData()
     formData.append('file', file)
     try {
-        const res = await axios.post(
-            `${CHAT_BASE_URL}/api/messages/session/${SUPERVISOR_CONSULTANT_SESSION_ID.value}/files/upload-and-send`,
+        // 1. 上传文件
+        const uploadRes = await axios.post(
+            `${CHAT_BASE_URL}/api/files/upload`,
             formData,
             {
                 headers: {
@@ -729,19 +786,48 @@ const handleUserFileChange = async (e) => {
                 }
             }
         )
-        if (res.data && res.data.type === 'FILE') {
-            supervisorConsultantMessages.value.push({
-                type: 'supervisor',
-                content: `[文件] ${res.data.file.originalName}`,
-                fileUrl: res.data.file.ossUrl,
-                fileType: res.data.file.fileType,
-                isSelf: true
-            })
+        const data = uploadRes.data
+        if (!data.id || !data.ossUrl) {
+            ElMessage.error('上传返回数据格式错误')
+            return
         }
+        // 2. 组装文件消息内容
+        const fileMsgContent = JSON.stringify({
+            url: data.ossUrl,
+            fileName: file.name,
+            fileSize: formatFileSize(file.size)
+        })
+        // 3. 发送WebSocket消息
+        await fetch(`${CHAT_BASE_URL}/api/messages/session/${SUPERVISOR_CONSULTANT_SESSION_ID.value}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${TOKEN}`
+            },
+            body: JSON.stringify({
+                content: fileMsgContent,
+                type: 'FILE',
+                fileId: data.id
+            })
+        })
+        // 4. 本地显示
+        supervisorConsultantMessages.value.push({
+            type: 'supervisor',
+            content: `[文件] ${file.name}`,
+            fileUrl: data.ossUrl,
+            fileType: getFileTypeFromUrl(data.ossUrl),
+            isSelf: true
+        })
         ElMessage.success('文件发送成功')
     } catch (e) {
         ElMessage.error('文件发送失败')
     }
+}
+
+// 在 script setup 部分添加新的辅助函数
+const isImageUrl = (url) => {
+    if (!url) return false
+    return /\.(png|jpe?g|jpeg)$/i.test(url)
 }
 </script>
 

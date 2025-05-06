@@ -1,6 +1,7 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { TrendCharts } from '@element-plus/icons-vue'
+import * as echarts from 'echarts'
 
 defineProps({
     consultCount: {
@@ -12,6 +13,74 @@ defineProps({
         default: '00:00:00'
     }
 })
+
+let chartInstance = null
+
+onMounted(() => {
+    // 初始化图表
+    const chartContainer = document.getElementById('consultChart')
+    if (chartContainer) {
+        chartInstance = echarts.init(chartContainer)
+        renderConsultationChart()
+    }
+})
+
+// 渲染咨询数量变化折线图
+const renderConsultationChart = () => {
+    const option = {
+        tooltip: {
+            trigger: 'axis'
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            top: '10%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: ['8:00', '9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00']
+        },
+        yAxis: {
+            type: 'value',
+            minInterval: 1
+        },
+        series: [
+            {
+                name: '咨询数量',
+                type: 'line',
+                smooth: true,
+                data: [5, 12, 18, 15, 9, 8, 20, 16, 14, 10],
+                itemStyle: {
+                    color: '#557ff7'
+                },
+                areaStyle: {
+                    color: {
+                        type: 'linear',
+                        x: 0,
+                        y: 0,
+                        x2: 0,
+                        y2: 1,
+                        colorStops: [
+                            {
+                                offset: 0,
+                                color: 'rgba(85, 127, 247, 0.3)'
+                            },
+                            {
+                                offset: 1,
+                                color: 'rgba(85, 127, 247, 0.1)'
+                            }
+                        ]
+                    }
+                }
+            }
+        ]
+    }
+
+    chartInstance && chartInstance.setOption(option)
+}
 </script>
 
 <template>
@@ -28,9 +97,9 @@ defineProps({
             </div>
         </div>
         <div class="trend-chart">
-            <div class="chart-title">今日咨询数量变化</div>
+            <div class="chart-title">昨日咨询数量变化</div>
             <div class="chart-content">
-                <!-- 图表将在后续添加 -->
+                <div id="consultChart" class="chart-container"></div>
             </div>
         </div>
     </div>
@@ -96,6 +165,11 @@ defineProps({
 }
 
 .chart-content {
-    height: 230px;
+    height: 140px;
+}
+
+.chart-container {
+    width: 100%;
+    height: 100%;
 }
 </style>

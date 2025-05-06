@@ -11,10 +11,10 @@
             <div v-if="schedule.consultants && schedule.consultants.length" class="staff-group">
                 <div class="staff-label">值班咨询师</div>
                 <div class="staff-tags">
-                    <el-tooltip v-for="consultant in schedule.consultants" :key="consultant" :content="consultant"
-                        placement="top" effect="light">
+                    <el-tooltip v-for="consultant in schedule.consultants" :key="consultant.id"
+                        :content="consultant.name" placement="top" effect="light">
                         <el-tag size="small" type="primary" effect="plain" class="staff-tag">
-                            {{ consultant }}
+                            {{ consultant.name }}
                         </el-tag>
                     </el-tooltip>
                 </div>
@@ -24,10 +24,10 @@
             <div v-if="schedule.supervisors && schedule.supervisors.length" class="staff-group">
                 <div class="staff-label">值班督导</div>
                 <div class="staff-tags">
-                    <el-tooltip v-for="supervisor in schedule.supervisors" :key="supervisor" :content="supervisor"
-                        placement="top" effect="light">
+                    <el-tooltip v-for="supervisor in schedule.supervisors" :key="supervisor.id"
+                        :content="supervisor.name" placement="top" effect="light">
                         <el-tag size="small" type="success" effect="plain" class="staff-tag">
-                            {{ supervisor }}
+                            {{ supervisor.name }}
                         </el-tag>
                     </el-tooltip>
                 </div>

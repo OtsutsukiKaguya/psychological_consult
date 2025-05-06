@@ -71,11 +71,14 @@ const searchForm = ref({
 // 静态数据
 const tableData = ref([])
 const loading = ref(false)
+const exportLoading = ref(false)
 
 const fetchConsultationRecords = async () => {
   loading.value = true
   try {
+    console.log('请求咨询记录...')
     const res = await axios.get(`${CHAT_BASE_URL}/api/sessions`)
+    console.log('返回数据:', res.data)
     if (Array.isArray(res.data)) {
       tableData.value = res.data.map(item => ({
         sessionId: item.sessionId,
@@ -91,6 +94,7 @@ const fetchConsultationRecords = async () => {
     }
   } catch (e) {
     tableData.value = []
+    console.error('获取咨询记录失败:', e)
   } finally {
     loading.value = false
   }
@@ -98,6 +102,7 @@ const fetchConsultationRecords = async () => {
 
 const handleExportRecord = async (row) => {
   try {
+    exportLoading.value = true
     const { value: format } = await ElMessageBox.prompt(
       '请选择导出格式（txt、csv、pdf）',
       '导出咨询记录',
@@ -113,6 +118,7 @@ const handleExportRecord = async (row) => {
     const sessionId = row.sessionId
     if (!sessionId) {
       ElMessage.error('未获取到sessionId')
+      exportLoading.value = false
       return
     }
     const url = `${CHAT_BASE_URL}/api/sessions/${sessionId}/export?format=${format}`
@@ -136,7 +142,15 @@ const handleExportRecord = async (row) => {
     ElMessage.success('导出成功')
   } catch (e) {
     if (e !== 'cancel') ElMessage.error('导出失败')
+    console.error('导出失败:', e)
+  } finally {
+    exportLoading.value = false
   }
+}
+
+const handleViewDetail = (row) => {
+  // 预留跳转逻辑
+  ElMessage.info('详情页开发中...')
 }
 
 onMounted(() => {
@@ -177,8 +191,9 @@ onMounted(() => {
           <el-table-column label="操作" width="200">
             <template #default="{ row }">
               <div class="button-group">
-                <el-button type="success" size="small" class="detail-button">查看详情</el-button>
-                <el-button type="danger" size="small" class="record-button"
+                <el-button type="success" size="small" class="detail-button"
+                  @click="handleViewDetail(row)">查看详情</el-button>
+                <el-button type="danger" size="small" class="record-button" :loading="exportLoading"
                   @click="handleExportRecord(row)">导出记录</el-button>
               </div>
             </template>

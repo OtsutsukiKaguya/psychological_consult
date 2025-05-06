@@ -6,8 +6,10 @@ import { ref, computed, onMounted, h, watch } from 'vue'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import { ElConfigProvider, ElMessage } from 'element-plus'
 import axios from 'axios'
-import { API, BASE_URL } from '@/config'
+import { API, BASE_URL, CHAT_BASE_URL } from '@/config'
 import dayjs from 'dayjs'
+import { ElMessageBox } from 'element-plus'
+import { Plus, Close, Check } from '@element-plus/icons-vue'
 
 // 获取当前用户信息
 const currentUser = computed(() => {
@@ -199,11 +201,64 @@ const fetchHomepageStats = async () => {
     }
 }
 
+// 获取当前会话数
+const fetchOngoingSessions = async () => {
+    try {
+        const res = await axios.get(`${CHAT_BASE_URL}/api/statistics/ongoing-sessions`)
+        if (res.data.code === 0 && Array.isArray(res.data.data)) {
+            homepageStats.value.ongoingSessions = res.data.data.length
+        }
+    } catch (e) {
+        console.error('获取当前会话数失败:', e)
+        homepageStats.value.ongoingSessions = 0
+    }
+}
+
+// 获取咨询师基本信息
+const fetchCounselorInfo = async () => {
+    if (!currentUser.value?.id) return
+
+    try {
+        const res = await axios.get(`${BASE_URL}/api/search/counselor/${currentUser.value.id}`)
+        if (res.data.code === 0 && Array.isArray(res.data.data) && res.data.data.length > 0) {
+            const counselorInfo = res.data.data[0]
+
+            // 设置同时咨询人数
+            if (counselorInfo.counselorSameTime) {
+                maxConsultations.value = counselorInfo.counselorSameTime
+            }
+
+            // 设置标签
+            if (counselorInfo.tag) {
+                tags.value = counselorInfo.tag.split(',').map(tag => tag.trim()).filter(tag => tag)
+            }
+
+            // 设置评分和总咨询数
+            if (counselorInfo.averageRating) {
+                rating.value = counselorInfo.averageRating
+            }
+
+            if (counselorInfo.totalSessions) {
+                homepageStats.value.totalSessions = counselorInfo.totalSessions
+            }
+        }
+    } catch (e) {
+        console.error('获取咨询师基本信息失败:', e)
+    }
+}
+
 // 组件挂载时获取值班信息和请假记录
 onMounted(async () => {
-    await fetchHomepageStats()
-    await fetchDutyInfo()
-    await fetchLeaveRecords()
+    await Promise.all([
+        fetchHomepageStats(),
+        fetchOngoingSessions(),
+        fetchDutyInfo(),
+        fetchLeaveRecords(),
+        fetchCounselorInfo()
+    ])
+    if (currentUser.value?.selfDescription) {
+        introduction.value = currentUser.value.selfDescription
+    }
 })
 
 // 判断是否是过去的日期
@@ -214,6 +269,133 @@ const isPastDate = (date) => {
 // 判断是否是今天
 const isToday = (date) => {
     return dayjs(date).isSame(dayjs(), 'day')
+}
+
+// 添加标签相关
+const tagInputVisible = ref(false)
+const tagInputValue = ref('')
+
+// 处理添加标签
+const showTagInput = () => {
+    tagInputVisible.value = true
+    // 等待DOM更新后聚焦输入框
+    setTimeout(() => {
+        document.getElementById('tagInput')?.focus()
+    }, 10)
+}
+
+// 处理添加标签确认
+const handleTagConfirm = async () => {
+    const value = tagInputValue.value.trim()
+    if (value) {
+        // 先本地更新
+        const newTags = [...tags.value, value]
+        // 调用API
+        await updateTags(newTags)
+        // 成功后重置输入框
+        tagInputValue.value = ''
+        tagInputVisible.value = false
+    }
+}
+
+// 处理删除标签
+const handleTagDelete = async (index) => {
+    try {
+        await ElMessageBox.confirm('确定要删除这个标签吗？', '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning',
+        })
+
+        // 删除本地标签
+        const newTags = [...tags.value]
+        newTags.splice(index, 1)
+
+        // 调用API更新
+        await updateTags(newTags)
+    } catch (e) {
+        // 用户取消或发生错误，不做处理
+    }
+}
+
+// 更新标签API调用
+const updateTags = async (newTags) => {
+    if (!currentUser.value?.id) return
+
+    try {
+        const tagString = newTags.join(',')
+        const res = await axios.post(`${BASE_URL}/api/counselor/update-tag`, null, {
+            params: {
+                id: currentUser.value.id,
+                tag: tagString
+            }
+        })
+
+        if (res.data.code === 0) {
+            // 更新成功，更新本地标签
+            tags.value = newTags
+            ElMessage.success('标签更新成功')
+        } else {
+            ElMessage.error(res.data.message || '标签更新失败')
+        }
+    } catch (e) {
+        console.error('更新标签失败:', e)
+        ElMessage.error('标签更新失败')
+    }
+}
+
+// 更新同时咨询人数
+const handleMaxConsultationsChange = async (newValue) => {
+    if (!currentUser.value?.id) return
+
+    try {
+        const res = await axios.post(`${BASE_URL}/api/counselor/update-sametime`, null, {
+            params: {
+                id: currentUser.value.id,
+                counselorSametime: newValue
+            }
+        })
+
+        if (res.data.code === 0) {
+            ElMessage.success('同时咨询人数更新成功')
+        } else {
+            // 如果更新失败，恢复原值
+            ElMessage.error(res.data.message || '更新同时咨询人数失败')
+            await fetchCounselorInfo() // 重新获取原始值
+        }
+    } catch (e) {
+        console.error('更新同时咨询人数失败:', e)
+        ElMessage.error('更新同时咨询人数失败')
+        await fetchCounselorInfo() // 重新获取原始值
+    }
+}
+
+// 更新自我介绍
+const handleIntroductionUpdate = async () => {
+    if (!currentUser.value?.id) return
+
+    try {
+        const res = await axios.post(`${BASE_URL}/api/person/update-description`, null, {
+            params: {
+                id: currentUser.value.id,
+                selfDescription: introduction.value
+            }
+        })
+
+        if (res.data.code === 0) {
+            ElMessage.success('自我介绍更新成功')
+            // 更新本地存储的用户信息
+            if (currentUser.value) {
+                const userInfo = { ...currentUser.value, selfDescription: introduction.value }
+                localStorage.setItem('userInfo', JSON.stringify(userInfo))
+            }
+        } else {
+            ElMessage.error(res.data.message || '更新自我介绍失败')
+        }
+    } catch (e) {
+        console.error('更新自我介绍失败:', e)
+        ElMessage.error('更新自我介绍失败')
+    }
 }
 </script>
 
@@ -261,7 +443,8 @@ const isToday = (date) => {
                         <div class="settings-left">
                             <div class="setting-section">
                                 <h3>设置同时咨询人数</h3>
-                                <el-select v-model="maxConsultations" class="consultation-select">
+                                <el-select v-model="maxConsultations" class="consultation-select"
+                                    @change="handleMaxConsultationsChange">
                                     <el-option :value="1" label="1" />
                                     <el-option :value="2" label="2" />
                                     <el-option :value="3" label="3" />
@@ -272,15 +455,42 @@ const isToday = (date) => {
                             <div class="setting-section">
                                 <h3>设置标签</h3>
                                 <div class="tags-container">
-                                    <div class="tag">抑郁</div>
-                                    <el-button class="add-tag">+</el-button>
+                                    <div v-for="(tag, index) in tags" :key="index" class="tag">
+                                        {{ tag }}
+                                        <el-icon class="tag-delete-icon" @click="handleTagDelete(index)">
+                                            <Close />
+                                        </el-icon>
+                                    </div>
+
+                                    <!-- 添加标签按钮 -->
+                                    <el-button v-if="!tagInputVisible" class="add-tag" @click="showTagInput">
+                                        <el-icon>
+                                            <Plus />
+                                        </el-icon>
+                                    </el-button>
+
+                                    <!-- 添加标签输入框 -->
+                                    <div v-else class="tag-input-container">
+                                        <el-input id="tagInput" v-model="tagInputValue" class="tag-input" size="small"
+                                            placeholder="请输入标签名称" @keyup.enter="handleTagConfirm"
+                                            @blur="handleTagConfirm" />
+                                    </div>
                                 </div>
                             </div>
                         </div>
                         <div class="settings-right">
                             <h3>自我介绍</h3>
-                            <el-input v-model="introduction" type="textarea" :rows="6"
-                                :placeholder="currentUser?.selfDescription || '请输入'" resize="none" />
+                            <div class="introduction-container">
+                                <el-input v-model="introduction" type="textarea" :rows="6"
+                                    :placeholder="currentUser?.selfDescription || '请输入'" resize="none"
+                                    @blur="handleIntroductionUpdate" />
+                                <el-button type="primary" class="save-btn" @click="handleIntroductionUpdate">
+                                    <el-icon class="save-icon">
+                                        <Check />
+                                    </el-icon>
+                                    保存介绍
+                                </el-button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -802,6 +1012,31 @@ const isToday = (date) => {
     padding: 6px 12px;
     border-radius: 4px;
     font-size: 14px;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.tag-delete-icon {
+    margin-left: 6px;
+    font-size: 12px;
+    color: #909399;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tag-delete-icon:hover {
+    color: #f56c6c;
+}
+
+.tag-input-container {
+    display: inline-block;
+    margin-left: 8px;
+    width: 120px;
+}
+
+.tag-input {
+    width: 100%;
 }
 
 .add-tag {
@@ -996,5 +1231,45 @@ const isToday = (date) => {
     padding: 1px 6px;
     border-radius: 8px;
     border: 1px solid #b3c6ff;
+}
+
+.settings-right .introduction-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.settings-right .save-btn {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    z-index: 2;
+    background: linear-gradient(45deg, #557ff7, #6e93ff);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    color: white;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 6px rgba(85, 127, 247, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.settings-right .save-btn:hover {
+    background: linear-gradient(45deg, #4066d6, #557ff7);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(85, 127, 247, 0.4);
+}
+
+.settings-right .save-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(85, 127, 247, 0.3);
+}
+
+.save-icon {
+    font-size: 14px;
 }
 </style>
