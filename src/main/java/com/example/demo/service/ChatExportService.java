@@ -2,8 +2,14 @@ package com.example.demo.service;
 
 import com.example.demo.models.ChatMessage;
 import com.example.demo.models.ChatSession;
+import com.itextpdf.io.font.FontProgram;
+import com.itextpdf.io.font.FontProgramFactory;
+import com.itextpdf.kernel.font.PdfFont;
+import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.io.font.PdfEncodings;
+import com.itextpdf.kernel.font.PdfFontFactory.EmbeddingStrategy;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.element.Paragraph;
 import org.apache.poi.ss.usermodel.Row;
@@ -104,6 +110,21 @@ public class ChatExportService {
             PdfWriter writer = new PdfWriter(baos);
             PdfDocument pdfDoc = new PdfDocument(writer);
             Document document = new Document(pdfDoc);
+
+            // 1) 先用 FontProgramFactory 载入本地 TTF
+            FontProgram fontProg = FontProgramFactory.createFont(
+                    this.getClass()
+                            .getResource("/fonts/STSONG.TTF")
+                            .toExternalForm()
+            );
+            // 2) 用 Identity-H 编码并强制嵌入
+            PdfFont font = PdfFontFactory.createFont(
+                    fontProg,
+                    PdfEncodings.IDENTITY_H,
+                    PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED
+            );
+            // 3) 全局生效
+            document.setFont(font);
 
             DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -278,6 +299,21 @@ public class ChatExportService {
             PdfWriter writer = new PdfWriter(baos);
             PdfDocument pdfDoc = new PdfDocument(writer);
             Document document = new Document(pdfDoc);
+
+            // 1) 先用 FontProgramFactory 载入本地 TTF
+            FontProgram fontProg = FontProgramFactory.createFont(
+                    this.getClass()
+                            .getResource("/fonts/STSONG.TTF")
+                            .toExternalForm()
+            );
+            // 2) 用 Identity-H 编码并强制嵌入
+            PdfFont font = PdfFontFactory.createFont(
+                    fontProg,
+                    PdfEncodings.IDENTITY_H,
+                    PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED
+            );
+            // 3) 全局生效
+            document.setFont(font);
 
             DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
             document.add(new Paragraph("多会话聊天记录导出").setFontSize(18).setBold());
