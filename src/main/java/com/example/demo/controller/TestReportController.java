@@ -37,4 +37,21 @@ public class TestReportController {
         }
     }
 
+    /** 根据 userId 查询记录 **/
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<TestReport>> getByUserId(@PathVariable("userId") String userId) {
+        List<TestReport> reports = reportMapper.findByUserId(userId);
+        return ResponseEntity.ok(reports);
+    }
+
+    /** 根据 userId 和 testName 查询记录 **/
+    @GetMapping("/user/{userId}/test")
+    public ResponseEntity<List<TestReport>> getByUserIdAndTestName(
+            @PathVariable("userId") String userId,
+            @RequestParam("testName") String testName) {
+        List<TestReport> reports = reportMapper.findByUserIdAndTestName(userId, testName);
+        return ResponseEntity.ok(reports);
+    }
+
+
 }
