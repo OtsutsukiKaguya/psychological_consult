@@ -25,6 +25,8 @@ public class FindPersonDTO {
     private String jobTitle;
     private Integer counselorSameTime;
     private String tag;
+    private double averageRating;
+    private int totalSessions;
 
     // Getters和Setters
     public String getId() {
@@ -169,5 +171,21 @@ public class FindPersonDTO {
 
     public void setTag(String tag) {
         this.tag = tag;
+    }
+
+    public double getAverageRating() {
+        return averageRating;
+    }
+
+    public void setAverageRating(double averageRating) {
+        this.averageRating = averageRating;
+    }
+
+    public int getTotalSessions() {
+        return totalSessions;
+    }
+
+    public void setTotalSessions(int totalSessions) {
+        this.totalSessions = totalSessions;
     }
 }

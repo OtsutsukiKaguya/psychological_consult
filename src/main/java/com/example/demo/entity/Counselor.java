@@ -7,7 +7,38 @@ public class Counselor {
     private String jobTitle;
     private Integer counselorSameTime;
     private String tag;
+    private double averageRating;
+    private int totalSessions;
 
+    @Override
+    public String toString() {
+        return "Counselor{" +
+                "id='" + id + '\'' +
+                ", dutyArrangement='" + dutyArrangement + '\'' +
+                ", institute='" + institute + '\'' +
+                ", jobTitle='" + jobTitle + '\'' +
+                ", counselorSameTime=" + counselorSameTime +
+                ", tag='" + tag + '\'' +
+                ", averageRating=" + averageRating +
+                ", totalSessions=" + totalSessions +
+                '}';
+    }
+
+    public double getAverageRating() {
+        return averageRating;
+    }
+
+    public void setAverageRating(double averageRating) {
+        this.averageRating = averageRating;
+    }
+
+    public int getTotalSessions() {
+        return totalSessions;
+    }
+
+    public void setTotalSessions(int totalSessions) {
+        this.totalSessions = totalSessions;
+    }
 
     public String getId() {
         return id;
@@ -57,16 +88,5 @@ public class Counselor {
         this.tag = tag;
     }
 
-    @Override
-    public String toString() {
-        return "Counselor{" +
-                "id='" + id + '\'' +
-                ", dutyArrangement='" + dutyArrangement + '\'' +
-                ", institute='" + institute + '\'' +
-                ", jobTitle='" + jobTitle + '\'' +
-                ", counselorSameTime=" + counselorSameTime +
-                ", tag='" + tag + '\'' +
-                '}';
-    }
-
 }
+

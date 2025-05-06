@@ -6,22 +6,37 @@ import com.example.demo.entity.Ask_leave;
 import com.example.demo.entity.Bind;
 import com.example.demo.entity.Duty_calendar;
 import com.example.demo.mapper.BackstageArrangementMapper;
+import com.example.demo.service.DutyScheduleService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.format.annotation.DateTimeFormat;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api")
 public class BackstageArrangementController {
+    @Autowired
+    private DutyScheduleService dutyScheduleService;
 
     private static final Logger logger = LoggerFactory.getLogger(BackstageArrangementController.class);
 
     @Autowired
     private BackstageArrangementMapper backstageArrangementMapper;
+
+    /** 新增：批量生成排班 */
+    @PostMapping("/generate")
+    public Result generate(
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate start,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate end,
+            @RequestParam int perDay) {
+        dutyScheduleService.generateSchedule(start, end, perDay);
+        return Result.success("排班已生成");
+    }
 
     // 查询指定 ID 的值班记录
     @GetMapping("/duty/getdutybyid/{id}")
@@ -335,7 +350,7 @@ public class BackstageArrangementController {
     @GetMapping("/searchCounselorByName")
     public Result searchCounselorByName(@RequestParam String name) {
         try {
-            List<SearchCounselorByNameDTO> counselorList = backstageArrangementMapper.searchCounselorByName(name);
+            List<FindPersonDTO> counselorList = backstageArrangementMapper.searchCounselorByName(name);
             if (!counselorList.isEmpty()) {
                 return Result.success(counselorList);
             } else {
@@ -349,7 +364,7 @@ public class BackstageArrangementController {
     @GetMapping("/searchCounselorByTag")
     public Result searchCounselorByTag(@RequestParam String tag) {
         try {
-            List<SearchCounselorByNameDTO> counselorList = backstageArrangementMapper.searchCounselorByTag(tag);
+            List<FindPersonDTO> counselorList = backstageArrangementMapper.searchCounselorByTag(tag);
             if (!counselorList.isEmpty()) {
                 return Result.success(counselorList);
             } else {
@@ -466,6 +481,120 @@ public class BackstageArrangementController {
         } catch (Exception e) {
             logger.error("查询咨询师记录时发生错误", e);
             return Result.error("查询咨询师记录时发生错误");
+        }
+    }
+
+    @PostMapping("/counselor/update-sametime")
+    public Result updateCounselorSametime(@RequestParam("id") String id, @RequestParam("counselorSametime") int counselorSametime) {
+        try {
+            if (id == null || id.trim().isEmpty()) {
+                return Result.error("Counselor ID cannot be empty");
+            }
+            if (counselorSametime < 0) {
+                return Result.error("Counselor sametime cannot be negative");
+            }
+            int result = backstageArrangementMapper.updateCounselorSametime(id, counselorSametime);
+            if (result <= 0) {
+                logger.warn("Failed to update sametime for counselor ID: {}", id);
+                return Result.error("Failed to update sametime for counselor ID: " + id);
+            }
+            logger.info("Updated sametime for counselor ID: {} to {}", id, counselorSametime);
+            return Result.success("Counselor sametime updated successfully");
+        } catch (Exception e) {
+            logger.error("Error updating sametime for counselor ID: {}", id, e);
+            return Result.error("An error occurred while updating counselor sametime");
+        }
+    }
+
+    // 更新导师的最大同时会话数
+    @PostMapping("/tutor/update-sametime")
+    public Result updateTutorSametime(@RequestParam("id") String id, @RequestParam("counselorSametime") int counselorSametime) {
+        try {
+            if (id == null || id.trim().isEmpty()) {
+                return Result.error("Tutor ID cannot be empty");
+            }
+            if (counselorSametime < 0) {
+                return Result.error("Tutor sametime cannot be negative");
+            }
+            int result = backstageArrangementMapper.updateTutorSametime(id, counselorSametime);
+            if (result <= 0) {
+                logger.warn("Failed to update sametime for tutor ID: {}", id);
+                return Result.error("Failed to update sametime for tutor ID: " + id);
+            }
+            logger.info("Updated sametime for tutor ID: {} to {}", id, counselorSametime);
+            return Result.success("Tutor sametime updated successfully");
+        } catch (Exception e) {
+            logger.error("Error updating sametime for tutor ID: {}", id, e);
+            return Result.error("An error occurred while updating tutor sametime");
+        }
+    }
+
+    // 更新咨询师的标签
+    @PostMapping("/counselor/update-tag")
+    public Result updateCounselorTag(@RequestParam("id") String id, @RequestParam("tag") String tag) {
+        try {
+            if (id == null || id.trim().isEmpty()) {
+                return Result.error("Counselor ID cannot be empty");
+            }
+            if (tag == null || tag.trim().isEmpty()) {
+                return Result.error("Tag cannot be empty");
+            }
+            int result = backstageArrangementMapper.updateCounselorTag(id, tag);
+            if (result <= 0) {
+                logger.warn("Failed to update tag for counselor ID: {}", id);
+                return Result.error("Failed to update tag for counselor ID: " + id);
+            }
+            logger.info("Updated tag for counselor ID: {} to {}", id, tag);
+            return Result.success("Counselor tag updated successfully");
+        } catch (Exception e) {
+            logger.error("Error updating tag for counselor ID: {}", id, e);
+            return Result.error("An error occurred while updating counselor tag");
+        }
+    }
+
+    // 更新导师的标签
+    @PostMapping("/tutor/update-tag")
+    public Result updateTutorTag(@RequestParam("id") String id, @RequestParam("tag") String tag) {
+        try {
+            if (id == null || id.trim().isEmpty()) {
+                return Result.error("Tutor ID cannot be empty");
+            }
+            if (tag == null || tag.trim().isEmpty()) {
+                return Result.error("Tag cannot be empty");
+            }
+            int result = backstageArrangementMapper.updateTutorTag(id, tag);
+            if (result <= 0) {
+                logger.warn("Failed to update tag for tutor ID: {}", id);
+                return Result.error("Failed to update tag for tutor ID: " + id);
+            }
+            logger.info("Updated tag for tutor ID: {} to {}", id, tag);
+            return Result.success("Tutor tag updated successfully");
+        } catch (Exception e) {
+            logger.error("Error updating tag for tutor ID: {}", id, e);
+            return Result.error("An error occurred while updating tutor tag");
+        }
+    }
+
+    // 更新个人自我描述
+    @PostMapping("/person/update-description")
+    public Result updateSelfDescription(@RequestParam("id") String id, @RequestParam("selfDescription") String selfDescription) {
+        try {
+            if (id == null || id.trim().isEmpty()) {
+                return Result.error("Person ID cannot be empty");
+            }
+            if (selfDescription == null || selfDescription.trim().isEmpty()) {
+                return Result.error("Self description cannot be empty");
+            }
+            int result = backstageArrangementMapper.updateSelfDescription(id, selfDescription);
+            if (result <= 0) {
+                logger.warn("Failed to update self description for person ID: {}", id);
+                return Result.error("Failed to update self description for person ID: " + id);
+            }
+            logger.info("Updated self description for person ID: {}", id);
+            return Result.success("Self description updated successfully");
+        } catch (Exception e) {
+            logger.error("Error updating self description for person ID: {}", id, e);
+            return Result.error("An error occurred while updating self description");
         }
     }
 }

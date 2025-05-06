@@ -61,10 +61,10 @@ public interface BackstageArrangementMapper {
     public List<SearchUserDTO> searchUser();
 
     @Select("SELECT * from person p join counselor c ON p.id=c.id where p.name LIKE CONCAT('%', #{name}, '%')")
-    public List<SearchCounselorByNameDTO> searchCounselorByName(String name);
+    public List<FindPersonDTO> searchCounselorByName(String name);
 
     @Select("SELECT * FROM person p JOIN counselor c ON p.id = c.id WHERE c.tag LIKE CONCAT('%', #{tag}, '%')")
-    public List<SearchCounselorByNameDTO> searchCounselorByTag(String tag);
+    public List<FindPersonDTO> searchCounselorByTag(String tag);
 
     @Select("SELECT s2.user_id FROM session_participants s1 join session_participants s2 on s1.session_id=s2.session_id where s2.role='COUNSELOR' and s1.user_id=#{id} and s1.role='USER'")
     public List<SearchCounselorByIdDTO> searchCounselorById(String id);
@@ -124,4 +124,20 @@ public interface BackstageArrangementMapper {
 
     @Select("SELECT * FROM person p join counselor c on p.id=c.id")
     public List<FindPersonDTO> findPerson();
+
+    @Update("UPDATE counselor SET counselor_sametime=#{counselorSametime} WHERE id=#{id}")
+    public int updateCounselorSametime(String id, int counselorSametime);
+
+    @Update("UPDATE tutor SET counselor_sametime=#{counselorSametime} WHERE id=#{id}")
+    public int updateTutorSametime(String id, int counselorSametime);
+
+    @Update("UPDATE counselor SET tag=#{tag} WHERE id=#{id}")
+    public int updateCounselorTag(String id, String tag);
+
+    @Update("UPDATE tutor SET tag=#{tag} WHERE id=#{id}")
+    public int updateTutorTag(String id, String tag);
+
+    @Update("UPDATE person SET self_description=#{selfDescription} WHERE id=#{id}")
+    public int updateSelfDescription(String id, String selfDescription);
 }
+

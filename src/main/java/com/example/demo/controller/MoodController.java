@@ -10,8 +10,10 @@ import com.example.demo.dto.MoodUpsertRequestDTO;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -117,43 +119,51 @@ public class MoodController {
         }
     }
 
-    @GetMapping("/api/moods/export")  //以不同文件格式导出
-    public Result exportMoodRecords(@RequestParam("user_id") String userId,
-                                    @RequestParam("format") String format,
-                                    @RequestParam(value = "start_date", required = false) String startDate,
-                                    @RequestParam(value = "end_date", required = false) String endDate,
-                                    HttpServletRequest request) {
-        // 1. 校验导出格式是否支持
+    @GetMapping("/api/moods/export")  // 下载心情记录文件
+    public ResponseEntity<byte[]> exportMoodRecords(
+            @RequestParam("user_id") String userId,
+            @RequestParam("format") String format,
+            @RequestParam(value = "start_date", required = false) String startDate,
+            @RequestParam(value = "end_date", required = false) String endDate) {
+
+        // 1. 校验格式
         List<String> allowedFormats = Arrays.asList("pdf", "excel", "csv", "txt");
         if (!allowedFormats.contains(format.toLowerCase())) {
-            return Result.error(422, "format 不在允许范围内（pdf / excel / csv / txt）");
+            return ResponseEntity.badRequest()
+                    .body(("不支持的格式: " + format).getBytes(StandardCharsets.UTF_8));
         }
 
-        // 2. 查询符合条件的心情记录
+        // 2. 查询数据
         List<Mood> records = moodMapper.queryMoodRecords(userId, startDate, endDate, null);
         if (records == null || records.isEmpty()) {
-            return Result.error("导出失败：没有找到符合条件的心情记录");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("导出失败：没有找到符合条件的心情记录".getBytes(StandardCharsets.UTF_8));
         }
 
-        // 3. 调用 ExportService 生成文件
+        // 3. 生成导出文件字节流
+        byte[] fileContent = exportService.generateFile(records, format);
+
+        // 4. 构造响应头
         String filename = "mood_records_" + UUID.randomUUID().toString().substring(0, 6) + "." + format;
-        String filePath = exportService.generateFile(records, format, filename);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(resolveContentType(format));
+        headers.setContentDisposition(ContentDisposition.attachment().filename(filename, StandardCharsets.UTF_8).build());
 
-        // 4. 构造导出链接
-        String downloadUrl = request.getScheme() + "://" +
-                request.getServerName() + ":" +
-                request.getServerPort() +
-                "/exports/" + filename;
-
-        Map<String, Object> data = new HashMap<>();
-        data.put("message", "导出成功");
-        data.put("export_url", downloadUrl);
-        data.put("format", format);
-        data.put("file_name", filename);
-        data.put("record_count", records.size());
-
-        return Result.success(data);
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(fileContent);
     }
+
+    private MediaType resolveContentType(String format) {
+        return switch (format.toLowerCase()) {
+            case "pdf" -> MediaType.APPLICATION_PDF;
+            case "excel" -> MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            case "csv", "txt" -> MediaType.TEXT_PLAIN;
+            default -> MediaType.APPLICATION_OCTET_STREAM;
+        };
+    }
+
+
 
     @GetMapping("/api/moods/byDate")
     public Result getMoodByDate(@RequestParam("userId") String userId,
