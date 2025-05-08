@@ -37,7 +37,12 @@
                                             :preview-src-list="[message.fileUrl]" fit="contain" />
                                     </template>
                                     <template v-else-if="message.isAudio">
-                                        <span>[语音消息，{{ message.duration || '?' }}秒]</span>
+                                        <div class="audio-message" @click="playAudio(message.fileUrl)">
+                                            <i class="el-icon-video-play" style="margin-right: 5px;"></i>
+                                            <span>[语音消息，{{ message.duration || '?' }}秒]</span>
+                                            <audio :src="message.fileUrl" controls style="display: none;"
+                                                ref="audioPlayer"></audio>
+                                        </div>
                                     </template>
                                     <template v-else-if="message.isFile">
                                         <a :href="message.fileUrl" target="_blank"
@@ -521,6 +526,27 @@ const connectWebSocket = () => {
                             isFile: true
                         })
                     }
+                } else if (typeof receivedMessage.content === 'string' && receivedMessage.content.includes('.mp3')) {
+                    // 处理content中包含mp3链接的情况
+                    let duration = '?';
+                    // 尝试提取duration参数
+                    const durationMatch = receivedMessage.content.match(/duration["\s:=]+(\d+)/i);
+                    if (durationMatch && durationMatch[1]) {
+                        duration = durationMatch[1];
+                    }
+
+                    // 提取MP3链接
+                    const urlMatch = receivedMessage.content.match(/(https?:\/\/[^\s"]+\.mp3)/i);
+                    const mp3Url = urlMatch ? urlMatch[1] : receivedMessage.content;
+
+                    messages.value.push({
+                        type: 'user',
+                        content: `[语音消息，${duration}秒]`,
+                        fileUrl: mp3Url,
+                        fileType: 'audio/mp3',
+                        isAudio: true,
+                        duration: duration
+                    });
                 } else {
                     messages.value.push({
                         type: 'user',
@@ -1142,6 +1168,17 @@ function getFileTypeFromUrl(url) {
 function isOssImageUrl(url) {
     return typeof url === 'string' && /\.(png|jpe?g|gif|bmp|webp|svg)$/i.test(url)
 }
+
+// 添加播放音频的方法
+const playAudio = (url) => {
+    if (!url) return;
+    // 创建一个新的音频元素来播放
+    const audio = new Audio(url);
+    audio.play().catch(err => {
+        console.error('播放音频失败:', err);
+        ElMessage.error('无法播放音频');
+    });
+}
 </script>
 
 <style scoped>
@@ -1513,5 +1550,19 @@ function isOssImageUrl(url) {
 .fade-enter-from,
 .fade-leave-to {
     opacity: 0;
+}
+
+.audio-message {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 5px;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 5px;
+    transition: background-color 0.2s;
+}
+
+.audio-message:hover {
+    background-color: rgba(0, 0, 0, 0.1);
 }
 </style>

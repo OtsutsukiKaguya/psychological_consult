@@ -34,6 +34,14 @@
                                         style="max-width: 200px; max-height: 200px; cursor: pointer"
                                         :preview-src-list="[message.content]" fit="contain" />
                                 </template>
+                                <template v-else-if="message.isAudio">
+                                    <div class="audio-message" @click="playAudio(message.fileUrl)">
+                                        <i class="el-icon-video-play" style="margin-right: 5px;"></i>
+                                        <span>[语音消息，{{ message.duration || '?' }}秒]</span>
+                                        <audio :src="message.fileUrl" controls style="display: none;"
+                                            ref="audioPlayer"></audio>
+                                    </div>
+                                </template>
                                 <template v-else-if="message.fileUrl">
                                     <template v-if="isImage(message.fileType, message.fileUrl)">
                                         <el-image :src="message.fileUrl"
@@ -371,7 +379,17 @@ const connectWebSocket = () => {
                     let fileInfo = {}
                     try {
                         fileInfo = JSON.parse(receivedMessage.content)
-                        if (isImage(fileInfo.fileType, fileInfo.url)) {
+                        // 判断是否为音频
+                        if (isAudio(fileInfo.fileType, fileInfo.url)) {
+                            userConsultantMessages.value.push({
+                                type: receivedMessage.senderType === 'USER' ? 'user' : 'consultant',
+                                content: `[语音消息，${fileInfo.duration || '?'}秒]`,
+                                fileUrl: fileInfo.url,
+                                fileType: fileInfo.fileType || '',
+                                isAudio: true,
+                                duration: fileInfo.duration || ''
+                            })
+                        } else if (isImage(fileInfo.fileType, fileInfo.url)) {
                             userConsultantMessages.value.push({
                                 type: receivedMessage.senderType === 'USER' ? 'user' : 'consultant',
                                 content: fileInfo.fileName,
@@ -398,6 +416,27 @@ const connectWebSocket = () => {
                             isFile: true
                         })
                     }
+                } else if (typeof receivedMessage.content === 'string' && receivedMessage.content.includes('.mp3')) {
+                    // 处理content中包含mp3链接的情况
+                    let duration = '?';
+                    // 尝试提取duration参数
+                    const durationMatch = receivedMessage.content.match(/duration["\s:=]+(\d+)/i);
+                    if (durationMatch && durationMatch[1]) {
+                        duration = durationMatch[1];
+                    }
+
+                    // 提取MP3链接
+                    const urlMatch = receivedMessage.content.match(/(https?:\/\/[^\s"]+\.mp3)/i);
+                    const mp3Url = urlMatch ? urlMatch[1] : receivedMessage.content;
+
+                    userConsultantMessages.value.push({
+                        type: receivedMessage.senderType === 'USER' ? 'user' : 'consultant',
+                        content: `[语音消息，${duration}秒]`,
+                        fileUrl: mp3Url,
+                        fileType: 'audio/mp3',
+                        isAudio: true,
+                        duration: duration
+                    });
                 } else {
                     // 检查是否是图片URL
                     const content = receivedMessage.content
@@ -829,6 +868,26 @@ const isImageUrl = (url) => {
     if (!url) return false
     return /\.(png|jpe?g|jpeg)$/i.test(url)
 }
+
+// 新增：判断是否为音频类型
+const isAudio = (fileType, fileUrl) => {
+    if (fileType && fileType.startsWith('audio/')) return true
+    if (fileUrl) {
+        return /\.(mp3|wav|ogg|aac)$/i.test(fileUrl)
+    }
+    return false
+}
+
+// 添加播放音频的方法
+const playAudio = (url) => {
+    if (!url) return;
+    // 创建一个新的音频元素来播放
+    const audio = new Audio(url);
+    audio.play().catch(err => {
+        console.error('播放音频失败:', err);
+        ElMessage.error('无法播放音频');
+    });
+}
 </script>
 
 <style scoped>
@@ -1207,5 +1266,19 @@ const isImageUrl = (url) => {
 .fade-enter-from,
 .fade-leave-to {
     opacity: 0;
+}
+
+.audio-message {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 5px;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 5px;
+    transition: background-color 0.2s;
+}
+
+.audio-message:hover {
+    background-color: rgba(0, 0, 0, 0.1);
 }
 </style>
